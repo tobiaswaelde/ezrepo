@@ -34,6 +34,9 @@ export interface NotificationRuleAbilitySubject extends ForcedSubject<CaslSubjec
   repositoryId: string;
 }
 
+/** Delivery history protected through its workflow rule or direct test channel. */
+export type NotificationDeliveryAbilitySubject = ForcedSubject<CaslSubject.NotificationDelivery>;
+
 /** The CASL ability used by ezRepo API policies and query restrictions. */
 export type AppAbility = Ability<
   [
@@ -46,6 +49,7 @@ export type AppAbility = Ability<
       | PullRequestAbilitySubject
       | NotificationChannelAbilitySubject
       | NotificationRuleAbilitySubject
+      | NotificationDeliveryAbilitySubject
     ),
   ],
   EzRepoPrismaQuery

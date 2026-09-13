@@ -71,8 +71,15 @@ async function mockApplication(page: Page): Promise<void> {
   await page.route('**/api/v1/repositories/repository-1/workflow-filters', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/repositories/repository-1/memberships', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/notification-channels', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/v1/notification-channels/query**', (route) => route.fulfill({ json: emptyPage }));
+  await page.route('**/api/v1/notification-channels/manageable-repositories', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/notification-rules', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/v1/notification-rules/query**', (route) => route.fulfill({ json: emptyPage }));
   await page.route('**/api/v1/notification-deliveries', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/v1/notification-deliveries/query**', (route) => route.fulfill({ json: emptyPage }));
+  await page.route('**/api/v1/browser-push', (route) =>
+    route.fulfill({ json: { available: false, publicKey: null, subscriptionCount: 0 } }),
+  );
 }
 
 test('uses the shared page shell without introductory banners', async ({ page }) => {
@@ -84,7 +91,7 @@ test('uses the shared page shell without introductory banners', async ({ page })
   await expect(page.locator('[data-intro-banner-id]')).toHaveCount(0);
   await expect(page.locator('[data-sidebar-footer]')).toBeVisible();
   await expect(page.getByRole('link', { name: 'ezRepo' }).locator('img')).toHaveAttribute('src', '/logo.svg');
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
+  await expect(page.locator('link[rel="icon"][href="/favicon.svg"]')).toHaveAttribute('href', '/favicon.svg');
   await expect(page.getByRole('link', { name: 'GitHub' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Documentation' })).toBeVisible();
   await expect(page.locator('[data-update-indicator]')).toBeVisible();

@@ -542,14 +542,119 @@
   },
   "notifications": {
     "attempts": "{count} Versuche",
-    "channels": "Kanäle",
+    "channelTypes": {
+      "BROWSER_PUSH": "Browser-Push",
+      "CUSTOM_APPRISE": "Eigene Apprise-URL",
+      "DISCORD": "Discord",
+      "EMAIL": "E-Mail",
+      "GOTIFY": "Gotify",
+      "NTFY": "ntfy"
+    },
+    "channels": {
+      "add": "Kanal hinzufügen",
+      "browserOwnerHint": "Dieser Kanal benachrichtigt alle Browser, die unter deinem Benutzerkonto registriert sind.",
+      "createTitle": "Benachrichtigungskanal hinzufügen",
+      "delete": "Kanal löschen",
+      "dialogDescription": "Konfiguriere ein Benachrichtigungsziel für ein Repository.",
+      "disable": "Kanal deaktivieren",
+      "edit": "Kanal bearbeiten",
+      "editTitle": "Benachrichtigungskanal bearbeiten",
+      "empty": "Keine Benachrichtigungskanäle vorhanden.",
+      "enable": "Kanal aktivieren",
+      "replaceConfiguration": "Zielkonfiguration ersetzen",
+      "saveError": "Der Benachrichtigungskanal konnte nicht gespeichert werden.",
+      "secretPreserved": "Das vorhandene schreibgeschützte Ziel bleibt unverändert.",
+      "test": "Testbenachrichtigung senden",
+      "testFailure": "Die Testbenachrichtigung ist fehlgeschlagen.",
+      "testSuccess": "Die Testbenachrichtigung wurde zugestellt."
+    },
+    "columns": {
+      "actions": "Aktionen",
+      "attempts": "Versuche",
+      "channels": "Kanäle",
+      "createdAt": "Erstellt",
+      "error": "Fehler",
+      "event": "Ereignis",
+      "kind": "Art",
+      "name": "Name",
+      "nextAttempt": "Nächster Versuch",
+      "repository": "Repository",
+      "status": "Status",
+      "target": "Ziel",
+      "type": "Typ",
+      "updatedAt": "Aktualisiert",
+      "workflow": "Workflow"
+    },
+    "deliveryKinds": {
+      "TEST": "Test",
+      "WORKFLOW_RUN": "Workflow-Lauf"
+    },
     "description": "Repository-Benachrichtigungskanäle, Regeln und Zustellverlauf.",
     "disabled": "Deaktiviert",
     "enabled": "Aktiviert",
-    "history": "Zustellverlauf",
+    "fields": {
+      "accessToken": "Zugriffstoken",
+      "applicationToken": "Anwendungstoken",
+      "appriseUrl": "Apprise-URL",
+      "channels": "Kanäle",
+      "enabled": "Aktiviert",
+      "event": "Ereignis",
+      "from": "Absenderadresse",
+      "name": "Name",
+      "password": "Passwort",
+      "port": "Port",
+      "priority": "Priorität",
+      "recipients": "Empfänger",
+      "recipientsPlaceholder": "Eine Adresse pro Zeile",
+      "repository": "Repository",
+      "security": "Verbindungssicherheit",
+      "serverUrl": "Server-URL",
+      "smtpHost": "SMTP-Server",
+      "topic": "Topic",
+      "type": "Typ",
+      "username": "Benutzername",
+      "webhookUrl": "Webhook-URL",
+      "workflowPattern": "Workflow-Muster"
+    },
+    "historyView": {
+      "attemptNumber": "Versuch {count}",
+      "attempts": "Zustellversuche",
+      "details": "Zustelldetails anzeigen",
+      "detailsTitle": "Zustelldetails",
+      "empty": "Keine Benachrichtigungszustellungen vorhanden.",
+      "requestedBy": "Angefordert von"
+    },
     "loadError": "Die Benachrichtigungsdaten konnten nicht geladen werden.",
+    "push": {
+      "description": "{count} Browser-Geräte sind für dein Konto registriert.",
+      "disable": "Auf diesem Gerät deaktivieren",
+      "enable": "Auf diesem Gerät aktivieren",
+      "error": "Die Browser-Benachrichtigungen konnten nicht aktualisiert werden.",
+      "title": "Browser-Benachrichtigungen",
+      "unavailable": "Browser-Push nicht verfügbar"
+    },
     "requiresReconfiguration": "Erfordert eine Neukonfiguration",
-    "rules": "Regeln",
+    "rulesView": {
+      "add": "Regel hinzufügen",
+      "createTitle": "Benachrichtigungsregel hinzufügen",
+      "delete": "Regel löschen",
+      "disable": "Regel deaktivieren",
+      "edit": "Regel bearbeiten",
+      "editTitle": "Benachrichtigungsregel bearbeiten",
+      "empty": "Keine Benachrichtigungsregeln vorhanden.",
+      "enable": "Regel aktivieren",
+      "saveError": "Die Benachrichtigungsregel konnte nicht gespeichert werden."
+    },
+    "security": {
+      "NONE": "Keine",
+      "STARTTLS": "STARTTLS",
+      "TLS": "TLS/SSL"
+    },
+    "tabs": {
+      "channels": "Kanäle",
+      "history": "Zustellverlauf",
+      "rules": "Regeln"
+    },
     "title": "Benachrichtigungen"
   },
   "notificationDeliveryStatus": {

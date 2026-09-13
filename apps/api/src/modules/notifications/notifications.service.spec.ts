@@ -1,9 +1,11 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 import { CaslAbilityFactory } from '../../casl/casl-ability.factory.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { CredentialEncryptionService } from '../../security/credential-encryption.service.js';
 import { WorkflowFilterService } from '../repositories/workflow-filter.service.js';
+import type { BrowserPushService } from './browser-push.service.js';
+import { NotificationChannelUrlService } from './notification-channel-url.service.js';
 import type { NotificationDeliveryService } from './notification-delivery.service.js';
 import { NotificationsService } from './notifications.service.js';
 
@@ -27,8 +29,10 @@ describe('NotificationsService', () => {
         update: jest.fn(),
       },
       notificationDelivery: {
+        create: jest.fn(),
         createMany: jest.fn().mockResolvedValue({ count: 0 }),
         findMany: jest.fn().mockResolvedValue([]),
+        findUniqueOrThrow: jest.fn(),
       },
       repositoryMembership: {
         findMany: jest.fn().mockResolvedValue([{ repositoryId: 'repository-a', role: 'VIEWER' }]),
@@ -46,6 +50,8 @@ describe('NotificationsService', () => {
         } as unknown as CredentialEncryptionService,
         new WorkflowFilterService(),
         { deliverPending: jest.fn() } as unknown as NotificationDeliveryService,
+        new NotificationChannelUrlService(),
+        { available: true } as BrowserPushService,
       ),
     };
   }
@@ -94,13 +100,15 @@ describe('NotificationsService', () => {
       },
     );
 
-    expect(prisma.notificationChannel.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        encryptedUrl: 'encrypted:discord://webhook-id/webhook-token',
-        requiresReconfiguration: false,
-        urlScheme: 'discord',
+    expect(prisma.notificationChannel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          encryptedUrl: 'encrypted:discord://webhook-id/webhook-token',
+          requiresReconfiguration: false,
+          urlScheme: 'discord',
+        }),
       }),
-    });
+    );
   });
 
   it('rejects unsafe local-file URLs and legacy channels re-enabled without replacement URLs', async () => {
@@ -112,7 +120,7 @@ describe('NotificationsService', () => {
         { ...user, role: 'MANAGER' },
         { name: 'Unsafe', repositoryId: 'repository-a', url: 'file:///tmp/x' },
       ),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toBeInstanceOf(BadRequestException);
 
     prisma.notificationChannel.findUnique.mockResolvedValue({
       id: 'channel-a',
@@ -186,8 +194,37 @@ describe('NotificationsService', () => {
 
     expect(prisma.notificationDelivery.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { notificationRule: { repositoryId: { in: ['repository-managed'] } } },
+        where: {
+          OR: [
+            { notificationRule: { repositoryId: { in: ['repository-managed'] } } },
+            { testChannel: { repositoryId: { in: ['repository-managed'] } } },
+          ],
+        },
       }),
     );
+  });
+
+  it('creates a non-retrying test delivery for a managed channel', async () => {
+    const { prisma, service } = createService();
+    prisma.repositoryMembership.findUnique.mockResolvedValue({ role: 'MANAGER' });
+    prisma.notificationChannel.findUnique.mockResolvedValue({
+      browserRecipientUserId: null,
+      id: 'channel-a',
+      repositoryId: 'repository-a',
+      type: 'CUSTOM_APPRISE',
+    });
+    prisma.notificationDelivery.create.mockResolvedValue({ id: 'delivery-a' });
+    prisma.notificationDelivery.findUniqueOrThrow.mockResolvedValue({ id: 'delivery-a' });
+
+    await service.testChannel({ ...user, role: 'MANAGER' }, 'channel-a');
+
+    expect(prisma.notificationDelivery.create).toHaveBeenCalledWith({
+      data: {
+        kind: 'TEST',
+        requestedByUserId: 'user-a',
+        testChannelId: 'channel-a',
+      },
+      select: { id: true },
+    });
   });
 });

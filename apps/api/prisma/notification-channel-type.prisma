@@ -1,0 +1,8 @@
+enum NotificationChannelType {
+  EMAIL
+  GOTIFY
+  NTFY
+  DISCORD
+  CUSTOM_APPRISE
+  BROWSER_PUSH
+}

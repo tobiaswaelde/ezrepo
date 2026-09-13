@@ -1,26 +1,43 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import picomatch from 'picomatch';
 
 import { CaslAbilityFactory } from '../../casl/casl-ability.factory.js';
 import { CaslAction } from '../../casl/casl-action.js';
 import { accessibleBy } from '../../casl/casl-prisma.js';
 import { CaslSubject } from '../../casl/casl-subject.js';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { NotificationChannelType, NotificationDeliveryKind, type Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CredentialEncryptionService } from '../../security/credential-encryption.service.js';
 import type { AuthenticatedUser } from '../auth/types.js';
 import { WorkflowFilterService } from '../repositories/workflow-filter.service.js';
+import { BrowserPushService } from './browser-push.service.js';
 import type { CreateNotificationChannelDto, UpdateNotificationChannelDto } from './dto/notification-channel.dto.js';
 import type { CreateNotificationRuleDto, UpdateNotificationRuleDto } from './dto/notification-rule.dto.js';
+import { NotificationChannelUrlService } from './notification-channel-url.service.js';
 import { NotificationDeliveryService } from './notification-delivery.service.js';
+
+const notificationChannelInclude = {
+  browserRecipient: { select: { id: true, username: true } },
+} satisfies Prisma.NotificationChannelInclude;
 
 const notificationRuleInclude = {
   channelLinks: { select: { notificationChannelId: true } },
 } satisfies Prisma.NotificationRuleInclude;
 
 const notificationDeliveryHistoryInclude = {
-  attempts: { orderBy: { createdAt: 'desc' } },
-  notificationRule: { select: { repositoryId: true } },
+  attempts: {
+    include: {
+      notificationChannel: { select: { name: true, type: true } },
+      browserPushSubscription: { select: { id: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  },
+  notificationRule: {
+    select: { outcome: true, repository: { select: { id: true, name: true, owner: true } }, workflowPattern: true },
+  },
+  testChannel: { select: { name: true, repository: { select: { id: true, name: true, owner: true } } } },
+  workflowRun: { select: { id: true, url: true, workflowName: true } },
+  requestedBy: { select: { username: true } },
 } satisfies Prisma.NotificationDeliveryInclude;
 
 /** Manages repository-scoped notification channel records without exposing secrets. */
@@ -32,6 +49,8 @@ export class NotificationsService {
     private readonly credentials: CredentialEncryptionService,
     private readonly workflowFilters: WorkflowFilterService,
     private readonly deliveryService: NotificationDeliveryService,
+    private readonly channelUrls: NotificationChannelUrlService,
+    private readonly browserPush: BrowserPushService,
   ) {}
 
   /** Return channels that belong to repositories visible to the current user. */
@@ -41,6 +60,7 @@ export class NotificationsService {
       CaslSubject.NotificationChannel as never,
     ) as Prisma.NotificationChannelWhereInput;
     return this.prisma.notificationChannel.findMany({
+      include: notificationChannelInclude,
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       where: {
         AND: [accessibleWhere, ...(repositoryId ? [{ repositoryId }] : [])],
@@ -48,19 +68,42 @@ export class NotificationsService {
     });
   }
 
+  /** Return repositories for which the caller may create notification configuration. */
+  async listManageableRepositories(user: AuthenticatedUser) {
+    if (user.role === 'SYSTEM_ADMIN') {
+      return this.prisma.repository.findMany({
+        orderBy: [{ owner: 'asc' }, { name: 'asc' }],
+        select: { id: true, name: true, owner: true },
+      });
+    }
+    if (user.role !== 'MANAGER') return [];
+    return this.prisma.repository.findMany({
+      orderBy: [{ owner: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true, owner: true },
+      where: { memberships: { some: { role: 'MANAGER', userId: user.id } } },
+    });
+  }
+
   /** Create one channel for a repository the caller can manage. */
   async createChannel(user: AuthenticatedUser, input: CreateNotificationChannelDto) {
     await this.assertCanManageRepository(user, input.repositoryId);
-    const url = this.prepareUrl(input.url);
+    const type = input.type ?? NotificationChannelType.CUSTOM_APPRISE;
+    if (type === NotificationChannelType.BROWSER_PUSH && !this.browserPush.available)
+      throw new ServiceUnavailableException('Browser push is not configured.');
+    const configuration = input.configuration ?? (input.url ? { url: input.url } : undefined);
+    const url = this.channelUrls.prepare(type, configuration);
     return this.prisma.notificationChannel.create({
       data: {
         repositoryId: input.repositoryId,
         name: input.name.trim(),
+        type,
         enabled: input.enabled ?? true,
-        encryptedUrl: this.credentials.encrypt(url.value),
-        urlScheme: url.scheme,
+        encryptedUrl: url ? this.credentials.encrypt(url.value) : null,
+        urlScheme: url?.scheme ?? 'browser-push',
+        browserRecipientUserId: type === NotificationChannelType.BROWSER_PUSH ? user.id : null,
         requiresReconfiguration: false,
       },
+      include: notificationChannelInclude,
     });
   }
 
@@ -68,7 +111,9 @@ export class NotificationsService {
   async updateChannel(user: AuthenticatedUser, id: string, input: UpdateNotificationChannelDto) {
     const channel = await this.findChannel(id);
     await this.assertCanManageRepository(user, channel.repositoryId);
-    const url = input.url === undefined ? undefined : this.prepareUrl(input.url);
+    const configuration = input.configuration ?? (input.url ? { url: input.url } : undefined);
+    const url = configuration === undefined ? undefined : this.channelUrls.prepare(channel.type, configuration);
+    if (url === null) throw new ForbiddenException('Browser push channels do not accept destination configuration.');
     if (input.enabled && channel.requiresReconfiguration && url === undefined) {
       throw new ForbiddenException('Configure a replacement Apprise URL before enabling this channel.');
     }
@@ -85,6 +130,7 @@ export class NotificationsService {
             }),
         ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
       },
+      include: notificationChannelInclude,
     });
   }
 
@@ -163,19 +209,44 @@ export class NotificationsService {
   /** List delivery history limited to system administrators and repository managers. */
   async listDeliveryHistory(user: AuthenticatedUser, repositoryId?: string) {
     const managedRepositoryIds = await this.getManagedRepositoryIds(user);
+    const repositoryIds =
+      user.role === 'SYSTEM_ADMIN'
+        ? repositoryId
+          ? [repositoryId]
+          : undefined
+        : repositoryId
+          ? managedRepositoryIds.filter((id) => id === repositoryId)
+          : managedRepositoryIds;
     return this.prisma.notificationDelivery.findMany({
       include: notificationDeliveryHistoryInclude,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       where: {
-        notificationRule: {
-          repositoryId:
-            user.role === 'SYSTEM_ADMIN'
-              ? repositoryId
-                ? { equals: repositoryId }
-                : undefined
-              : { in: repositoryId ? managedRepositoryIds.filter((id) => id === repositoryId) : managedRepositoryIds },
-        },
+        OR: [
+          { notificationRule: repositoryIds ? { repositoryId: { in: repositoryIds } } : {} },
+          { testChannel: repositoryIds ? { repositoryId: { in: repositoryIds } } : {} },
+        ],
       },
+    });
+  }
+
+  /** Create and immediately execute one non-retrying test delivery. */
+  async testChannel(user: AuthenticatedUser, id: string) {
+    const channel = await this.findChannel(id);
+    await this.assertCanManageRepository(user, channel.repositoryId);
+    if (channel.type === NotificationChannelType.BROWSER_PUSH && channel.browserRecipientUserId !== user.id)
+      throw new ForbiddenException('Only the browser-push recipient can test this channel.');
+    const delivery = await this.prisma.notificationDelivery.create({
+      data: {
+        kind: NotificationDeliveryKind.TEST,
+        requestedByUserId: user.id,
+        testChannelId: channel.id,
+      },
+      select: { id: true },
+    });
+    await this.deliveryService.deliverPending([delivery.id]);
+    return this.prisma.notificationDelivery.findUniqueOrThrow({
+      where: { id: delivery.id },
+      include: notificationDeliveryHistoryInclude,
     });
   }
 
@@ -269,18 +340,5 @@ export class NotificationsService {
       throw new ForbiddenException('Notification rules can only use channels from the same repository.');
     }
     return uniqueChannelIds;
-  }
-
-  private prepareUrl(value: string): { scheme: string; value: string } {
-    const url = value.trim();
-    if (!url || /\s/.test(url)) throw new ForbiddenException('An Apprise notification URL is required.');
-    try {
-      const parsed = new URL(url);
-      const scheme = parsed.protocol.slice(0, -1).toLowerCase();
-      if (scheme === 'file') throw new Error('file URLs are not notification destinations');
-      return { scheme, value: url };
-    } catch {
-      throw new ForbiddenException('Provide a valid Apprise notification URL.');
-    }
   }
 }

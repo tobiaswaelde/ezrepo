@@ -12,6 +12,9 @@ model User {
   avatar                  UserAvatar?
   mcpAccessTokens         McpAccessToken[]
   repositoryMemberships   RepositoryMembership[]
+  browserNotificationChannels NotificationChannel[] @relation("BrowserNotificationChannelRecipient")
+  browserPushSubscriptions BrowserPushSubscription[]
+  requestedNotificationDeliveries NotificationDelivery[] @relation("NotificationDeliveryRequester")
 
   @@map("users")
 }

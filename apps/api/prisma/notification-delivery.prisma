@@ -3,20 +3,29 @@ model NotificationDelivery {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  kind       NotificationDeliveryKind   @default(WORKFLOW_RUN)
   status     NotificationDeliveryStatus @default(PENDING)
   finalError String?                    @db.Text
   nextAttemptAt DateTime?
 
-  notificationRuleId String           @db.Uuid
-  notificationRule   NotificationRule @relation(fields: [notificationRuleId], references: [id], onDelete: Cascade)
+  notificationRuleId String?           @db.Uuid
+  notificationRule   NotificationRule? @relation(fields: [notificationRuleId], references: [id], onDelete: Cascade)
 
-  workflowRunId String      @db.Uuid
-  workflowRun   WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  workflowRunId String?      @db.Uuid
+  workflowRun   WorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+
+  testChannelId String?              @db.Uuid
+  testChannel   NotificationChannel? @relation("TestNotificationChannel", fields: [testChannelId], references: [id], onDelete: Cascade)
+
+  requestedByUserId String? @db.Uuid
+  requestedBy       User?   @relation("NotificationDeliveryRequester", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   attempts NotificationDeliveryAttempt[]
 
   @@unique([notificationRuleId, workflowRunId])
   @@index([status, createdAt])
   @@index([status, nextAttemptAt])
+  @@index([testChannelId, createdAt])
+  @@index([requestedByUserId, createdAt])
   @@map("notification_deliveries")
 }

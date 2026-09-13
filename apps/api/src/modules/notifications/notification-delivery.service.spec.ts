@@ -2,6 +2,7 @@ import { NotificationDeliveryStatus } from '../../generated/prisma/client.js';
 import type { JobRunnerService } from '../../jobs/job-runner.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { AppriseNotificationAdapter } from './apprise-notification.adapter.js';
+import type { BrowserPushService } from './browser-push.service.js';
 import { NotificationDeliveryService, notificationRetryDelayMs } from './notification-delivery.service.js';
 
 describe('NotificationDeliveryService', () => {
@@ -18,6 +19,7 @@ describe('NotificationDeliveryService', () => {
           {
             attempts: [],
             id: 'delivery-a',
+            kind: 'WORKFLOW_RUN',
             notificationRule: {
               channelLinks: [
                 {
@@ -25,6 +27,7 @@ describe('NotificationDeliveryService', () => {
                     encryptedUrl: 'encrypted-url',
                     enabled: true,
                     id: 'channel-a',
+                    type: 'CUSTOM_APPRISE',
                   },
                 },
               ],
@@ -52,6 +55,7 @@ describe('NotificationDeliveryService', () => {
       prisma as unknown as PrismaService,
       {} as JobRunnerService,
       apprise as unknown as AppriseNotificationAdapter,
+      { sendToUser: jest.fn() } as unknown as BrowserPushService,
     );
 
     await service.deliverPending(['delivery-a']);
@@ -67,6 +71,91 @@ describe('NotificationDeliveryService', () => {
     expect(prisma.notificationDelivery.update).toHaveBeenCalledWith({
       data: expect.objectContaining({ status: NotificationDeliveryStatus.PENDING }),
       where: { id: 'delivery-a' },
+    });
+  });
+
+  it('excludes browser devices that succeeded during an earlier retry attempt', async () => {
+    const prisma = {
+      notificationDelivery: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            attempts: [
+              {
+                attempt: 1,
+                browserPushSubscriptionId: 'subscription-success',
+                deliveredAt: new Date('2026-09-13T10:00:00.000Z'),
+                notificationChannelId: 'channel-push',
+              },
+              {
+                attempt: 1,
+                browserPushSubscriptionId: 'subscription-retry',
+                deliveredAt: null,
+                notificationChannelId: 'channel-push',
+              },
+            ],
+            id: 'delivery-push',
+            kind: 'WORKFLOW_RUN',
+            notificationRule: {
+              channelLinks: [
+                {
+                  notificationChannel: {
+                    browserRecipientUserId: 'user-a',
+                    enabled: true,
+                    id: 'channel-push',
+                    type: 'BROWSER_PUSH',
+                  },
+                },
+              ],
+            },
+            workflowRun: {
+              completedAt: new Date('2026-09-13T10:00:00.000Z'),
+              durationMs: 60_000,
+              repository: {
+                name: 'ezrepo',
+                owner: 'ezrepo',
+                providerAccount: { providerType: 'GITHUB' },
+              },
+              status: 'FAILED',
+              url: 'https://github.com/ezrepo/ezrepo/actions/runs/1',
+              workflowName: 'Test',
+            },
+          },
+        ]),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      notificationDeliveryAttempt: { create: jest.fn().mockResolvedValue(undefined) },
+    };
+    const browserPush = {
+      sendToUser: jest
+        .fn()
+        .mockResolvedValue([
+          { delivered: true, error: null, recordAttempt: true, subscriptionId: 'subscription-retry' },
+        ]),
+    };
+    const service = new NotificationDeliveryService(
+      prisma as unknown as PrismaService,
+      {} as JobRunnerService,
+      { send: jest.fn() } as unknown as AppriseNotificationAdapter,
+      browserPush as unknown as BrowserPushService,
+    );
+
+    await service.deliverPending(['delivery-push']);
+
+    expect(browserPush.sendToUser).toHaveBeenCalledWith(
+      'user-a',
+      expect.any(Object),
+      new Set(['subscription-success']),
+    );
+    expect(prisma.notificationDeliveryAttempt.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        attempt: 2,
+        browserPushSubscriptionId: 'subscription-retry',
+        deliveredAt: expect.any(Date),
+      }),
+    });
+    expect(prisma.notificationDelivery.update).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: NotificationDeliveryStatus.DELIVERED }),
+      where: { id: 'delivery-push' },
     });
   });
 });

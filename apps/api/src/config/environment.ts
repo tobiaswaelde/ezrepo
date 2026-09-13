@@ -42,6 +42,9 @@ const validators = {
   AUTH_JWT_SECRET: str({ desc: 'JWT signing secret' }),
   AUTH_JWT_EXPIRATION: str({ default: '7d' }),
   TOKEN_ENCRYPTION_KEY: base64Key({ desc: 'Base64-encoded 32-byte encryption key' }),
+  WEB_PUSH_VAPID_PUBLIC_KEY: str({ default: '' }),
+  WEB_PUSH_VAPID_PRIVATE_KEY: str({ default: '' }),
+  WEB_PUSH_VAPID_SUBJECT: str({ default: '' }),
   OAUTH_CALLBACK_URL: httpUrl({
     default: 'http://localhost:3001/api/v1/provider-accounts/oauth/callback',
     desc: 'Public API callback URL registered with OAuth providers',
@@ -110,6 +113,24 @@ export function loadEnvironment(environment: NodeJS.ProcessEnv): EzRepoEnvironme
 
   if (config.FORGEJO_OAUTH_CLIENT_ID && !config.FORGEJO_OAUTH_BASE_URL) {
     throw new Error('FORGEJO_OAUTH_BASE_URL is required when Forgejo OAuth is configured');
+  }
+
+  const webPushValues = [
+    config.WEB_PUSH_VAPID_PUBLIC_KEY,
+    config.WEB_PUSH_VAPID_PRIVATE_KEY,
+    config.WEB_PUSH_VAPID_SUBJECT,
+  ];
+  if (webPushValues.some(Boolean) && !webPushValues.every(Boolean)) {
+    throw new Error(
+      'WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, and WEB_PUSH_VAPID_SUBJECT must be configured together',
+    );
+  }
+  if (
+    config.WEB_PUSH_VAPID_SUBJECT &&
+    !config.WEB_PUSH_VAPID_SUBJECT.startsWith('mailto:') &&
+    !config.WEB_PUSH_VAPID_SUBJECT.startsWith('https://')
+  ) {
+    throw new Error('WEB_PUSH_VAPID_SUBJECT must use mailto: or https://');
   }
 
   return config;

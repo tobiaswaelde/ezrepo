@@ -3,6 +3,7 @@ import type { AxiosResponse } from 'axios';
 import { apiEndpoints } from '~/types/api/endpoints';
 import type {
   ApplicationSettings,
+  BrowserPushStatus,
   CreatedMcpAccessToken,
   CreateMcpAccessToken,
   CreateNotificationChannel,
@@ -88,8 +89,22 @@ export function useEzRepoApi() {
       delete: (id: string): Promise<AxiosResponse<void>> => api.delete(`${apiEndpoints.notificationChannels}/${id}`),
       list: (repositoryId?: string): Promise<AxiosResponse<NotificationChannel[]>> =>
         api.get(apiEndpoints.notificationChannels, { params: { repositoryId } }),
+      manageableRepositories: (): Promise<AxiosResponse<Array<{ id: string; name: string; owner: string }>>> =>
+        api.get(`${apiEndpoints.notificationChannels}/manageable-repositories`),
+      test: (id: string): Promise<AxiosResponse<NotificationDelivery>> =>
+        api.post(`${apiEndpoints.notificationChannels}/${id}/test`),
       update: (id: string, input: UpdateNotificationChannel): Promise<AxiosResponse<NotificationChannel>> =>
         api.patch(`${apiEndpoints.notificationChannels}/${id}`, input),
+    },
+    browserPush: {
+      status: (): Promise<AxiosResponse<BrowserPushStatus>> => api.get(apiEndpoints.browserPush),
+      register: (subscription: PushSubscriptionJSON): Promise<AxiosResponse<void>> =>
+        api.post(`${apiEndpoints.browserPush}/subscriptions`, {
+          endpoint: subscription.endpoint,
+          keys: subscription.keys,
+        }),
+      remove: (endpoint: string): Promise<AxiosResponse<void>> =>
+        api.delete(`${apiEndpoints.browserPush}/subscriptions`, { data: { endpoint } }),
     },
     notificationDeliveries: {
       list: (repositoryId?: string): Promise<AxiosResponse<NotificationDelivery[]>> =>

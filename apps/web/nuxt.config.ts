@@ -117,6 +117,7 @@ export default defineNuxtConfig({
     workbox: {
       cleanupOutdatedCaches: true,
       globPatterns: ['**/*.{css,ico,js,png,svg,woff2}'],
+      importScripts: ['/notification-sw.js'],
       navigateFallback: null,
       runtimeCaching: [],
     },

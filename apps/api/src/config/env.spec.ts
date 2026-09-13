@@ -16,6 +16,9 @@ describe('environment configuration', () => {
   beforeEach(() => {
     process.env = { ...originalEnv, NODE_ENV: 'test' };
     setRequiredEnvironment();
+    delete process.env.WEB_PUSH_VAPID_PUBLIC_KEY;
+    delete process.env.WEB_PUSH_VAPID_PRIVATE_KEY;
+    delete process.env.WEB_PUSH_VAPID_SUBJECT;
   });
 
   afterAll(() => {
@@ -29,7 +32,14 @@ describe('environment configuration', () => {
     expect(environment.PORT).toBe(3001);
     expect(environment.SCHEDULER_ENABLED).toBe(true);
     expect(environment.SCHEDULER_SYNC_INTERVAL_SECONDS).toBe(1_800);
+    expect(environment.WEB_PUSH_VAPID_PUBLIC_KEY).toBe('');
     expect(environment.isTest).toBe(true);
+  });
+
+  it('requires a complete browser-push VAPID configuration', () => {
+    process.env.WEB_PUSH_VAPID_PUBLIC_KEY = 'public-key';
+
+    expect(() => loadEnvironment(process.env)).toThrow('WEB_PUSH_VAPID_PRIVATE_KEY');
   });
 
   it('rejects an encryption key that is not 32 bytes', () => {

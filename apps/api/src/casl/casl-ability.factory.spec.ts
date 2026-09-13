@@ -26,6 +26,14 @@ describe('CaslAbilityFactory', () => {
     expect(
       ability.can(CaslAction.Read, subject(CaslSubject.NotificationChannel, { repositoryId: 'repository-a' })),
     ).toBe(true);
+    expect(
+      ability.can(
+        CaslAction.Read,
+        subject(CaslSubject.NotificationDelivery, {
+          notificationRule: { repositoryId: 'repository-b' },
+        }),
+      ),
+    ).toBe(false);
     expect(ability.can(CaslAction.Read, subject(CaslSubject.Repository, { id: 'repository-c' }))).toBe(false);
     expect(ability.can(CaslAction.Update, subject(CaslSubject.Repository, { id: 'repository-b' }))).toBe(false);
   });
@@ -36,6 +44,14 @@ describe('CaslAbilityFactory', () => {
     expect(ability.can(CaslAction.Update, subject(CaslSubject.Repository, { id: 'repository-b' }))).toBe(true);
     expect(
       ability.can(CaslAction.Update, subject(CaslSubject.NotificationChannel, { repositoryId: 'repository-b' })),
+    ).toBe(true);
+    expect(
+      ability.can(
+        CaslAction.Read,
+        subject(CaslSubject.NotificationDelivery, {
+          testChannel: { repositoryId: 'repository-b' },
+        }),
+      ),
     ).toBe(true);
     expect(ability.can(CaslAction.Update, subject(CaslSubject.Repository, { id: 'repository-a' }))).toBe(false);
     expect(ability.can(CaslAction.Update, subject(CaslSubject.Repository, { id: 'repository-c' }))).toBe(false);

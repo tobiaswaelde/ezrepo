@@ -541,15 +541,120 @@
     "searchPlaceholder": "Rechercher des workflows ou des dépôts"
   },
   "notifications": {
-    "loadError": "Impossible de charger les données de notification.",
     "attempts": "{count} tentatives",
-    "channels": "Canaux",
+    "channelTypes": {
+      "BROWSER_PUSH": "Browser push",
+      "CUSTOM_APPRISE": "Custom Apprise URL",
+      "DISCORD": "Discord",
+      "EMAIL": "Email",
+      "GOTIFY": "Gotify",
+      "NTFY": "ntfy"
+    },
+    "channels": {
+      "add": "Add channel",
+      "browserOwnerHint": "This channel notifies all browsers registered under your user account.",
+      "createTitle": "Add notification channel",
+      "delete": "Delete channel",
+      "dialogDescription": "Configure a repository notification destination.",
+      "disable": "Disable channel",
+      "edit": "Edit channel",
+      "editTitle": "Edit notification channel",
+      "empty": "No notification channels are available.",
+      "enable": "Enable channel",
+      "replaceConfiguration": "Replace destination configuration",
+      "saveError": "The notification channel could not be saved.",
+      "secretPreserved": "The existing write-only destination remains unchanged.",
+      "test": "Send test notification",
+      "testFailure": "The test notification failed.",
+      "testSuccess": "The test notification was delivered."
+    },
+    "columns": {
+      "actions": "Actions",
+      "attempts": "Attempts",
+      "channels": "Channels",
+      "createdAt": "Created",
+      "error": "Error",
+      "event": "Event",
+      "kind": "Kind",
+      "name": "Name",
+      "nextAttempt": "Next attempt",
+      "repository": "Repository",
+      "status": "Status",
+      "target": "Target",
+      "type": "Type",
+      "updatedAt": "Updated",
+      "workflow": "Workflow"
+    },
+    "deliveryKinds": {
+      "TEST": "Test",
+      "WORKFLOW_RUN": "Workflow run"
+    },
+    "fields": {
+      "accessToken": "Access token",
+      "applicationToken": "Application token",
+      "appriseUrl": "Apprise URL",
+      "channels": "Channels",
+      "enabled": "Enabled",
+      "event": "Event",
+      "from": "From address",
+      "name": "Name",
+      "password": "Password",
+      "port": "Port",
+      "priority": "Priority",
+      "recipients": "Recipients",
+      "recipientsPlaceholder": "One address per line",
+      "repository": "Repository",
+      "security": "Connection security",
+      "serverUrl": "Server URL",
+      "smtpHost": "SMTP server",
+      "topic": "Topic",
+      "type": "Type",
+      "username": "Username",
+      "webhookUrl": "Webhook URL",
+      "workflowPattern": "Workflow pattern"
+    },
+    "historyView": {
+      "attemptNumber": "Attempt {count}",
+      "attempts": "Delivery attempts",
+      "details": "View delivery details",
+      "detailsTitle": "Delivery details",
+      "empty": "No notification deliveries are available.",
+      "requestedBy": "Requested by"
+    },
+    "push": {
+      "description": "{count} browser devices are registered for your account.",
+      "disable": "Disable on this device",
+      "enable": "Enable on this device",
+      "error": "Browser notifications could not be updated.",
+      "title": "Browser notifications",
+      "unavailable": "Browser push unavailable"
+    },
+    "rulesView": {
+      "add": "Add rule",
+      "createTitle": "Add notification rule",
+      "delete": "Delete rule",
+      "disable": "Disable rule",
+      "edit": "Edit rule",
+      "editTitle": "Edit notification rule",
+      "empty": "No notification rules are available.",
+      "enable": "Enable rule",
+      "saveError": "The notification rule could not be saved."
+    },
+    "security": {
+      "NONE": "None",
+      "STARTTLS": "STARTTLS",
+      "TLS": "TLS/SSL"
+    },
     "description": "Canaux de notification des dépôts, règles et historique de livraison.",
     "disabled": "Désactivé",
     "enabled": "Activé",
-    "history": "Historique de livraison",
+    "loadError": "Impossible de charger les données de notification.",
     "requiresReconfiguration": "Nécessite une reconfiguration",
-    "rules": "Règles",
+    "tabs": {
+      "channels": "Canaux",
+      "history": "Historique de livraison",
+      "rules": "Règles"
+    },
     "title": "Notifications"
   },
   "notificationDeliveryStatus": {

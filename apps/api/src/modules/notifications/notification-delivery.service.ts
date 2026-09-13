@@ -1,27 +1,32 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 
-import { NotificationDeliveryStatus, type Prisma } from '../../generated/prisma/client.js';
+import {
+  NotificationChannelType,
+  NotificationDeliveryKind,
+  NotificationDeliveryStatus,
+  type Prisma,
+} from '../../generated/prisma/client.js';
 import { JobRunnerService } from '../../jobs/job-runner.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppriseNotificationAdapter } from './apprise-notification.adapter.js';
+import { BrowserPushService } from './browser-push.service.js';
 import type { NotificationPayload } from './notification-channel-adapter.js';
 
+const channelInclude = { browserRecipient: { select: { id: true, username: true } } } as const;
 const deliveryInclude = {
   notificationRule: {
-    include: {
-      channelLinks: { include: { notificationChannel: true } },
-    },
+    include: { channelLinks: { include: { notificationChannel: { include: channelInclude } } } },
   },
-  workflowRun: {
-    include: {
-      repository: { include: { providerAccount: true } },
-    },
+  testChannel: {
+    include: { ...channelInclude, repository: { include: { providerAccount: true } } },
   },
+  workflowRun: { include: { repository: { include: { providerAccount: true } } } },
   attempts: { orderBy: { createdAt: 'desc' } },
 } as const;
 
 type NotificationDeliveryModel = Prisma.NotificationDeliveryGetPayload<{ include: typeof deliveryInclude }>;
+type DeliveryChannel = NonNullable<NotificationDeliveryModel['testChannel']>;
 
 const maximumAttempts = 3;
 
@@ -30,7 +35,7 @@ export function notificationRetryDelayMs(attempt: number): number {
   return Math.min(60_000 * 2 ** Math.max(attempt - 1, 0), 60 * 60_000);
 }
 
-/** Sends pending notification deliveries through their configured channel adapters. */
+/** Sends pending notification deliveries through Apprise or native browser push. */
 @Injectable()
 export class NotificationDeliveryService {
   private readonly logger = new Logger(NotificationDeliveryService.name);
@@ -39,6 +44,7 @@ export class NotificationDeliveryService {
     private readonly prisma: PrismaService,
     private readonly jobs: JobRunnerService,
     private readonly apprise: AppriseNotificationAdapter,
+    private readonly browserPush: BrowserPushService,
   ) {}
 
   /** Retry delivery records whose bounded exponential delay has elapsed. */
@@ -62,91 +68,145 @@ export class NotificationDeliveryService {
   }
 
   private async deliver(delivery: NotificationDeliveryModel): Promise<void> {
-    const attemptedChannels = new Map<string, (typeof delivery.attempts)[number]>();
-    for (const attempt of delivery.attempts) {
-      if (!attemptedChannels.has(attempt.notificationChannelId))
-        attemptedChannels.set(attempt.notificationChannelId, attempt);
-    }
-    const enabledChannels = delivery.notificationRule.channelLinks
-      .map((link) => link.notificationChannel)
-      .filter((channel) => channel.enabled);
-    const channels = enabledChannels.filter(
-      (channel) => channel.enabled && !attemptedChannels.get(channel.id)?.deliveredAt,
-    );
+    const enabledChannels = this.channelsFor(delivery).filter((channel) => channel.enabled);
     if (enabledChannels.length === 0) {
-      await this.prisma.notificationDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          finalError: 'No enabled notification channels are configured.',
-          nextAttemptAt: null,
-          status: NotificationDeliveryStatus.FAILED,
-        },
-      });
-      return;
-    }
-    if (channels.length === 0) {
-      await this.prisma.notificationDelivery.update({
-        where: { id: delivery.id },
-        data: { finalError: null, nextAttemptAt: null, status: NotificationDeliveryStatus.DELIVERED },
-      });
+      await this.finish(delivery, false, 1, 'No enabled notification channels are configured.');
       return;
     }
 
     const payload = this.createPayload(delivery);
-    const failedChannelIds = new Set(
-      [...attemptedChannels.values()]
-        .filter((attempt) => !attempt.deliveredAt)
-        .map((attempt) => attempt.notificationChannelId),
-    );
     const attemptNumber = Math.max(0, ...delivery.attempts.map((attempt) => attempt.attempt)) + 1;
-    for (const channel of channels) {
+    const failedChannelIds = new Set<string>();
+    for (const channel of enabledChannels) {
+      const deliveredSubscriptionIds = new Set(
+        delivery.attempts
+          .filter((attempt) => attempt.notificationChannelId === channel.id && attempt.deliveredAt)
+          .flatMap((attempt) => (attempt.browserPushSubscriptionId ? [attempt.browserPushSubscriptionId] : [])),
+      );
+      const channelAlreadyDelivered = delivery.attempts.some(
+        (attempt) =>
+          attempt.notificationChannelId === channel.id && attempt.deliveredAt && !attempt.browserPushSubscriptionId,
+      );
+      if (channel.type !== NotificationChannelType.BROWSER_PUSH && channelAlreadyDelivered) continue;
+
+      const delivered = await this.deliverChannel(delivery, channel, payload, attemptNumber, deliveredSubscriptionIds);
+      if (!delivered) failedChannelIds.add(channel.id);
+    }
+
+    await this.finish(
+      delivery,
+      failedChannelIds.size === 0,
+      attemptNumber,
+      failedChannelIds.size > 0 ? 'One or more notification channels failed.' : null,
+    );
+    if (failedChannelIds.size > 0)
+      this.logger.warn(`Notification delivery ${delivery.id} failed for ${failedChannelIds.size} channel(s).`);
+  }
+
+  private async deliverChannel(
+    delivery: NotificationDeliveryModel,
+    channel: DeliveryChannel,
+    payload: NotificationPayload,
+    attempt: number,
+    deliveredSubscriptionIds: Set<string>,
+  ): Promise<boolean> {
+    if (channel.type !== NotificationChannelType.BROWSER_PUSH) {
       try {
         await this.apprise.send(channel, payload);
-        failedChannelIds.delete(channel.id);
-        await this.prisma.notificationDeliveryAttempt.create({
-          data: {
-            attempt: attemptNumber,
-            deliveredAt: new Date(),
-            notificationChannelId: channel.id,
-            notificationDeliveryId: delivery.id,
-          },
-        });
+        await this.createAttempt(delivery.id, channel.id, attempt, true);
+        return true;
       } catch (error) {
-        failedChannelIds.add(channel.id);
-        await this.prisma.notificationDeliveryAttempt.create({
-          data: {
-            attempt: attemptNumber,
-            error: this.errorMessage(error),
-            notificationChannelId: channel.id,
-            notificationDeliveryId: delivery.id,
-          },
-        });
+        await this.createAttempt(delivery.id, channel.id, attempt, false, this.errorMessage(error));
+        return false;
       }
     }
 
-    const hasRemainingFailedChannels = failedChannelIds.size > 0;
+    try {
+      if (!channel.browserRecipientUserId) throw new Error('Browser push recipient is missing.');
+      const results = await this.browserPush.sendToUser(
+        channel.browserRecipientUserId,
+        payload,
+        deliveredSubscriptionIds,
+      );
+      for (const result of results) {
+        if (!result.recordAttempt) continue;
+        await this.createAttempt(
+          delivery.id,
+          channel.id,
+          attempt,
+          result.delivered,
+          result.error,
+          result.subscriptionId,
+        );
+      }
+      return results.every((result) => result.delivered);
+    } catch {
+      await this.createAttempt(delivery.id, channel.id, attempt, false, 'Browser push delivery failed.');
+      return false;
+    }
+  }
+
+  private async createAttempt(
+    deliveryId: string,
+    channelId: string,
+    attempt: number,
+    delivered: boolean,
+    error: string | null = null,
+    subscriptionId?: string,
+  ): Promise<void> {
+    await this.prisma.notificationDeliveryAttempt.create({
+      data: {
+        attempt,
+        deliveredAt: delivered ? new Date() : null,
+        error,
+        notificationChannelId: channelId,
+        notificationDeliveryId: deliveryId,
+        ...(subscriptionId ? { browserPushSubscriptionId: subscriptionId } : {}),
+      },
+    });
+  }
+
+  private async finish(
+    delivery: NotificationDeliveryModel,
+    delivered: boolean,
+    attemptNumber: number,
+    error: string | null,
+  ): Promise<void> {
+    const terminalFailure = delivery.kind === NotificationDeliveryKind.TEST || attemptNumber >= maximumAttempts;
     await this.prisma.notificationDelivery.update({
       where: { id: delivery.id },
-      data: !hasRemainingFailedChannels
+      data: delivered
         ? { finalError: null, nextAttemptAt: null, status: NotificationDeliveryStatus.DELIVERED }
-        : attemptNumber >= maximumAttempts
-          ? {
-              finalError: 'One or more notification channels failed.',
-              nextAttemptAt: null,
-              status: NotificationDeliveryStatus.FAILED,
-            }
+        : terminalFailure
+          ? { finalError: error, nextAttemptAt: null, status: NotificationDeliveryStatus.FAILED }
           : {
               finalError: null,
               nextAttemptAt: new Date(Date.now() + notificationRetryDelayMs(attemptNumber)),
               status: NotificationDeliveryStatus.PENDING,
             },
     });
-    if (hasRemainingFailedChannels)
-      this.logger.warn(`Notification delivery ${delivery.id} failed for ${failedChannelIds.size} channel(s).`);
+  }
+
+  private channelsFor(delivery: NotificationDeliveryModel): DeliveryChannel[] {
+    if (delivery.kind === NotificationDeliveryKind.TEST) return delivery.testChannel ? [delivery.testChannel] : [];
+    return (delivery.notificationRule?.channelLinks.map((link) => link.notificationChannel) ?? []) as DeliveryChannel[];
   }
 
   private createPayload(delivery: NotificationDeliveryModel): NotificationPayload {
-    const { workflowRun } = delivery;
+    if (delivery.kind === NotificationDeliveryKind.TEST) {
+      if (!delivery.testChannel) throw new Error('Test notification channel is missing.');
+      return {
+        completedAt: new Date(),
+        durationMs: 0,
+        provider: delivery.testChannel.repository.providerAccount.providerType,
+        repository: `${delivery.testChannel.repository.owner}/${delivery.testChannel.repository.name}`,
+        runUrl: '',
+        status: 'SUCCESS',
+        workflowName: 'ezRepo test notification',
+      };
+    }
+    const workflowRun = delivery.workflowRun;
+    if (!workflowRun) throw new Error('Workflow notification run is missing.');
     return {
       completedAt: workflowRun.completedAt,
       durationMs: workflowRun.durationMs,
@@ -159,9 +219,8 @@ export class NotificationDeliveryService {
   }
 
   private errorMessage(error: unknown): string {
-    if (error instanceof Error && error.message === 'Apprise notification delivery failed.') {
-      return error.message;
-    }
-    return 'Notification delivery failed.';
+    return error instanceof Error && error.message === 'Apprise notification delivery failed.'
+      ? error.message
+      : 'Notification delivery failed.';
   }
 }

@@ -5,6 +5,7 @@ import type {
   CreateNotificationRule,
   Issue,
   NotificationChannel,
+  NotificationDelivery,
   NotificationRule,
   ProviderAccount,
   PullRequest,
@@ -37,6 +38,7 @@ export const apiEndpoints = {
   health: '/health',
   mcpTokens: '/mcp-tokens',
   notificationChannels: '/notification-channels',
+  browserPush: '/browser-push',
   notificationDeliveries: '/notification-deliveries',
   notificationRules: '/notification-rules',
   providerAccounts: {
@@ -57,6 +59,9 @@ export const apiEndpoints = {
 
 /** Resource endpoints that use the shared Query Kit pagination contract. */
 export interface Endpoints {
+  'notification-channels/query': { create: never; dto: NotificationChannel; update: never };
+  'notification-rules/query': { create: never; dto: NotificationRule; update: never };
+  'notification-deliveries/query': { create: never; dto: NotificationDelivery; update: never };
   'provider-accounts': {
     create: never;
     dto: ProviderAccount;

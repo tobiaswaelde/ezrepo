@@ -1,0 +1,16 @@
+model BrowserPushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  endpointHash      String @unique @db.VarChar(64)
+  encryptedEndpoint String @db.Text
+  encryptedP256dh   String @db.Text
+  encryptedAuth     String @db.Text
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveryAttempts NotificationDeliveryAttempt[]
+
+  @@index([userId, updatedAt])
+  @@map("browser_push_subscriptions")
+}

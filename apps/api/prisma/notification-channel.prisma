@@ -10,6 +10,7 @@ model NotificationChannel {
   updatedAt DateTime @updatedAt
 
   name                    String  @db.VarChar(255)
+  type                    NotificationChannelType @default(CUSTOM_APPRISE)
   enabled                 Boolean @default(true)
   encryptedUrl            String? @db.Text
   urlScheme               String? @db.VarChar(64)
@@ -17,10 +18,14 @@ model NotificationChannel {
 
   repositoryId String     @db.Uuid
   repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  browserRecipientUserId String? @db.Uuid
+  browserRecipient       User?   @relation("BrowserNotificationChannelRecipient", fields: [browserRecipientUserId], references: [id], onDelete: Cascade)
   ruleLinks    NotificationRuleChannel[]
   deliveryAttempts NotificationDeliveryAttempt[]
+  testDeliveries NotificationDelivery[] @relation("TestNotificationChannel")
 
   @@unique([repositoryId, name])
   @@index([repositoryId, enabled])
+  @@index([browserRecipientUserId])
   @@map("notification_channels")
 }

@@ -12,7 +12,11 @@ model NotificationDeliveryAttempt {
   notificationChannelId String              @db.Uuid
   notificationChannel   NotificationChannel @relation(fields: [notificationChannelId], references: [id], onDelete: Cascade)
 
-  @@unique([notificationDeliveryId, notificationChannelId, attempt], map: "notification_delivery_attempts_notificationDeliveryId_notificat")
+  browserPushSubscriptionId String?                  @db.Uuid
+  browserPushSubscription   BrowserPushSubscription? @relation(fields: [browserPushSubscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([notificationDeliveryId, notificationChannelId, attempt], map: "notification_delivery_attempts_delivery_channel_attempt_idx")
   @@index([notificationChannelId, createdAt], map: "notification_delivery_attempts_notificationChannelId_createdAt_")
+  @@index([browserPushSubscriptionId, createdAt])
   @@map("notification_delivery_attempts")
 }

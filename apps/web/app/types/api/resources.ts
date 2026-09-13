@@ -428,28 +428,62 @@ export interface WorkItemFilterOptions {
   milestones: string[];
 }
 
+/** Supported guided or native notification destination. */
+export type NotificationChannelType = 'EMAIL' | 'GOTIFY' | 'NTFY' | 'DISCORD' | 'CUSTOM_APPRISE' | 'BROWSER_PUSH';
+
+/** Complete write-only destination configuration for one guided Apprise channel. */
+export type NotificationChannelConfiguration =
+  | {
+      from: string;
+      password?: string;
+      port?: number;
+      recipients: string[];
+      security: 'NONE' | 'STARTTLS' | 'TLS';
+      smtpHost: string;
+      username?: string;
+    }
+  | { priority?: 'low' | 'moderate' | 'normal' | 'high'; serverUrl: string; token: string }
+  | {
+      password?: string;
+      priority?: 'min' | 'low' | 'default' | 'high' | 'max';
+      serverUrl?: string;
+      token?: string;
+      topic: string;
+      username?: string;
+    }
+  | { webhookUrl: string }
+  | { url: string };
+
 /** Safe repository-scoped notification channel. Secrets are never returned by the API. */
 export interface NotificationChannel {
+  browserRecipientUserId: string | null;
+  browserRecipientUsername: string | null;
+  canManage: boolean;
   createdAt: ApiTimestamp;
   enabled: boolean;
   id: string;
   name: string;
   repositoryId: string;
+  repositoryName: string | null;
+  repositoryOwner: string | null;
   requiresReconfiguration: boolean;
   updatedAt: ApiTimestamp;
   urlScheme: string | null;
+  type: NotificationChannelType;
 }
 
 /** Input for creating a repository notification channel. */
 export interface CreateNotificationChannel {
+  configuration?: NotificationChannelConfiguration;
   enabled?: boolean;
   name: string;
   repositoryId: string;
-  url: string;
+  type: NotificationChannelType;
 }
 
 /** Input for updating a repository notification channel. */
 export interface UpdateNotificationChannel {
+  configuration?: NotificationChannelConfiguration;
   enabled?: boolean;
   name?: string;
   url?: string;
@@ -460,12 +494,16 @@ export type NotificationRuleOutcome = 'SUCCESS' | 'FAILED';
 
 /** Repository-scoped workflow notification rule. */
 export interface NotificationRule {
+  canManage: boolean;
+  channels: Array<{ id: string; name: string; type: NotificationChannelType }>;
   channelIds: string[];
   createdAt: ApiTimestamp;
   enabled: boolean;
   id: string;
   outcome: NotificationRuleOutcome;
   repositoryId: string;
+  repositoryName: string | null;
+  repositoryOwner: string | null;
   updatedAt: ApiTimestamp;
   workflowPattern: string;
 }
@@ -497,7 +535,11 @@ export interface NotificationDeliveryAttempt {
   deliveredAt: ApiTimestamp | null;
   error: string | null;
   id: string;
+  browserPushSubscriptionId: string | null;
+  deviceLabel: string | null;
   notificationChannelId: string;
+  notificationChannelName: string;
+  notificationChannelType: NotificationChannelType;
 }
 
 /** Authorized notification delivery history including safe attempt metadata. */
@@ -506,12 +548,28 @@ export interface NotificationDelivery {
   createdAt: ApiTimestamp;
   finalError: string | null;
   id: string;
+  kind: 'WORKFLOW_RUN' | 'TEST';
   nextAttemptAt: ApiTimestamp | null;
-  notificationRuleId: string;
+  notificationRuleId: string | null;
+  outcome: NotificationRuleOutcome | null;
   repositoryId: string;
+  repositoryName: string;
+  repositoryOwner: string;
+  requestedByUsername: string | null;
   status: NotificationDeliveryStatus;
+  testChannelName: string | null;
   updatedAt: ApiTimestamp;
-  workflowRunId: string;
+  workflowName: string | null;
+  workflowPattern: string | null;
+  workflowRunId: string | null;
+  workflowUrl: string | null;
+}
+
+/** Browser-push feature availability and enrollment summary for the current user. */
+export interface BrowserPushStatus {
+  available: boolean;
+  publicKey: string | null;
+  subscriptionCount: number;
 }
 
 /** Last persisted synchronization status for one configured provider account. */
