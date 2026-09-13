@@ -1,0 +1,15 @@
+meta {
+  name: List issues
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/v1/issues?page=1&perPage=25&labels=bug
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

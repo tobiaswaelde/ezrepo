@@ -305,6 +305,80 @@ export interface WorkflowRun {
   workflowName: string;
 }
 
+/** Safe provider identity attached to issues and pull requests. */
+export interface WorkItemActor {
+  avatarUrl: string | null;
+  displayName: string | null;
+  url: string | null;
+  username: string;
+}
+
+/** Repository-specific provider label attached to a work item. */
+export interface WorkItemLabel {
+  color: string | null;
+  description: string | null;
+  name: string;
+}
+
+interface WorkItemBase {
+  assignees: WorkItemActor[];
+  author: WorkItemActor | null;
+  body?: string | null;
+  closedAt: ApiTimestamp | null;
+  id: string;
+  labels: WorkItemLabel[];
+  number: string;
+  providerCreatedAt: ApiTimestamp;
+  providerType: ProviderType;
+  providerUpdatedAt: ApiTimestamp;
+  repositoryId: string;
+  repositoryName: string;
+  repositoryOwner: string;
+  title: string;
+  url: string;
+}
+
+/** Permission-filtered provider issue. */
+export interface Issue extends WorkItemBase {
+  milestone: string | null;
+  state: 'OPEN' | 'CLOSED';
+}
+
+/** Permission-filtered provider pull or merge request. */
+export interface PullRequest extends WorkItemBase {
+  draft: boolean;
+  mergedAt: ApiTimestamp | null;
+  sourceBranch: string;
+  state: 'OPEN' | 'CLOSED' | 'MERGED';
+  targetBranch: string;
+  workflowApprovalRequired: boolean;
+  workflowStatus: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'UNKNOWN';
+}
+
+/** Issue overview counters. */
+export interface IssueSummary {
+  assigned: number;
+  open: number;
+  recentlyUpdated: number;
+  stale: number;
+}
+
+/** Pull-request overview counters. */
+export interface PullRequestSummary {
+  drafts: number;
+  failedWorkflows: number;
+  open: number;
+  workflowApprovalRequired: number;
+}
+
+/** Permission-aware values offered by work-item filters. */
+export interface WorkItemFilterOptions {
+  assignees: string[];
+  authors: string[];
+  labels: string[];
+  milestones: string[];
+}
+
 /** Safe repository-scoped notification channel. Secrets are never returned by the API. */
 export interface NotificationChannel {
   createdAt: ApiTimestamp;

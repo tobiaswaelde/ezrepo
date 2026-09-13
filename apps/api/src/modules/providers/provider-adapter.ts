@@ -25,6 +25,66 @@ export interface ProviderRepositoryReference {
   providerRepositoryId: string;
 }
 
+/** Shared provider identity attached to an issue or pull request. */
+export interface ProviderActor {
+  avatarUrl: string | null;
+  displayName: string | null;
+  providerActorId: string;
+  url: string | null;
+  username: string;
+}
+
+/** Provider label normalized without losing its repository-specific presentation. */
+export interface ProviderWorkItemLabel {
+  color: string | null;
+  description: string | null;
+  name: string;
+  providerLabelId: string | null;
+}
+
+/** Window used for an initial or incremental work-item synchronization. */
+export interface ProviderWorkItemQuery {
+  includeAllOpen: boolean;
+  updatedAfter: Date;
+}
+
+/** Provider issue normalized before persistence in ezRepo. */
+export interface ProviderIssue {
+  assignees: ProviderActor[];
+  author: ProviderActor | null;
+  body: string | null;
+  closedAt: Date | null;
+  labels: ProviderWorkItemLabel[];
+  milestone: string | null;
+  number: string;
+  providerCreatedAt: Date;
+  providerIssueId: string;
+  providerUpdatedAt: Date;
+  state: 'OPEN' | 'CLOSED';
+  title: string;
+  url: string;
+}
+
+/** Provider pull or merge request normalized before persistence in ezRepo. */
+export interface ProviderPullRequest {
+  assignees: ProviderActor[];
+  author: ProviderActor | null;
+  body: string | null;
+  closedAt: Date | null;
+  draft: boolean;
+  labels: ProviderWorkItemLabel[];
+  mergedAt: Date | null;
+  number: string;
+  providerCreatedAt: Date;
+  providerPullRequestId: string;
+  providerUpdatedAt: Date;
+  sourceBranch: string;
+  state: 'OPEN' | 'CLOSED' | 'MERGED';
+  targetBranch: string;
+  title: string;
+  url: string;
+}
+
 /** Read-only lifecycle metadata used to retire obsolete change-request workflow failures. */
 export interface ProviderChangeRequestState {
   mergedAt: Date | null;
@@ -73,6 +133,20 @@ export interface ProviderAccountValidation {
 export interface VerifiedWebhook {
   event: string;
   providerRepositoryId: string | null;
+  syncScopes: ProviderSyncScope[];
+}
+
+/** Independently coalesced domains supported by repository synchronization. */
+export type ProviderSyncScope = 'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS';
+
+/** Map provider webhook event names to the smallest safe synchronization scope. */
+export function providerWebhookSyncScopes(event: string): ProviderSyncScope[] {
+  const normalized = event.toLocaleLowerCase('en-US');
+  if (normalized.includes('issue') && !normalized.includes('pull')) return ['ISSUES'];
+  if (normalized.includes('pull') || normalized.includes('merge request')) return ['PULL_REQUESTS'];
+  if (normalized.includes('workflow') || normalized.includes('pipeline') || normalized.includes('job'))
+    return ['WORKFLOWS'];
+  return ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'];
 }
 
 /** Read-only webhook request data received by ezRepo. */
@@ -106,6 +180,16 @@ export interface ProviderAdapter {
     repository: ProviderRepositoryReference,
     providerRunId: string,
   ): Promise<ProviderWorkflowRun | null>;
+  listIssues(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+    query: ProviderWorkItemQuery,
+  ): Promise<ProviderIssue[]>;
+  listPullRequests(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+    query: ProviderWorkItemQuery,
+  ): Promise<ProviderPullRequest[]>;
   listRepositories(context: ProviderAccountContext): Promise<ProviderRepository[]>;
   listWorkflowRuns(
     context: ProviderAccountContext,

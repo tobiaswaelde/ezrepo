@@ -183,7 +183,11 @@ export class WorkflowRunDto {
 /** Workflow run with the minimal repository and provider context exposed by the resource endpoint. */
 export type WorkflowRunResourceModel = Omit<
   WorkflowRun,
-  'changeRequestCheckedAt' | 'changeRequestMergedAt' | 'changeRequestState' | 'changeRequestTargetBranch'
+  | 'changeRequestCheckedAt'
+  | 'changeRequestMergedAt'
+  | 'changeRequestState'
+  | 'changeRequestTargetBranch'
+  | 'pullRequestId'
 > & {
   repository: Pick<Repository, 'name' | 'owner'> & {
     providerAccount: Pick<ProviderAccount, 'providerType'>;

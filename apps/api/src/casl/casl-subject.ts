@@ -5,6 +5,8 @@ export enum CaslSubject {
   ProviderAccount = 'ProviderAccount',
   Repository = 'Repository',
   WorkflowRun = 'WorkflowRun',
+  Issue = 'Issue',
+  PullRequest = 'PullRequest',
   NotificationChannel = 'NotificationChannel',
   NotificationRule = 'NotificationRule',
   NotificationDelivery = 'NotificationDelivery',

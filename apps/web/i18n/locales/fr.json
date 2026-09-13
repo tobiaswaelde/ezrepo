@@ -106,7 +106,65 @@
     "totalDuration": "Total runtime",
     "totalDurationContext": "Across all runs, including retained history"
   },
+  "issues": {
+    "assigned": "Tickets ouverts assignés",
+    "description": "Consultez les tickets des dépôts accessibles.",
+    "open": "Tickets ouverts",
+    "recent": "Mis à jour en 7 jours",
+    "stale": "Inactifs depuis 30 jours",
+    "title": "Tickets"
+  },
+  "pullRequests": {
+    "approval": "Approbation du workflow",
+    "approvalRequired": "Approbation du workflow requise",
+    "description": "Consultez les pull requests et leurs workflows.",
+    "draft": "Brouillon",
+    "drafts": "Brouillons",
+    "failed": "Workflows échoués",
+    "open": "Pull requests ouvertes",
+    "openMergeRequest": "Ouvrir la merge request",
+    "sourceBranch": "Branche source",
+    "targetBranch": "Branche cible",
+    "title": "Pull requests",
+    "workflowStatus": "État du workflow"
+  },
+  "workItems": {
+    "assignee": "Assigné à",
+    "columns": {
+      "author": "Auteur",
+      "created": "Créé",
+      "number": "Numéro",
+      "state": "État",
+      "title": "Titre",
+      "updated": "Mis à jour"
+    },
+    "description": "Description",
+    "empty": "Aucun élément correspondant.",
+    "labels": "Labels",
+    "loadError": "Impossible de charger les éléments.",
+    "milestone": "Jalon",
+    "noDescription": "Aucune description fournie.",
+    "openProvider": "Ouvrir chez le fournisseur",
+    "provider": "Fournisseur",
+    "repository": "Dépôt",
+    "search": "Rechercher",
+    "searchPlaceholder": "Rechercher un numéro ou titre",
+    "states": { "CLOSED": "Fermé", "MERGED": "Fusionné", "OPEN": "Ouvert" },
+    "summary": "Vue du travail",
+    "updatedFrom": "Mis à jour depuis",
+    "updatedTo": "Mis à jour jusqu’au",
+    "workflowStatuses": {
+      "CANCELLED": "Annulé",
+      "FAILED": "Échoué",
+      "PENDING": "En attente",
+      "RUNNING": "En cours",
+      "SUCCESS": "Réussi",
+      "UNKNOWN": "Inconnu"
+    }
+  },
   "layout": {
+    "issues": "Tickets",
+    "pullRequests": "Pull requests",
     "administration": "Administration",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Tableau de bord",

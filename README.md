@@ -3,7 +3,7 @@
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/tobiaswaelde)
 
 ezRepo is a read-only dashboard for GitHub Actions, GitLab pipelines, Forgejo
-Actions, and Gitea Actions. It tracks selected workflow runs, shows failures and trends,
+Actions, and Gitea Actions. It tracks selected workflow runs, issues, and pull requests, shows failures and trends,
 and sends notifications without modifying provider resources.
 
 [Read the ezRepo documentation](https://tobiaswaelde.github.io/ezrepo/).

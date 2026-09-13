@@ -1,4 +1,4 @@
-import { buildWorkflowRunScopeKey, type ProviderAdapter } from './provider-adapter.js';
+import { buildWorkflowRunScopeKey, type ProviderAdapter, providerWebhookSyncScopes } from './provider-adapter.js';
 
 describe('ProviderAdapter contract', () => {
   it('supports only read-only provider operations', async () => {
@@ -7,6 +7,8 @@ describe('ProviderAdapter contract', () => {
       getChangeRequestState: jest.fn().mockResolvedValue(null),
       getRepository: jest.fn().mockResolvedValue(null),
       getWorkflowRun: jest.fn().mockResolvedValue(null),
+      listIssues: jest.fn().mockResolvedValue([]),
+      listPullRequests: jest.fn().mockResolvedValue([]),
       listRepositories: jest.fn().mockResolvedValue([]),
       listWorkflowRuns: jest.fn().mockResolvedValue([]),
       validateAccount: jest.fn().mockResolvedValue({ displayName: 'GitHub', valid: true }),
@@ -24,5 +26,12 @@ describe('ProviderAdapter contract', () => {
     expect(buildWorkflowRunScopeKey('42', 'feature/workflows')).toBe('change-request:42');
     expect(buildWorkflowRunScopeKey(null, 'main')).toBe('branch:main');
     expect(buildWorkflowRunScopeKey(null, null)).toBe('repository');
+  });
+
+  it('maps webhook events to the narrowest work domain', () => {
+    expect(providerWebhookSyncScopes('issues')).toEqual(['ISSUES']);
+    expect(providerWebhookSyncScopes('Merge Request Hook')).toEqual(['PULL_REQUESTS']);
+    expect(providerWebhookSyncScopes('workflow_run')).toEqual(['WORKFLOWS']);
+    expect(providerWebhookSyncScopes('push')).toEqual(['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS']);
   });
 });

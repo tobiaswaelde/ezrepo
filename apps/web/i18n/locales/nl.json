@@ -106,7 +106,65 @@
     "totalDuration": "Total runtime",
     "totalDurationContext": "Across all runs, including retained history"
   },
+  "issues": {
+    "assigned": "Toegewezen open issues",
+    "description": "Bekijk issues uit toegankelijke repositories.",
+    "open": "Open issues",
+    "recent": "Bijgewerkt in 7 dagen",
+    "stale": "30 dagen niet bijgewerkt",
+    "title": "Issues"
+  },
+  "pullRequests": {
+    "approval": "Workflowgoedkeuring",
+    "approvalRequired": "Workflowgoedkeuring vereist",
+    "description": "Bekijk pull requests en hun workflowstatus.",
+    "draft": "Concept",
+    "drafts": "Concepten",
+    "failed": "Mislukte workflows",
+    "open": "Open pull requests",
+    "openMergeRequest": "Merge request openen",
+    "sourceBranch": "Bronbranch",
+    "targetBranch": "Doelbranch",
+    "title": "Pull requests",
+    "workflowStatus": "Workflowstatus"
+  },
+  "workItems": {
+    "assignee": "Toegewezen aan",
+    "columns": {
+      "author": "Auteur",
+      "created": "Aangemaakt",
+      "number": "Nummer",
+      "state": "Status",
+      "title": "Titel",
+      "updated": "Bijgewerkt"
+    },
+    "description": "Beschrijving",
+    "empty": "Geen overeenkomende werkitems.",
+    "labels": "Labels",
+    "loadError": "Werkitems konden niet worden geladen.",
+    "milestone": "Mijlpaal",
+    "noDescription": "Geen beschrijving opgegeven.",
+    "openProvider": "Openen bij provider",
+    "provider": "Provider",
+    "repository": "Repository",
+    "search": "Werkitems zoeken",
+    "searchPlaceholder": "Zoek nummer of titel",
+    "states": { "CLOSED": "Gesloten", "MERGED": "Samengevoegd", "OPEN": "Open" },
+    "summary": "Werkoverzicht",
+    "updatedFrom": "Bijgewerkt vanaf",
+    "updatedTo": "Bijgewerkt tot",
+    "workflowStatuses": {
+      "CANCELLED": "Geannuleerd",
+      "FAILED": "Mislukt",
+      "PENDING": "In afwachting",
+      "RUNNING": "Actief",
+      "SUCCESS": "Geslaagd",
+      "UNKNOWN": "Onbekend"
+    }
+  },
   "layout": {
+    "issues": "Issues",
+    "pullRequests": "Pull requests",
     "administration": "Beheer",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Dashboard",

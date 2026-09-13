@@ -1,0 +1,194 @@
+enum WorkItemSyncKind {
+  ISSUE
+  PULL_REQUEST
+}
+
+enum IssueState {
+  OPEN
+  CLOSED
+}
+
+enum PullRequestState {
+  OPEN
+  CLOSED
+  MERGED
+}
+
+enum PullRequestWorkflowStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+  UNKNOWN
+}
+
+model WorkItemSyncCursor {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kind             WorkItemSyncKind
+  synchronizedThrough DateTime?
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, kind])
+  @@map("work_item_sync_cursors")
+}
+
+model ProviderActor {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providerActorId String  @db.VarChar(255)
+  username        String  @db.VarChar(255)
+  displayName     String? @db.VarChar(255)
+  avatarUrl       String? @db.VarChar(2048)
+  url             String? @db.VarChar(2048)
+
+  providerAccountId String          @db.Uuid
+  providerAccount   ProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
+  authoredIssues     Issue[]         @relation("IssueAuthor")
+  authoredPullRequests PullRequest[] @relation("PullRequestAuthor")
+  issueAssignments   IssueAssignee[]
+  pullRequestAssignments PullRequestAssignee[]
+
+  @@unique([providerAccountId, providerActorId])
+  @@index([providerAccountId, username])
+  @@map("provider_actors")
+}
+
+model WorkItemLabel {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providerLabelId String? @db.VarChar(255)
+  name            String  @db.VarChar(255)
+  normalizedName  String  @db.VarChar(255)
+  color           String? @db.VarChar(32)
+  description     String? @db.Text
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  issues       IssueLabel[]
+  pullRequests PullRequestLabel[]
+
+  @@unique([repositoryId, normalizedName])
+  @@index([repositoryId, name])
+  @@map("work_item_labels")
+}
+
+model Issue {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providerIssueId String     @db.VarChar(255)
+  number          String     @db.VarChar(255)
+  title           String     @db.VarChar(1024)
+  body            String?    @db.Text
+  state           IssueState
+  url             String     @db.VarChar(2048)
+  providerCreatedAt DateTime
+  providerUpdatedAt DateTime
+  closedAt        DateTime?
+  milestone       String?    @db.VarChar(512)
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  authorId     String?       @db.Uuid
+  author       ProviderActor? @relation("IssueAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  assignees    IssueAssignee[]
+  labels       IssueLabel[]
+
+  @@unique([repositoryId, providerIssueId])
+  @@unique([repositoryId, number])
+  @@index([repositoryId, state, providerUpdatedAt])
+  @@index([authorId])
+  @@map("issues")
+}
+
+model IssueAssignee {
+  issueId String @db.Uuid
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  actorId String @db.Uuid
+  actor   ProviderActor @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, actorId])
+  @@index([actorId])
+  @@map("issue_assignees")
+}
+
+model IssueLabel {
+  issueId String @db.Uuid
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  labelId String @db.Uuid
+  label   WorkItemLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, labelId])
+  @@index([labelId])
+  @@map("issue_labels")
+}
+
+model PullRequest {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providerPullRequestId String                    @db.VarChar(255)
+  number                String                    @db.VarChar(255)
+  title                 String                    @db.VarChar(1024)
+  body                  String?                   @db.Text
+  state                 PullRequestState
+  draft                 Boolean                   @default(false)
+  sourceBranch          String                    @db.VarChar(1024)
+  targetBranch          String                    @db.VarChar(1024)
+  url                   String                    @db.VarChar(2048)
+  providerCreatedAt     DateTime
+  providerUpdatedAt     DateTime
+  closedAt              DateTime?
+  mergedAt              DateTime?
+  workflowStatus        PullRequestWorkflowStatus @default(UNKNOWN)
+  workflowApprovalRequired Boolean                @default(false)
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  authorId     String?       @db.Uuid
+  author       ProviderActor? @relation("PullRequestAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  assignees    PullRequestAssignee[]
+  labels       PullRequestLabel[]
+  workflowRuns WorkflowRun[]
+
+  @@unique([repositoryId, providerPullRequestId])
+  @@unique([repositoryId, number])
+  @@index([repositoryId, state, providerUpdatedAt])
+  @@index([repositoryId, workflowStatus, workflowApprovalRequired])
+  @@index([authorId])
+  @@map("pull_requests")
+}
+
+model PullRequestAssignee {
+  pullRequestId String      @db.Uuid
+  pullRequest   PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  actorId       String      @db.Uuid
+  actor         ProviderActor @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@id([pullRequestId, actorId])
+  @@index([actorId])
+  @@map("pull_request_assignees")
+}
+
+model PullRequestLabel {
+  pullRequestId String      @db.Uuid
+  pullRequest   PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  labelId       String      @db.Uuid
+  label         WorkItemLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([pullRequestId, labelId])
+  @@index([labelId])
+  @@map("pull_request_labels")
+}

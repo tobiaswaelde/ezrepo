@@ -16,6 +16,7 @@ const sidebar: DefaultTheme.SidebarItem[] = [
     items: [
       { text: 'Workflow dashboard', link: '/guide/dashboard' },
       { text: 'Workflow queues', link: '/guide/workflow-queues' },
+      { text: 'Issues and pull requests', link: '/guide/issues-pull-requests' },
       { text: 'Repositories and notifications', link: '/guide/repositories-notifications' },
       { text: 'Administration and settings', link: '/guide/administration' },
     ],

@@ -9,6 +9,8 @@ describe('CASL authorization contract', () => {
       'ProviderAccount',
       'Repository',
       'WorkflowRun',
+      'Issue',
+      'PullRequest',
       'NotificationChannel',
       'NotificationRule',
       'NotificationDelivery',

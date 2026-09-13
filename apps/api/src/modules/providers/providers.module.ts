@@ -23,6 +23,7 @@ import { RepositoryMetadataService } from './repository-metadata.service.js';
 import { RepositoryRefreshController } from './repository-refresh.controller.js';
 import { ProviderSyncQueueService } from './sync-queue.service.js';
 import { ProviderSyncService } from './sync.service.js';
+import { WorkItemSyncService } from './work-item-sync.service.js';
 
 @Module({
   imports: [CaslModule, JobsModule, NotificationsModule, RepositoriesModule, SecurityModule, SystemStatusModule],
@@ -54,6 +55,7 @@ import { ProviderSyncService } from './sync.service.js';
     },
     ProviderSyncService,
     ProviderSyncQueueService,
+    WorkItemSyncService,
   ],
   exports: [ProviderCredentialService, ProviderAdapterRegistry, ProviderSyncQueueService, ProviderSyncService],
 })

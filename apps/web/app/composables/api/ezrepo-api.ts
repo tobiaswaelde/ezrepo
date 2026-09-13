@@ -12,6 +12,8 @@ import type {
   DashboardSummary,
   DashboardWorkflowRun,
   HealthResponse,
+  Issue,
+  IssueSummary,
   McpAccessToken,
   NotificationChannel,
   NotificationDelivery,
@@ -21,6 +23,8 @@ import type {
   ProviderAuthenticationOptions,
   ProviderOAuthAuthorization,
   ProviderRepository,
+  PullRequest,
+  PullRequestSummary,
   Repository,
   RepositoryHealth,
   RepositoryMembership,
@@ -33,6 +37,7 @@ import type {
   WorkflowFilter,
   WorkflowRunTrendBucket,
   WorkflowRunTrendQuery,
+  WorkItemFilterOptions,
 } from '~/types/api/resources';
 import { useApi } from './api';
 
@@ -54,6 +59,12 @@ export function useEzRepoApi() {
         api.get(apiEndpoints.dashboard.trend, { params: query }),
     },
     health: (): Promise<AxiosResponse<HealthResponse>> => api.get(apiEndpoints.health),
+    issues: {
+      filterOptions: (): Promise<AxiosResponse<WorkItemFilterOptions>> =>
+        api.get(`${apiEndpoints.issues}/filter-options`),
+      get: (id: string): Promise<AxiosResponse<Issue>> => api.get(`${apiEndpoints.issues}/${id}`),
+      summary: (): Promise<AxiosResponse<IssueSummary>> => api.get(`${apiEndpoints.issues}/summary`),
+    },
     mcpTokens: {
       create: (input: CreateMcpAccessToken): Promise<AxiosResponse<CreatedMcpAccessToken>> =>
         api.post(apiEndpoints.mcpTokens, input),
@@ -101,6 +112,12 @@ export function useEzRepoApi() {
         api.post(`${apiEndpoints.providerAccounts.base}/${id}/repositories`, { providerRepositoryId }),
       update: (id: string, input: UpdateProviderAccount): Promise<AxiosResponse<ProviderAccount>> =>
         api.patch(`${apiEndpoints.providerAccounts.base}/${id}`, input),
+    },
+    pullRequests: {
+      filterOptions: (): Promise<AxiosResponse<WorkItemFilterOptions>> =>
+        api.get(`${apiEndpoints.pullRequests}/filter-options`),
+      get: (id: string): Promise<AxiosResponse<PullRequest>> => api.get(`${apiEndpoints.pullRequests}/${id}`),
+      summary: (): Promise<AxiosResponse<PullRequestSummary>> => api.get(`${apiEndpoints.pullRequests}/summary`),
     },
     repositories: {
       createWorkflowFilter: (

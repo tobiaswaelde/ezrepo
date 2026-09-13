@@ -7,6 +7,7 @@ import { ENV } from '../../config/env.js';
 import { Prisma, type RepositorySyncRequest } from '../../generated/prisma/client.js';
 import { JobRunnerService } from '../../jobs/job-runner.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { ProviderSyncScope } from './provider-adapter.js';
 import { ProviderRequestError } from './provider-request.error.js';
 import { providerRetryDecision } from './provider-retry.js';
 import { ProviderSyncService } from './sync.service.js';
@@ -25,6 +26,7 @@ interface ClaimedSyncRequest {
   leaseToken: string;
   providerAccountId: string;
   repositoryId: string;
+  scopes: ProviderSyncScope[];
 }
 
 /** Persists, coalesces, claims, and retries repository synchronization requests. */
@@ -69,6 +71,7 @@ export class ProviderSyncQueueService {
     providerAccountId: string,
     providerRepositoryId: string,
     database: QueueDatabase = this.prisma,
+    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
   ): Promise<boolean> {
     const repository = await database.repository.findFirst({
       select: { id: true },
@@ -80,7 +83,7 @@ export class ProviderSyncQueueService {
       },
     });
     if (!repository) return false;
-    await this.enqueueRepository(repository.id, webhookDebounceMs, database);
+    await this.enqueueRepository(repository.id, webhookDebounceMs, database, scopes);
     return true;
   }
 
@@ -99,22 +102,32 @@ export class ProviderSyncQueueService {
     } while (claimed);
   }
 
-  private async enqueueRepository(repositoryId: string, delayMs: number, database: QueueDatabase = this.prisma) {
+  private async enqueueRepository(
+    repositoryId: string,
+    delayMs: number,
+    database: QueueDatabase = this.prisma,
+    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+  ) {
     const requestedAt = new Date();
     const runAfter = new Date(requestedAt.getTime() + delayMs);
     const id = randomUUID();
     await database.$executeRaw(Prisma.sql`
       INSERT INTO "repository_sync_requests" (
-        "id", "createdAt", "updatedAt", "requestedAt", "runAfter", "repositoryId"
+        "id", "createdAt", "updatedAt", "requestedAt", "runAfter", "repositoryId",
+        "syncWorkflows", "syncIssues", "syncPullRequests"
       )
       VALUES (
-        ${id}::uuid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ${requestedAt}, ${runAfter}, ${repositoryId}::uuid
+        ${id}::uuid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ${requestedAt}, ${runAfter}, ${repositoryId}::uuid,
+        ${scopes.includes('WORKFLOWS')}, ${scopes.includes('ISSUES')}, ${scopes.includes('PULL_REQUESTS')}
       )
       ON CONFLICT ("repositoryId") DO UPDATE SET
         "updatedAt" = CURRENT_TIMESTAMP,
         "requestedAt" = EXCLUDED."requestedAt",
         "runAfter" = EXCLUDED."runAfter",
         "generation" = "repository_sync_requests"."generation" + 1,
+        "syncWorkflows" = "repository_sync_requests"."syncWorkflows" OR EXCLUDED."syncWorkflows",
+        "syncIssues" = "repository_sync_requests"."syncIssues" OR EXCLUDED."syncIssues",
+        "syncPullRequests" = "repository_sync_requests"."syncPullRequests" OR EXCLUDED."syncPullRequests",
         "status" = CASE
           WHEN "repository_sync_requests"."status" = 'RUNNING' THEN 'RUNNING'::"RepositorySyncRequestStatus"
           ELSE 'PENDING'::"RepositorySyncRequestStatus"
@@ -206,13 +219,24 @@ export class ProviderSyncQueueService {
         leaseToken,
         providerAccountId: candidate.repository.providerAccountId,
         repositoryId: candidate.repositoryId,
+        scopes:
+          candidate.syncWorkflows === undefined &&
+          candidate.syncIssues === undefined &&
+          candidate.syncPullRequests === undefined
+            ? ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS']
+            : [
+                ...(candidate.syncWorkflows ? ['WORKFLOWS' as const] : []),
+                ...(candidate.syncIssues ? ['ISSUES' as const] : []),
+                ...(candidate.syncPullRequests ? ['PULL_REQUESTS' as const] : []),
+              ],
       };
     });
   }
 
   private async processClaimedRequest(request: ClaimedSyncRequest): Promise<void> {
     try {
-      await this.sync.syncRepositoryById(request.repositoryId);
+      if (request.scopes.length === 3) await this.sync.syncRepositoryById(request.repositoryId);
+      else await this.sync.syncRepositoryById(request.repositoryId, request.scopes);
       await this.completeRequest(request);
     } catch (error) {
       await this.failRequest(request, error);

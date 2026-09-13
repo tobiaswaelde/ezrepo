@@ -320,6 +320,7 @@ function run(input: {
     headSha: '0123456789abcdef',
     id: `${input.repositoryId}-${input.workflowName}-${providerCreatedAt}`,
     providerCreatedAt: new Date(providerCreatedAt),
+    pullRequestId: null,
     providerRunId: providerCreatedAt,
     rawStatus: input.status.toLowerCase(),
     reviewUrl: null,

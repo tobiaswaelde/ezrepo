@@ -1,0 +1,15 @@
+meta {
+  name: List pull requests
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host}}/api/v1/pull-requests?page=1&perPage=25&labels=dependencies
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

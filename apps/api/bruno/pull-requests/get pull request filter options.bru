@@ -1,0 +1,15 @@
+meta {
+  name: Get pull request filter options
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{host}}/api/v1/pull-requests/filter-options
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

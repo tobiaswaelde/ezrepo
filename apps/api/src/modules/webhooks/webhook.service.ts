@@ -73,7 +73,19 @@ export class WebhookService {
           },
         });
         if (verified.providerRepositoryId)
-          await this.syncQueue.enqueueWebhookRepository(providerAccountId, verified.providerRepositoryId, transaction);
+          if (verified.syncScopes)
+            await this.syncQueue.enqueueWebhookRepository(
+              providerAccountId,
+              verified.providerRepositoryId,
+              transaction,
+              verified.syncScopes,
+            );
+          else
+            await this.syncQueue.enqueueWebhookRepository(
+              providerAccountId,
+              verified.providerRepositoryId,
+              transaction,
+            );
       });
     } catch (error) {
       if (this.isDuplicateDeliveryError(error)) return { accepted: true, duplicate: true };

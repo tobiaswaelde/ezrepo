@@ -3,9 +3,11 @@ import type { EndpointDefinition } from '@querry-kit/nuxt/types';
 import type {
   CreateNotificationChannel,
   CreateNotificationRule,
+  Issue,
   NotificationChannel,
   NotificationRule,
   ProviderAccount,
+  PullRequest,
   Repository,
   UpdateNotificationChannel,
   UpdateNotificationRule,
@@ -46,6 +48,8 @@ export const apiEndpoints = {
   users: '/users',
   version: '/version/latest',
   workflowRuns: 'workflow-runs',
+  issues: 'issues',
+  pullRequests: 'pull-requests',
 } as const;
 
 /** Resource endpoints that use the shared Query Kit pagination contract. */
@@ -75,6 +79,8 @@ export interface Endpoints {
     dto: WorkflowRun;
     update: never;
   };
+  issues: { create: never; dto: Issue; update: never };
+  'pull-requests': { create: never; dto: PullRequest; update: never };
 }
 
 /** Name of a resource endpoint that uses the shared Query Kit pagination contract. */

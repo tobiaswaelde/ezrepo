@@ -1,0 +1,17 @@
+[
+  {
+    "id": 70,
+    "number": 7,
+    "title": "Tracked issue",
+    "body": "Issue body",
+    "state": "open",
+    "html_url": "https://github.com/octo/ezrepo/issues/7",
+    "created_at": "2026-09-01T10:00:00Z",
+    "updated_at": "2026-09-02T10:00:00Z",
+    "closed_at": null,
+    "user": { "id": 1, "login": "author" },
+    "assignees": [{ "id": 2, "login": "reviewer" }],
+    "labels": [{ "id": 3, "name": "bug", "color": "ff0000", "description": "Bug" }],
+    "milestone": { "title": "v1" }
+  }
+]

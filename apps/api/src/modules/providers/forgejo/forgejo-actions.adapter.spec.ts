@@ -167,7 +167,11 @@ describe('ForgejoActionsAdapter', () => {
         payload,
         signingSecret: 'webhook-secret',
       }),
-    ).resolves.toEqual({ event: 'push', providerRepositoryId: '42' });
+    ).resolves.toEqual({
+      event: 'push',
+      providerRepositoryId: '42',
+      syncScopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+    });
   });
 });
 
@@ -197,6 +201,22 @@ describe('ForgejoActionsAdapter change requests', () => {
       });
     },
   );
+
+  it('normalizes Forgejo issue and pull-request fixtures', async () => {
+    const adapter = new ForgejoActionsAdapter(
+      jest
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify(readFixture('issues.json'))))
+        .mockResolvedValueOnce(new Response(JSON.stringify(readFixture('pull-requests.json')))),
+    );
+    const query = { includeAllOpen: false, updatedAfter: new Date('2026-08-01T00:00:00Z') };
+    await expect(adapter.listIssues(context, repository, query)).resolves.toMatchObject([
+      { labels: [{ name: 'bug' }], number: '7', state: 'OPEN' },
+    ]);
+    await expect(adapter.listPullRequests(context, repository, query)).resolves.toMatchObject([
+      { number: '8', sourceBranch: 'feature/work', targetBranch: 'main' },
+    ]);
+  });
 
   it('returns null when the pull request is unavailable', async () => {
     const adapter = new ForgejoActionsAdapter(jest.fn().mockResolvedValue(new Response(null, { status: 404 })));

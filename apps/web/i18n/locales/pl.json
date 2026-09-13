@@ -106,7 +106,65 @@
     "totalDuration": "Total runtime",
     "totalDurationContext": "Across all runs, including retained history"
   },
+  "issues": {
+    "assigned": "Przypisane otwarte zgłoszenia",
+    "description": "Przeglądaj zgłoszenia z dostępnych repozytoriów.",
+    "open": "Otwarte zgłoszenia",
+    "recent": "Zaktualizowane w 7 dni",
+    "stale": "Nieaktualne od 30 dni",
+    "title": "Zgłoszenia"
+  },
+  "pullRequests": {
+    "approval": "Zatwierdzenie workflow",
+    "approvalRequired": "Wymagane zatwierdzenie workflow",
+    "description": "Przeglądaj pull requesty i stan workflow.",
+    "draft": "Szkic",
+    "drafts": "Szkice",
+    "failed": "Nieudane workflow",
+    "open": "Otwarte pull requesty",
+    "openMergeRequest": "Otwórz merge request",
+    "sourceBranch": "Gałąź źródłowa",
+    "targetBranch": "Gałąź docelowa",
+    "title": "Pull requesty",
+    "workflowStatus": "Stan workflow"
+  },
+  "workItems": {
+    "assignee": "Przypisany",
+    "columns": {
+      "author": "Autor",
+      "created": "Utworzono",
+      "number": "Numer",
+      "state": "Stan",
+      "title": "Tytuł",
+      "updated": "Zaktualizowano"
+    },
+    "description": "Opis",
+    "empty": "Brak pasujących elementów.",
+    "labels": "Etykiety",
+    "loadError": "Nie udało się załadować elementów.",
+    "milestone": "Kamień milowy",
+    "noDescription": "Nie podano opisu.",
+    "openProvider": "Otwórz u dostawcy",
+    "provider": "Dostawca",
+    "repository": "Repozytorium",
+    "search": "Szukaj elementów",
+    "searchPlaceholder": "Szukaj numeru lub tytułu",
+    "states": { "CLOSED": "Zamknięty", "MERGED": "Scalony", "OPEN": "Otwarty" },
+    "summary": "Przegląd pracy",
+    "updatedFrom": "Zaktualizowano od",
+    "updatedTo": "Zaktualizowano do",
+    "workflowStatuses": {
+      "CANCELLED": "Anulowany",
+      "FAILED": "Nieudany",
+      "PENDING": "Oczekujący",
+      "RUNNING": "W toku",
+      "SUCCESS": "Udany",
+      "UNKNOWN": "Nieznany"
+    }
+  },
   "layout": {
+    "issues": "Zgłoszenia",
+    "pullRequests": "Pull requesty",
     "administration": "Administracja",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Panel",

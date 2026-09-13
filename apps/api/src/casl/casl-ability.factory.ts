@@ -29,6 +29,8 @@ export class CaslAbilityFactory {
     if (repositoryIds.length === 0) {
       can(CaslAction.Read, CaslSubject.Repository, { id: { in: [] } });
       can(CaslAction.Read, CaslSubject.WorkflowRun, { repositoryId: { in: [] } });
+      can(CaslAction.Read, CaslSubject.Issue, { repositoryId: { in: [] } });
+      can(CaslAction.Read, CaslSubject.PullRequest, { repositoryId: { in: [] } });
       can(CaslAction.Read, CaslSubject.NotificationChannel, { repositoryId: { in: [] } });
       can(CaslAction.Read, CaslSubject.NotificationRule, { repositoryId: { in: [] } });
       return build();
@@ -36,6 +38,8 @@ export class CaslAbilityFactory {
 
     can(CaslAction.Read, CaslSubject.Repository, { id: { in: repositoryIds } });
     can(CaslAction.Read, CaslSubject.WorkflowRun, { repositoryId: { in: repositoryIds } });
+    can(CaslAction.Read, CaslSubject.Issue, { repositoryId: { in: repositoryIds } });
+    can(CaslAction.Read, CaslSubject.PullRequest, { repositoryId: { in: repositoryIds } });
     can(CaslAction.Read, CaslSubject.NotificationChannel, { repositoryId: { in: repositoryIds } });
     can(CaslAction.Read, CaslSubject.NotificationRule, { repositoryId: { in: repositoryIds } });
 

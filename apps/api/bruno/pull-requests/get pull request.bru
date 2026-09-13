@@ -1,0 +1,15 @@
+meta {
+  name: Get pull request
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{host}}/api/v1/pull-requests/{{pullRequestId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

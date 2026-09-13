@@ -1,0 +1,15 @@
+meta {
+  name: Get issue
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{host}}/api/v1/issues/{{issueId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

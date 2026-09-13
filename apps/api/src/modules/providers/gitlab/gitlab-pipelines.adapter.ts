@@ -5,15 +5,19 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
   ProviderAccountContext,
   ProviderAccountValidation,
+  ProviderActor,
   ProviderAdapter,
   ProviderChangeRequestState,
+  ProviderIssue,
+  ProviderPullRequest,
   ProviderRepository,
   ProviderRepositoryReference,
   ProviderWebhookRequest,
+  ProviderWorkItemQuery,
   ProviderWorkflowRun,
   VerifiedWebhook,
 } from '../provider-adapter.js';
-import { buildWorkflowRunScopeKey, PROVIDER_FETCH } from '../provider-adapter.js';
+import { PROVIDER_FETCH, buildWorkflowRunScopeKey, providerWebhookSyncScopes } from '../provider-adapter.js';
 import { providerRequestError } from '../provider-request.error.js';
 import { isWorkflowRunAwaitingApproval, normalizeWorkflowRunStatus } from '../workflow-status.js';
 
@@ -43,6 +47,41 @@ interface GitLabMergeRequest {
   merged_at?: string | null;
   state: string;
   target_branch?: string;
+}
+interface GitLabActor {
+  avatar_url?: string | null;
+  id: number;
+  name?: string | null;
+  username: string;
+  web_url?: string;
+}
+interface GitLabIssue {
+  assignees?: GitLabActor[];
+  author?: GitLabActor;
+  closed_at?: string | null;
+  created_at: string;
+  description?: string | null;
+  id: number;
+  iid: number;
+  labels?: string[];
+  milestone?: { title: string } | null;
+  state: string;
+  title: string;
+  updated_at: string;
+  web_url: string;
+}
+interface GitLabLabel {
+  color: string;
+  description?: string | null;
+  id: number;
+  name: string;
+}
+interface GitLabPullRequestResponse extends GitLabIssue {
+  draft?: boolean;
+  merged_at?: string | null;
+  source_branch: string;
+  target_branch: string;
+  work_in_progress?: boolean;
 }
 
 /** GitLab adapter that only reads projects and pipelines. */
@@ -127,13 +166,63 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     return this.toWorkflowRun((await response.json()) as GitLabPipeline);
   }
 
+  async listIssues(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+    query: ProviderWorkItemQuery,
+  ): Promise<ProviderIssue[]> {
+    const path = `/projects/${encodeURIComponent(repository.providerRepositoryId)}/issues`;
+    const [recent, open, labels] = await Promise.all([
+      this.listPages<GitLabIssue>(context, path, {
+        order_by: 'updated_at',
+        sort: 'desc',
+        state: 'all',
+        updated_after: query.updatedAfter.toISOString(),
+      }),
+      query.includeAllOpen
+        ? this.listPages<GitLabIssue>(context, path, { order_by: 'updated_at', sort: 'desc', state: 'opened' })
+        : [],
+      this.listProjectLabels(context, repository),
+    ]);
+    return this.uniqueById([...recent, ...open]).map((issue) => this.toIssue(issue, labels));
+  }
+
+  async listPullRequests(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+    query: ProviderWorkItemQuery,
+  ): Promise<ProviderPullRequest[]> {
+    const path = `/projects/${encodeURIComponent(repository.providerRepositoryId)}/merge_requests`;
+    const [recent, open, labels] = await Promise.all([
+      this.listPages<GitLabPullRequestResponse>(context, path, {
+        order_by: 'updated_at',
+        sort: 'desc',
+        state: 'all',
+        updated_after: query.updatedAfter.toISOString(),
+      }),
+      query.includeAllOpen
+        ? this.listPages<GitLabPullRequestResponse>(context, path, {
+            order_by: 'updated_at',
+            sort: 'desc',
+            state: 'opened',
+          })
+        : [],
+      this.listProjectLabels(context, repository),
+    ]);
+    return this.uniqueById([...recent, ...open]).map((pullRequest) => this.toPullRequest(pullRequest, labels));
+  }
+
   async verifyWebhook(request: ProviderWebhookRequest): Promise<VerifiedWebhook | null> {
     const token = request.headers['x-gitlab-token'];
     const event = request.headers['x-gitlab-event'];
     if (typeof event !== 'string') return null;
     if (!this.hasValidWebhookSignature(request) && !this.hasValidLegacyToken(token, request.signingSecret)) return null;
     const payload = JSON.parse(Buffer.from(request.payload).toString('utf8')) as { project?: { id?: number } };
-    return { event, providerRepositoryId: payload.project?.id ? String(payload.project.id) : null };
+    return {
+      event,
+      providerRepositoryId: payload.project?.id ? String(payload.project.id) : null,
+      syncScopes: providerWebhookSyncScopes(event),
+    };
   }
 
   private hasValidLegacyToken(token: string | string[] | undefined, signingSecret: string): boolean {
@@ -178,6 +267,92 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     const response = await this.fetchFn(this.url(context, path), { headers: this.headers(context) });
     if (!response.ok) throw providerRequestError('GitLab', response);
     return (await response.json()) as T;
+  }
+  private async listPages<T extends { id: number }>(
+    context: ProviderAccountContext,
+    path: string,
+    parameters: Record<string, string>,
+  ): Promise<T[]> {
+    const items: T[] = [];
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({ ...parameters, page: String(page), per_page: '100' });
+      const result = await this.request<T[]>(context, `${path}?${query}`);
+      items.push(...result);
+      if (result.length < 100) break;
+    }
+    return items;
+  }
+  private uniqueById<T extends { id: number }>(items: T[]): T[] {
+    return [...new Map(items.map((item) => [item.id, item])).values()];
+  }
+  private async listProjectLabels(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+  ): Promise<Map<string, GitLabLabel>> {
+    const labels = await this.listPages<GitLabLabel>(
+      context,
+      `/projects/${encodeURIComponent(repository.providerRepositoryId)}/labels`,
+      { with_counts: 'false' },
+    );
+    return new Map(labels.map((label) => [label.name.toLocaleLowerCase('en-US'), label]));
+  }
+  private toActor(actor: GitLabActor | null | undefined): ProviderActor | null {
+    if (!actor) return null;
+    return {
+      avatarUrl: actor.avatar_url ?? null,
+      displayName: actor.name ?? null,
+      providerActorId: String(actor.id),
+      url: actor.web_url ?? null,
+      username: actor.username,
+    };
+  }
+  private toIssue(issue: GitLabIssue, labels: Map<string, GitLabLabel>): ProviderIssue {
+    return {
+      assignees: (issue.assignees ?? []).flatMap((actor) => this.toActor(actor) ?? []),
+      author: this.toActor(issue.author),
+      body: issue.description ?? null,
+      closedAt: issue.closed_at ? new Date(issue.closed_at) : null,
+      labels: (issue.labels ?? []).map((name) => ({
+        color: labels.get(name.toLocaleLowerCase('en-US'))?.color.replace(/^#/, '') ?? null,
+        description: labels.get(name.toLocaleLowerCase('en-US'))?.description ?? null,
+        name,
+        providerLabelId: labels.get(name.toLocaleLowerCase('en-US'))?.id.toString() ?? null,
+      })),
+      milestone: issue.milestone?.title ?? null,
+      number: String(issue.iid),
+      providerCreatedAt: new Date(issue.created_at),
+      providerIssueId: String(issue.id),
+      providerUpdatedAt: new Date(issue.updated_at),
+      state: issue.state === 'closed' ? 'CLOSED' : 'OPEN',
+      title: issue.title,
+      url: issue.web_url,
+    };
+  }
+  private toPullRequest(pullRequest: GitLabPullRequestResponse, labels: Map<string, GitLabLabel>): ProviderPullRequest {
+    const mergedAt = pullRequest.merged_at ? new Date(pullRequest.merged_at) : null;
+    return {
+      assignees: (pullRequest.assignees ?? []).flatMap((actor) => this.toActor(actor) ?? []),
+      author: this.toActor(pullRequest.author),
+      body: pullRequest.description ?? null,
+      closedAt: pullRequest.closed_at ? new Date(pullRequest.closed_at) : null,
+      draft: pullRequest.draft ?? pullRequest.work_in_progress ?? false,
+      labels: (pullRequest.labels ?? []).map((name) => ({
+        color: labels.get(name.toLocaleLowerCase('en-US'))?.color.replace(/^#/, '') ?? null,
+        description: labels.get(name.toLocaleLowerCase('en-US'))?.description ?? null,
+        name,
+        providerLabelId: labels.get(name.toLocaleLowerCase('en-US'))?.id.toString() ?? null,
+      })),
+      mergedAt,
+      number: String(pullRequest.iid),
+      providerCreatedAt: new Date(pullRequest.created_at),
+      providerPullRequestId: String(pullRequest.id),
+      providerUpdatedAt: new Date(pullRequest.updated_at),
+      sourceBranch: pullRequest.source_branch,
+      state: mergedAt || pullRequest.state === 'merged' ? 'MERGED' : pullRequest.state === 'closed' ? 'CLOSED' : 'OPEN',
+      targetBranch: pullRequest.target_branch,
+      title: pullRequest.title,
+      url: pullRequest.web_url,
+    };
   }
   private headers(context: ProviderAccountContext): HeadersInit {
     return { Accept: 'application/json', Authorization: `Bearer ${context.accessToken}` };

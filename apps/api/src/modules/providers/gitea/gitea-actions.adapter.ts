@@ -7,15 +7,24 @@ import type {
   ProviderAccountValidation,
   ProviderAdapter,
   ProviderChangeRequestState,
+  ProviderIssue,
+  ProviderPullRequest,
   ProviderRepository,
   ProviderRepositoryReference,
   ProviderWebhookRequest,
+  ProviderWorkItemQuery,
   ProviderWorkflowRun,
   VerifiedWebhook,
 } from '../provider-adapter.js';
-import { buildWorkflowRunScopeKey, PROVIDER_FETCH } from '../provider-adapter.js';
+import { PROVIDER_FETCH, buildWorkflowRunScopeKey, providerWebhookSyncScopes } from '../provider-adapter.js';
 import { providerRequestError } from '../provider-request.error.js';
 import { isWorkflowRunAwaitingApproval, normalizeWorkflowRunStatus } from '../workflow-status.js';
+import {
+  type GiteaIssueResponse,
+  type GiteaPullRequestResponse,
+  toProviderIssue,
+  toProviderPullRequest,
+} from './work-items.js';
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -139,6 +148,43 @@ export class GiteaActionsAdapter implements ProviderAdapter {
     return this.toWorkflowRun((await response.json()) as GiteaWorkflowRun);
   }
 
+  async listIssues(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+    query: ProviderWorkItemQuery,
+  ): Promise<ProviderIssue[]> {
+    const path = `/repos/${repository.owner}/${repository.name}/issues`;
+    const recent = await this.listPages<GiteaIssueResponse>(context, path, {
+      since: query.updatedAfter.toISOString(),
+      state: 'all',
+      type: 'issues',
+    });
+    const open = query.includeAllOpen
+      ? await this.listPages<GiteaIssueResponse>(context, path, { state: 'open', type: 'issues' })
+      : [];
+    return this.uniqueById([...recent, ...open])
+      .filter((issue) => !issue.pull_request)
+      .map(toProviderIssue);
+  }
+
+  async listPullRequests(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+    query: ProviderWorkItemQuery,
+  ): Promise<ProviderPullRequest[]> {
+    const path = `/repos/${repository.owner}/${repository.name}/pulls`;
+    const recent = await this.listPages<GiteaPullRequestResponse>(
+      context,
+      path,
+      { sort: 'recentupdate', state: 'all' },
+      (pullRequest) => new Date(pullRequest.updated_at) >= query.updatedAfter,
+    );
+    const open = query.includeAllOpen
+      ? await this.listPages<GiteaPullRequestResponse>(context, path, { sort: 'recentupdate', state: 'open' })
+      : [];
+    return this.uniqueById([...recent, ...open]).map(toProviderPullRequest);
+  }
+
   async verifyWebhook(request: ProviderWebhookRequest): Promise<VerifiedWebhook | null> {
     const signature = request.headers['x-gitea-signature'];
     const event = request.headers['x-gitea-event'];
@@ -149,13 +195,37 @@ export class GiteaActionsAdapter implements ProviderAdapter {
       return null;
 
     const payload = JSON.parse(Buffer.from(request.payload).toString('utf8')) as { repository?: { id?: number } };
-    return { event, providerRepositoryId: payload.repository?.id ? String(payload.repository.id) : null };
+    return {
+      event,
+      providerRepositoryId: payload.repository?.id ? String(payload.repository.id) : null,
+      syncScopes: providerWebhookSyncScopes(event),
+    };
   }
 
   private async request<T>(context: ProviderAccountContext, path: string): Promise<T> {
     const response = await this.fetchFn(this.url(context, path), { headers: this.headers(context) });
     if (!response.ok) throw providerRequestError('Gitea', response);
     return (await response.json()) as T;
+  }
+
+  private async listPages<T extends { id: number }>(
+    context: ProviderAccountContext,
+    path: string,
+    parameters: Record<string, string>,
+    keepReading: (item: T) => boolean = () => true,
+  ): Promise<T[]> {
+    const items: T[] = [];
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({ ...parameters, limit: '100', page: String(page) });
+      const result = await this.request<T[]>(context, `${path}?${query}`);
+      items.push(...result.filter(keepReading));
+      if (result.length < 100 || (result.length > 0 && !keepReading(result[result.length - 1]!))) break;
+    }
+    return items;
+  }
+
+  private uniqueById<T extends { id: number }>(items: T[]): T[] {
+    return [...new Map(items.map((item) => [item.id, item])).values()];
   }
 
   private async actionsRequest<T>(context: ProviderAccountContext, path: string): Promise<T> {

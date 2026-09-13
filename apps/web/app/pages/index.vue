@@ -37,6 +37,7 @@
     />
 
     <ModulesDashboardSummaryCards :failing-workflow-count="failures.length" :loading="isLoading" :summary="summary" />
+    <ModulesWorkItemsSummaryCards :loading="isCurrentLoading" :metrics="workMetrics" :title="$t('workItems.summary')" />
 
     <div class="grid gap-6 xl:grid-cols-5">
       <UCard class="xl:col-span-3">
@@ -69,6 +70,8 @@ import type {
   DashboardPeriodQuery,
   DashboardSummary,
   DashboardWorkflowRun,
+  IssueSummary,
+  PullRequestSummary,
   RepositoryHealth,
   WorkflowRunTrendBucket,
 } from '~/types/api/resources';
@@ -81,10 +84,20 @@ const failures = ref<DashboardWorkflowRun[]>([]);
 const latestRuns = ref<DashboardWorkflowRun[]>([]);
 const repositoryHealth = ref<RepositoryHealth[]>([]);
 const summary = ref<DashboardSummary | null>(null);
+const issueSummary = ref<IssueSummary | null>(null);
+const pullRequestSummary = ref<PullRequestSummary | null>(null);
 const trend = ref<WorkflowRunTrendBucket[]>([]);
 const isCurrentLoading = ref(true);
 const isHistoricalLoading = ref(true);
-const errors = reactive({ failures: false, latestRuns: false, repositories: false, summary: false, trend: false });
+const errors = reactive({
+  failures: false,
+  issues: false,
+  latestRuns: false,
+  pullRequests: false,
+  repositories: false,
+  summary: false,
+  trend: false,
+});
 const range = ref<'7d' | '30d' | '90d'>('30d');
 let historicalRequestId = 0;
 
@@ -97,6 +110,20 @@ const rangeOptions = computed(() => [
   { label: t('dashboard.last30Days'), value: '30d' },
   { label: t('dashboard.last90Days'), value: '90d' },
 ]);
+const workMetrics = computed(() => [
+  { icon: 'i-tabler-circle-dot', label: t('issues.open'), value: String(issueSummary.value?.open ?? '—') },
+  { icon: 'i-lucide-hourglass', label: t('issues.stale'), value: String(issueSummary.value?.stale ?? '—') },
+  {
+    icon: 'i-tabler-git-pull-request',
+    label: t('pullRequests.open'),
+    value: String(pullRequestSummary.value?.open ?? '—'),
+  },
+  {
+    icon: 'i-lucide-shield-alert',
+    label: t('pullRequests.approvalRequired'),
+    value: String(pullRequestSummary.value?.workflowApprovalRequired ?? '—'),
+  },
+]);
 
 /** Fetch current and period-based dashboard resources visible to the current user. */
 async function loadDashboard(): Promise<void> {
@@ -106,14 +133,20 @@ async function loadDashboard(): Promise<void> {
 /** Fetch current failed workflows and the latest visible runs independently. */
 async function loadCurrentDashboard(): Promise<void> {
   isCurrentLoading.value = true;
-  const [failureResult, latestResult] = await Promise.allSettled([
+  const [failureResult, latestResult, issueResult, pullRequestResult] = await Promise.allSettled([
     api.dashboard.getFailures(),
     api.dashboard.getLatestRuns(),
+    api.issues.summary(),
+    api.pullRequests.summary(),
   ]);
   errors.failures = failureResult.status === 'rejected';
   errors.latestRuns = latestResult.status === 'rejected';
+  errors.issues = issueResult.status === 'rejected';
+  errors.pullRequests = pullRequestResult.status === 'rejected';
   if (failureResult.status === 'fulfilled') failures.value = failureResult.value.data;
   if (latestResult.status === 'fulfilled') latestRuns.value = latestResult.value.data;
+  if (issueResult.status === 'fulfilled') issueSummary.value = issueResult.value.data;
+  if (pullRequestResult.status === 'fulfilled') pullRequestSummary.value = pullRequestResult.value.data;
   isCurrentLoading.value = false;
 }
 

@@ -5,15 +5,20 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
   ProviderAccountContext,
   ProviderAccountValidation,
+  ProviderActor,
   ProviderAdapter,
   ProviderChangeRequestState,
+  ProviderIssue,
+  ProviderPullRequest,
   ProviderRepository,
   ProviderRepositoryReference,
   ProviderWebhookRequest,
+  ProviderWorkItemLabel,
+  ProviderWorkItemQuery,
   ProviderWorkflowRun,
   VerifiedWebhook,
 } from '../provider-adapter.js';
-import { buildWorkflowRunScopeKey, PROVIDER_FETCH } from '../provider-adapter.js';
+import { PROVIDER_FETCH, buildWorkflowRunScopeKey, providerWebhookSyncScopes } from '../provider-adapter.js';
 import { providerRequestError } from '../provider-request.error.js';
 import { isWorkflowRunAwaitingApproval, normalizeWorkflowRunStatus } from '../workflow-status.js';
 
@@ -48,6 +53,41 @@ interface GitHubPullRequestResponse {
   merged_at?: string | null;
   number: number;
   state: string;
+}
+interface GitHubActorResponse {
+  avatar_url?: string;
+  html_url?: string;
+  id: number;
+  login: string;
+  name?: string | null;
+}
+interface GitHubLabelResponse {
+  color?: string;
+  description?: string | null;
+  id?: number;
+  name: string;
+}
+interface GitHubIssueResponse {
+  assignees?: GitHubActorResponse[];
+  body?: string | null;
+  closed_at?: string | null;
+  created_at: string;
+  html_url: string;
+  id: number;
+  labels?: (GitHubLabelResponse | string)[];
+  milestone?: { title: string } | null;
+  number: number;
+  pull_request?: unknown;
+  state: string;
+  title: string;
+  updated_at: string;
+  user?: GitHubActorResponse | null;
+}
+interface GitHubPullResponse extends GitHubIssueResponse {
+  base: { ref: string };
+  draft?: boolean;
+  head: { ref: string };
+  merged_at?: string | null;
 }
 
 const dependabotWorkflowPath = 'dynamic/dependabot/dependabot-updates';
@@ -129,6 +169,44 @@ export class GitHubActionsAdapter implements ProviderAdapter {
     return this.resolveWorkflowRun(context, repository, (await response.json()) as GitHubWorkflowRunResponse);
   }
 
+  async listIssues(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+    query: ProviderWorkItemQuery,
+  ): Promise<ProviderIssue[]> {
+    const path = `/repos/${repository.owner}/${repository.name}/issues`;
+    const recent = await this.listPages<GitHubIssueResponse>(context, path, {
+      direction: 'desc',
+      since: query.updatedAfter.toISOString(),
+      sort: 'updated',
+      state: 'all',
+    });
+    const open = query.includeAllOpen
+      ? await this.listPages<GitHubIssueResponse>(context, path, { direction: 'desc', sort: 'updated', state: 'open' })
+      : [];
+    return this.uniqueById([...recent, ...open])
+      .filter((issue) => !issue.pull_request)
+      .map((issue) => this.toIssue(issue));
+  }
+
+  async listPullRequests(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+    query: ProviderWorkItemQuery,
+  ): Promise<ProviderPullRequest[]> {
+    const path = `/repos/${repository.owner}/${repository.name}/pulls`;
+    const recent = await this.listPages<GitHubPullResponse>(
+      context,
+      path,
+      { direction: 'desc', sort: 'updated', state: 'all' },
+      (pullRequest) => new Date(pullRequest.updated_at) >= query.updatedAfter,
+    );
+    const open = query.includeAllOpen
+      ? await this.listPages<GitHubPullResponse>(context, path, { direction: 'desc', sort: 'updated', state: 'open' })
+      : [];
+    return this.uniqueById([...recent, ...open]).map((pullRequest) => this.toPullRequest(pullRequest));
+  }
+
   async verifyWebhook(request: ProviderWebhookRequest): Promise<VerifiedWebhook | null> {
     const signature = request.headers['x-hub-signature-256'];
     const event = request.headers['x-github-event'];
@@ -137,13 +215,98 @@ export class GitHubActionsAdapter implements ProviderAdapter {
     if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected)))
       return null;
     const payload = JSON.parse(Buffer.from(request.payload).toString('utf8')) as { repository?: { id?: number } };
-    return { event, providerRepositoryId: payload.repository?.id ? String(payload.repository.id) : null };
+    return {
+      event,
+      providerRepositoryId: payload.repository?.id ? String(payload.repository.id) : null,
+      syncScopes: providerWebhookSyncScopes(event),
+    };
   }
 
   private async request<T>(context: ProviderAccountContext, path: string): Promise<T> {
     const response = await this.fetchFn(this.url(context, path), { headers: this.headers(context) });
     if (!response.ok) throw providerRequestError('GitHub', response);
     return (await response.json()) as T;
+  }
+
+  private async listPages<T extends { id: number }>(
+    context: ProviderAccountContext,
+    path: string,
+    parameters: Record<string, string>,
+    keepReading: (item: T) => boolean = () => true,
+  ): Promise<T[]> {
+    const items: T[] = [];
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({ ...parameters, page: String(page), per_page: '100' });
+      const result = await this.request<T[]>(context, `${path}?${query}`);
+      items.push(...result.filter(keepReading));
+      if (result.length < 100 || (result.length > 0 && !keepReading(result[result.length - 1]!))) break;
+    }
+    return items;
+  }
+
+  private uniqueById<T extends { id: number }>(items: T[]): T[] {
+    return [...new Map(items.map((item) => [item.id, item])).values()];
+  }
+
+  private toActor(actor: GitHubActorResponse | null | undefined): ProviderActor | null {
+    if (!actor) return null;
+    return {
+      avatarUrl: actor.avatar_url ?? null,
+      displayName: actor.name ?? null,
+      providerActorId: String(actor.id),
+      url: actor.html_url ?? null,
+      username: actor.login,
+    };
+  }
+
+  private toLabel(label: GitHubLabelResponse | string): ProviderWorkItemLabel {
+    if (typeof label === 'string') return { color: null, description: null, name: label, providerLabelId: null };
+    return {
+      color: label.color ?? null,
+      description: label.description ?? null,
+      name: label.name,
+      providerLabelId: label.id === undefined ? null : String(label.id),
+    };
+  }
+
+  private toIssue(issue: GitHubIssueResponse): ProviderIssue {
+    return {
+      assignees: (issue.assignees ?? []).flatMap((actor) => this.toActor(actor) ?? []),
+      author: this.toActor(issue.user),
+      body: issue.body ?? null,
+      closedAt: issue.closed_at ? new Date(issue.closed_at) : null,
+      labels: (issue.labels ?? []).map((label) => this.toLabel(label)),
+      milestone: issue.milestone?.title ?? null,
+      number: String(issue.number),
+      providerCreatedAt: new Date(issue.created_at),
+      providerIssueId: String(issue.id),
+      providerUpdatedAt: new Date(issue.updated_at),
+      state: issue.state === 'closed' ? 'CLOSED' : 'OPEN',
+      title: issue.title,
+      url: issue.html_url,
+    };
+  }
+
+  private toPullRequest(pullRequest: GitHubPullResponse): ProviderPullRequest {
+    const mergedAt = pullRequest.merged_at ? new Date(pullRequest.merged_at) : null;
+    return {
+      assignees: (pullRequest.assignees ?? []).flatMap((actor) => this.toActor(actor) ?? []),
+      author: this.toActor(pullRequest.user),
+      body: pullRequest.body ?? null,
+      closedAt: pullRequest.closed_at ? new Date(pullRequest.closed_at) : null,
+      draft: pullRequest.draft ?? false,
+      labels: (pullRequest.labels ?? []).map((label) => this.toLabel(label)),
+      mergedAt,
+      number: String(pullRequest.number),
+      providerCreatedAt: new Date(pullRequest.created_at),
+      providerPullRequestId: String(pullRequest.id),
+      providerUpdatedAt: new Date(pullRequest.updated_at),
+      sourceBranch: pullRequest.head.ref,
+      state: mergedAt ? 'MERGED' : pullRequest.state === 'closed' ? 'CLOSED' : 'OPEN',
+      targetBranch: pullRequest.base.ref,
+      title: pullRequest.title,
+      url: pullRequest.html_url,
+    };
   }
 
   private headers(context: ProviderAccountContext): HeadersInit {

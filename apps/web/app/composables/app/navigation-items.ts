@@ -77,6 +77,18 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     label: t('layout.repositories'),
     to: '/repositories',
   }));
+  const issues = computed<AppNavigationItem>(() => ({
+    active: isActive('/issues'),
+    icon: 'i-tabler-circle-dot',
+    label: t('layout.issues'),
+    to: '/issues',
+  }));
+  const pullRequests = computed<AppNavigationItem>(() => ({
+    active: isActive('/pull-requests'),
+    icon: 'i-tabler-git-pull-request',
+    label: t('layout.pullRequests'),
+    to: '/pull-requests',
+  }));
   const notifications = computed<AppNavigationItem>(() => ({
     active: isActive('/notifications'),
     icon: 'i-lucide-bell',
@@ -111,6 +123,8 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     const items: NavigationMenuItem[] = [
       toMenuItem(dashboard.value),
       toMenuItem(repositories.value),
+      toMenuItem(issues.value),
+      toMenuItem(pullRequests.value),
       {
         'aria-label': t('layout.workflowRuns'),
         active: workflowRuns.value.some((item) => item.active),
@@ -141,6 +155,8 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
   const navigationSearchItems = computed<NavigationSearchItem[]>(() => [
     dashboard.value,
     repositories.value,
+    issues.value,
+    pullRequests.value,
     ...workflowRuns.value,
     notifications.value,
     ...administration.value,

@@ -106,7 +106,65 @@
     "totalDuration": "Total runtime",
     "totalDurationContext": "Across all runs, including retained history"
   },
+  "issues": {
+    "assigned": "Problemas abertos atribuídos",
+    "description": "Consulte problemas dos repositórios acessíveis.",
+    "open": "Problemas abertos",
+    "recent": "Atualizados em 7 dias",
+    "stale": "Inativos há 30 dias",
+    "title": "Problemas"
+  },
+  "pullRequests": {
+    "approval": "Aprovação do workflow",
+    "approvalRequired": "Aprovação do workflow necessária",
+    "description": "Consulte pull requests e o estado dos workflows.",
+    "draft": "Rascunho",
+    "drafts": "Rascunhos",
+    "failed": "Workflows com falha",
+    "open": "Pull requests abertos",
+    "openMergeRequest": "Abrir merge request",
+    "sourceBranch": "Branch de origem",
+    "targetBranch": "Branch de destino",
+    "title": "Pull requests",
+    "workflowStatus": "Estado do workflow"
+  },
+  "workItems": {
+    "assignee": "Responsável",
+    "columns": {
+      "author": "Autor",
+      "created": "Criado",
+      "number": "Número",
+      "state": "Estado",
+      "title": "Título",
+      "updated": "Atualizado"
+    },
+    "description": "Descrição",
+    "empty": "Nenhum item correspondente.",
+    "labels": "Etiquetas",
+    "loadError": "Não foi possível carregar os itens.",
+    "milestone": "Marco",
+    "noDescription": "Nenhuma descrição fornecida.",
+    "openProvider": "Abrir no fornecedor",
+    "provider": "Fornecedor",
+    "repository": "Repositório",
+    "search": "Pesquisar itens",
+    "searchPlaceholder": "Pesquisar número ou título",
+    "states": { "CLOSED": "Fechado", "MERGED": "Integrado", "OPEN": "Aberto" },
+    "summary": "Visão geral do trabalho",
+    "updatedFrom": "Atualizado desde",
+    "updatedTo": "Atualizado até",
+    "workflowStatuses": {
+      "CANCELLED": "Cancelado",
+      "FAILED": "Falhou",
+      "PENDING": "Pendente",
+      "RUNNING": "Em execução",
+      "SUCCESS": "Sucesso",
+      "UNKNOWN": "Desconhecido"
+    }
+  },
   "layout": {
+    "issues": "Problemas",
+    "pullRequests": "Pull requests",
     "administration": "Administração",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Painel",

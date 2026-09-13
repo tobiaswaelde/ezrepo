@@ -101,7 +101,7 @@ describe('GitHubActionsAdapter', () => {
         payload,
         signingSecret: 'secret',
       }),
-    ).resolves.toEqual({ event: 'workflow_run', providerRepositoryId: '1' });
+    ).resolves.toEqual({ event: 'workflow_run', providerRepositoryId: '1', syncScopes: ['WORKFLOWS'] });
   });
 
   it('maps waiting runs and their pull request without issuing a provider write', async () => {
@@ -271,6 +271,22 @@ describe('GitHubActionsAdapter change requests', () => {
       state: expected,
       targetBranch: 'main',
     });
+  });
+
+  it('normalizes issue and pull-request fixtures without mixing GitHub issue kinds', async () => {
+    const adapter = new GitHubActionsAdapter(
+      jest
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify(readFixture('issues.json'))))
+        .mockResolvedValueOnce(new Response(JSON.stringify(readFixture('pull-requests.json')))),
+    );
+    const query = { includeAllOpen: false, updatedAfter: new Date('2026-08-01T00:00:00Z') };
+    await expect(adapter.listIssues(context, repository, query)).resolves.toMatchObject([
+      { labels: [{ name: 'bug' }], number: '7', providerIssueId: '70', state: 'OPEN' },
+    ]);
+    await expect(adapter.listPullRequests(context, repository, query)).resolves.toMatchObject([
+      { draft: true, number: '8', sourceBranch: 'feature/work', targetBranch: 'main' },
+    ]);
   });
 
   it('returns null when the pull request is unavailable', async () => {

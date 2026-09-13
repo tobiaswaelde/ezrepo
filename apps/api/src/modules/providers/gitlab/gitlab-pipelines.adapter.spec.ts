@@ -99,7 +99,7 @@ describe('GitLabPipelinesAdapter', () => {
         payload,
         signingSecret,
       }),
-    ).resolves.toEqual({ event: 'Pipeline Hook', providerRepositoryId: '42' });
+    ).resolves.toEqual({ event: 'Pipeline Hook', providerRepositoryId: '42', syncScopes: ['WORKFLOWS'] });
   });
 
   it('maps manual merge-request pipelines without issuing a provider write', async () => {
@@ -154,6 +154,24 @@ describe('GitLabPipelinesAdapter change requests', () => {
       state: expected,
       targetBranch: 'main',
     });
+  });
+
+  it('normalizes separate GitLab issue and merge-request fixtures', async () => {
+    const adapter = new GitLabPipelinesAdapter(
+      jest
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify(readFixture('issues.json'))))
+        .mockResolvedValueOnce(new Response(JSON.stringify(readFixture('labels.json'))))
+        .mockResolvedValueOnce(new Response(JSON.stringify(readFixture('pull-requests.json'))))
+        .mockResolvedValueOnce(new Response(JSON.stringify(readFixture('labels.json')))),
+    );
+    const query = { includeAllOpen: false, updatedAfter: new Date('2026-08-01T00:00:00Z') };
+    await expect(adapter.listIssues(context, repository, query)).resolves.toMatchObject([
+      { labels: [{ color: 'd73a4a', name: 'bug', providerLabelId: '1' }], number: '7', state: 'OPEN' },
+    ]);
+    await expect(adapter.listPullRequests(context, repository, query)).resolves.toMatchObject([
+      { draft: true, number: '8', sourceBranch: 'feature/work', targetBranch: 'main' },
+    ]);
   });
 
   it('returns null when the merge request is unavailable', async () => {

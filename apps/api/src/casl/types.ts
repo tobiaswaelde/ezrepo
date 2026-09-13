@@ -14,6 +14,16 @@ export interface WorkflowRunAbilitySubject extends ForcedSubject<CaslSubject.Wor
   repositoryId: string;
 }
 
+/** Issue properties used by repository-scoped ability conditions. */
+export interface IssueAbilitySubject extends ForcedSubject<CaslSubject.Issue> {
+  repositoryId: string;
+}
+
+/** Pull-request properties used by repository-scoped ability conditions. */
+export interface PullRequestAbilitySubject extends ForcedSubject<CaslSubject.PullRequest> {
+  repositoryId: string;
+}
+
 /** Repository-scoped notification channel properties used by CASL conditions. */
 export interface NotificationChannelAbilitySubject extends ForcedSubject<CaslSubject.NotificationChannel> {
   repositoryId: string;
@@ -32,6 +42,8 @@ export type AppAbility = Ability<
       | CaslSubject
       | RepositoryAbilitySubject
       | WorkflowRunAbilitySubject
+      | IssueAbilitySubject
+      | PullRequestAbilitySubject
       | NotificationChannelAbilitySubject
       | NotificationRuleAbilitySubject
     ),

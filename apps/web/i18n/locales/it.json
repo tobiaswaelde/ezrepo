@@ -106,7 +106,65 @@
     "totalDuration": "Total runtime",
     "totalDurationContext": "Across all runs, including retained history"
   },
+  "issues": {
+    "assigned": "Issue aperte assegnate",
+    "description": "Consulta le issue dei repository accessibili.",
+    "open": "Issue aperte",
+    "recent": "Aggiornate in 7 giorni",
+    "stale": "Inattive da 30 giorni",
+    "title": "Issue"
+  },
+  "pullRequests": {
+    "approval": "Approvazione workflow",
+    "approvalRequired": "Approvazione workflow richiesta",
+    "description": "Consulta pull request e stato dei workflow.",
+    "draft": "Bozza",
+    "drafts": "Bozze",
+    "failed": "Workflow non riusciti",
+    "open": "Pull request aperte",
+    "openMergeRequest": "Apri merge request",
+    "sourceBranch": "Branch sorgente",
+    "targetBranch": "Branch destinazione",
+    "title": "Pull request",
+    "workflowStatus": "Stato workflow"
+  },
+  "workItems": {
+    "assignee": "Assegnatario",
+    "columns": {
+      "author": "Autore",
+      "created": "Creata",
+      "number": "Numero",
+      "state": "Stato",
+      "title": "Titolo",
+      "updated": "Aggiornata"
+    },
+    "description": "Descrizione",
+    "empty": "Nessun elemento corrispondente.",
+    "labels": "Etichette",
+    "loadError": "Impossibile caricare gli elementi.",
+    "milestone": "Traguardo",
+    "noDescription": "Nessuna descrizione fornita.",
+    "openProvider": "Apri nel provider",
+    "provider": "Provider",
+    "repository": "Repository",
+    "search": "Cerca elementi",
+    "searchPlaceholder": "Cerca numero o titolo",
+    "states": { "CLOSED": "Chiusa", "MERGED": "Unita", "OPEN": "Aperta" },
+    "summary": "Panoramica lavoro",
+    "updatedFrom": "Aggiornato dal",
+    "updatedTo": "Aggiornato al",
+    "workflowStatuses": {
+      "CANCELLED": "Annullato",
+      "FAILED": "Non riuscito",
+      "PENDING": "In attesa",
+      "RUNNING": "In corso",
+      "SUCCESS": "Riuscito",
+      "UNKNOWN": "Sconosciuto"
+    }
+  },
   "layout": {
+    "issues": "Issue",
+    "pullRequests": "Pull request",
     "administration": "Amministrazione",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Pannello",

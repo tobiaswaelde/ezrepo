@@ -73,6 +73,8 @@ model WorkflowRun {
 
   repositoryId String     @db.Uuid
   repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  pullRequestId String?      @db.Uuid
+  pullRequest   PullRequest? @relation(fields: [pullRequestId], references: [id], onDelete: SetNull)
   notificationDeliveries NotificationDelivery[]
 
   @@unique([repositoryId, providerRunId])
@@ -80,6 +82,7 @@ model WorkflowRun {
   @@index([repositoryId, status, completedAt])
   @@index([workflowId, scopeKey, providerCreatedAt])
   @@index([repositoryId, changeRequestNumber, changeRequestCheckedAt])
+  @@index([pullRequestId, providerCreatedAt])
   @@index([awaitingApproval, providerCreatedAt])
   @@index([completedAt])
   @@map("workflow_runs")

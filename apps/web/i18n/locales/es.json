@@ -106,7 +106,65 @@
     "totalDuration": "Total runtime",
     "totalDurationContext": "Across all runs, including retained history"
   },
+  "issues": {
+    "assigned": "Incidencias abiertas asignadas",
+    "description": "Revisa incidencias de los repositorios accesibles.",
+    "open": "Incidencias abiertas",
+    "recent": "Actualizadas en 7 días",
+    "stale": "Inactivas durante 30 días",
+    "title": "Incidencias"
+  },
+  "pullRequests": {
+    "approval": "Aprobación del flujo",
+    "approvalRequired": "Se requiere aprobación del flujo",
+    "description": "Revisa solicitudes de incorporación y sus flujos.",
+    "draft": "Borrador",
+    "drafts": "Borradores",
+    "failed": "Flujos fallidos",
+    "open": "Solicitudes abiertas",
+    "openMergeRequest": "Abrir merge request",
+    "sourceBranch": "Rama de origen",
+    "targetBranch": "Rama de destino",
+    "title": "Pull requests",
+    "workflowStatus": "Estado del flujo"
+  },
+  "workItems": {
+    "assignee": "Asignado",
+    "columns": {
+      "author": "Autor",
+      "created": "Creado",
+      "number": "Número",
+      "state": "Estado",
+      "title": "Título",
+      "updated": "Actualizado"
+    },
+    "description": "Descripción",
+    "empty": "No hay elementos coincidentes.",
+    "labels": "Etiquetas",
+    "loadError": "No se pudieron cargar los elementos.",
+    "milestone": "Hito",
+    "noDescription": "No se proporcionó descripción.",
+    "openProvider": "Abrir en el proveedor",
+    "provider": "Proveedor",
+    "repository": "Repositorio",
+    "search": "Buscar elementos",
+    "searchPlaceholder": "Buscar número o título",
+    "states": { "CLOSED": "Cerrado", "MERGED": "Fusionado", "OPEN": "Abierto" },
+    "summary": "Resumen de trabajo",
+    "updatedFrom": "Actualizado desde",
+    "updatedTo": "Actualizado hasta",
+    "workflowStatuses": {
+      "CANCELLED": "Cancelado",
+      "FAILED": "Fallido",
+      "PENDING": "Pendiente",
+      "RUNNING": "En curso",
+      "SUCCESS": "Correcto",
+      "UNKNOWN": "Desconocido"
+    }
+  },
   "layout": {
+    "issues": "Incidencias",
+    "pullRequests": "Pull requests",
     "administration": "Administración",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Panel",

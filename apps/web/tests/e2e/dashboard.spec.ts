@@ -43,6 +43,12 @@ async function mockDashboard(page: Page, role: 'SYSTEM_ADMIN' | 'VIEWER'): Promi
   await page.route('**/api/v1/auth/me', async (route) => {
     await route.fulfill({ contentType: 'application/json', json: { id: 'playwright', role, username: 'playwright' } });
   });
+  await page.route('**/api/v1/issues/summary', (route) =>
+    route.fulfill({ json: { assigned: 3, open: 8, recentlyUpdated: 5, stale: 2 } }),
+  );
+  await page.route('**/api/v1/pull-requests/summary', (route) =>
+    route.fulfill({ json: { drafts: 1, failedWorkflows: 2, open: 4, workflowApprovalRequired: 1 } }),
+  );
 }
 
 test('redirects unauthenticated visitors to sign-in', async ({ page }) => {
@@ -124,6 +130,8 @@ test('renders dashboard values, reloads for range filters, and presents request 
   await expect(page.getByText('Failed', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('2m 0s', { exact: true })).toBeVisible();
   await expect(page.getByText('Success rate')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Work overview' }).getByText('Open issues')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Work overview' }).getByText('8', { exact: true })).toBeVisible();
   await expect(
     page.getByRole('region', { name: 'Workflow health summary' }).getByText('Awaiting approval', { exact: true }),
   ).toBeVisible();

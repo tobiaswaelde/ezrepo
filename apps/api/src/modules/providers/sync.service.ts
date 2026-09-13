@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 
 import type { ProviderType } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -9,11 +9,13 @@ import type {
   ProviderAccountContext,
   ProviderAdapter,
   ProviderRepositoryReference,
+  ProviderSyncScope,
   ProviderWorkflowRun,
 } from './provider-adapter.js';
 import { ProviderAdapterRegistry } from './provider-adapter.registry.js';
 import { ProviderCredentialService } from './provider-credential.service.js';
 import { RepositoryMetadataService } from './repository-metadata.service.js';
+import { WorkItemSyncService } from './work-item-sync.service.js';
 
 const terminalWorkflowRunStatuses = ['SUCCESS', 'FAILED', 'CANCELLED', 'SKIPPED', 'UNKNOWN'] as const;
 const closedChangeRequestRefreshIntervalMs = 24 * 60 * 60 * 1000;
@@ -31,6 +33,7 @@ export class ProviderSyncService {
     private readonly filters: WorkflowFilterService,
     private readonly notifications: NotificationsService,
     private readonly status: SystemStatusService,
+    @Optional() private readonly workItems?: WorkItemSyncService,
   ) {}
 
   async syncEnabledRepositories(): Promise<void> {
@@ -95,7 +98,10 @@ export class ProviderSyncService {
   }
 
   /** Synchronize one enabled repository claimed by the durable sync queue. */
-  async syncRepositoryById(repositoryId: string): Promise<boolean> {
+  async syncRepositoryById(
+    repositoryId: string,
+    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+  ): Promise<boolean> {
     const syncId = this.status.beginProviderSync();
     try {
       const repository = await this.prisma.repository.findFirst({
@@ -104,7 +110,7 @@ export class ProviderSyncService {
       });
       if (!repository) return false;
 
-      await this.syncRepository(repository, { id: syncId, repositoriesCompleted: 0, repositoriesTotal: 1 });
+      await this.syncRepository(repository, { id: syncId, repositoriesCompleted: 0, repositoriesTotal: 1 }, scopes);
       this.status.updateProviderSync(syncId, {
         phase: 'FETCHING_WORKFLOWS',
         repositoriesCompleted: 1,
@@ -124,6 +130,7 @@ export class ProviderSyncService {
       workflowFilters: { mode: 'ALLOW' | 'DENY'; pattern: string }[];
     },
     progress: { id: string; repositoriesCompleted: number; repositoriesTotal: number },
+    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
   ): Promise<void> {
     this.status.updateProviderSync(progress.id, {
       phase: 'FETCHING_WORKFLOWS',
@@ -140,6 +147,11 @@ export class ProviderSyncService {
         baseUrl: refreshedRepository.providerAccount.baseUrl,
         accessToken: this.credentials.decrypt(refreshedRepository.providerAccount.encryptedAccessToken),
       };
+      await this.workItems?.synchronize(context, refreshedRepository, adapter, scopes);
+      if (!scopes.includes('WORKFLOWS')) {
+        await this.markSynchronizationSuccess(repository);
+        return;
+      }
       const discoveredRuns = await adapter.listWorkflowRuns(
         context,
         refreshedRepository,
@@ -184,11 +196,7 @@ export class ProviderSyncService {
         });
       }
       await this.refreshChangeRequestStates(context, refreshedRepository, adapter);
-      await this.prisma.repository.update({ where: { id: repository.id }, data: { lastSyncAt: new Date() } });
-      await this.prisma.providerAccount.update({
-        where: { id: repository.providerAccount.id },
-        data: { lastSyncAt: new Date(), lastSyncError: null },
-      });
+      await this.markSynchronizationSuccess(repository);
     } catch (error) {
       await this.prisma.providerAccount.update({
         where: { id: repository.providerAccount.id },
@@ -202,6 +210,15 @@ export class ProviderSyncService {
     } finally {
       await this.status.refreshRunningWorkflowCount();
     }
+  }
+
+  private async markSynchronizationSuccess(repository: { id: string; providerAccount: { id: string } }): Promise<void> {
+    const lastSyncAt = new Date();
+    await this.prisma.repository.update({ where: { id: repository.id }, data: { lastSyncAt } });
+    await this.prisma.providerAccount.update({
+      where: { id: repository.providerAccount.id },
+      data: { lastSyncAt, lastSyncError: null },
+    });
   }
 
   /** Refresh lifecycle metadata for change requests whose current terminal workflow result still failed. */
@@ -287,12 +304,29 @@ export class ProviderSyncService {
       },
     });
     await this.consolidateLegacyWorkflow(repositoryId, run, workflow.id);
+    const pullRequest =
+      run.changeRequestNumber && this.workItems
+        ? await this.prisma.pullRequest.findUnique({
+            select: { id: true },
+            where: { repositoryId_number: { number: run.changeRequestNumber, repositoryId } },
+          })
+        : null;
     const workflowRun = await this.prisma.workflowRun.upsert({
       where: { repositoryId_providerRunId: { repositoryId, providerRunId: run.providerRunId } },
-      create: { ...runData, repositoryId, workflowId: workflow.id },
-      update: { ...runData, workflowId: workflow.id },
+      create: {
+        ...runData,
+        ...(this.workItems ? { pullRequestId: pullRequest?.id ?? null } : {}),
+        repositoryId,
+        workflowId: workflow.id,
+      },
+      update: {
+        ...runData,
+        ...(this.workItems ? { pullRequestId: pullRequest?.id ?? null } : {}),
+        workflowId: workflow.id,
+      },
     });
     await this.notifications.evaluateRulesForRun(workflowRun);
+    if (workflowRun.pullRequestId) await this.workItems?.refreshPullRequestWorkflowStatus(workflowRun.pullRequestId);
   }
 
   private async consolidateLegacyWorkflow(

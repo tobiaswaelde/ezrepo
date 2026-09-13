@@ -18,6 +18,10 @@ model Repository {
   notificationChannels NotificationChannel[]
   notificationRules    NotificationRule[]
   syncRequest          RepositorySyncRequest?
+  workItemSyncCursors  WorkItemSyncCursor[]
+  workItemLabels       WorkItemLabel[]
+  issues               Issue[]
+  pullRequests         PullRequest[]
   workflowFilters      WorkflowFilter[]
   workflows            Workflow[]
   workflowRuns      WorkflowRun[]
