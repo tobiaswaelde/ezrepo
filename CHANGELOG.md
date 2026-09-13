@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.8
+
+### Patch Changes
+
+- ac08969: Add secure provider webhook setup controls and refresh open workflow tables after synchronized data changes.
+
 ## 0.2.7
 
 ### Patch Changes
