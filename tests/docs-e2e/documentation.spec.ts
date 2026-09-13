@@ -21,7 +21,7 @@ test('US English docs support navigation, search, keyboard access, and narrow vi
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${base}/provider-webhooks`);
-  await expect(page.locator('main h1')).toContainText('Manual provider webhook setup');
+  await expect(page.locator('main h1')).toContainText('Repository webhook setup');
   const geometry = await page.evaluate(() => ({
     document: document.documentElement.scrollWidth,
     viewport: innerWidth,
