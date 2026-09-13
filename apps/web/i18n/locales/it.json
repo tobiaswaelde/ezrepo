@@ -162,14 +162,53 @@
       "UNKNOWN": "Sconosciuto"
     }
   },
+  "jobs": {
+    "columns": {
+      "actions": "Azioni",
+      "attempt": "Tentativo",
+      "error": "Errore",
+      "progress": "Avanzamento",
+      "provider": "Provider",
+      "requestedAt": "Richiesto",
+      "repository": "Repository",
+      "runAfter": "Pianificato",
+      "scopes": "Ambiti",
+      "startedAt": "Avviato",
+      "status": "Stato"
+    },
+    "description": "Sincronizza workflow, issue e pull request dai provider configurati.",
+    "empty": "Non sono disponibili job di sincronizzazione abilitati.",
+    "loadError": "Impossibile caricare i job di sincronizzazione.",
+    "phases": {
+      "FETCHING_WORKFLOWS": "Recupero dei workflow",
+      "LOADING_REPOSITORY": "Caricamento dei metadati",
+      "PROCESSING_WORKFLOWS": "Elaborazione dei workflow",
+      "REFRESHING_CHANGE_REQUESTS": "Aggiornamento delle richieste di modifica",
+      "SYNCING_ISSUES": "Sincronizzazione delle issue",
+      "SYNCING_PULL_REQUESTS": "Sincronizzazione delle pull request"
+    },
+    "progressCount": "{phase}: {current}/{total}",
+    "repositorySync": "Sincronizzazione repository",
+    "retry": "Riprova",
+    "run": "Avvia",
+    "runAll": "Avvia tutti",
+    "scopes": { "ISSUES": "Issue", "PULL_REQUESTS": "Pull request", "WORKFLOWS": "Workflow" },
+    "status": { "FAILED": "Non riuscito", "IDLE": "Inattivo", "PENDING": "In attesa", "RUNNING": "In esecuzione" },
+    "summary": "Stato sincronizzazione repository",
+    "title": "Job",
+    "waiting": "In attesa"
+  },
   "layout": {
     "issues": "Issue",
+    "jobs": "Job",
     "pullRequests": "Pull request",
     "administration": "Amministrazione",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Pannello",
     "language": "Lingua",
     "notifications": "Notifiche",
+    "operations": "Operazioni",
+    "overview": "Panoramica",
     "primaryNavigation": "Navigazione principale",
     "providers": "Account dei provider",
     "readOnlyStatus": "Monitoraggio in sola lettura dello stato dei flussi di lavoro",
@@ -407,6 +446,7 @@
       "DISCONNECTED": "Offline"
     },
     "label": "Stato API",
+    "openJobs": "Apri i job. In esecuzione: {count}",
     "progress": "{current}/{total}",
     "runningWorkflows": "In esecuzione: {count}"
   },

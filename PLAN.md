@@ -45,7 +45,8 @@ Do not copy Machine Admin domain models or endpoints.
 
 Implement these feature modules:
 
-- `auth`, `users`, `provider-accounts`, `repositories`, `workflow-runs`, `dashboard`, `notifications`, `webhooks`, `sync`, `init`, and `health`.
+- `auth`, `users`, `provider-accounts`, `repositories`, `workflow-runs`, `dashboard`, `jobs`, `notifications`, `webhooks`,
+  `sync`, `init`, and `health`.
 
 Persist at least:
 
@@ -92,6 +93,7 @@ Create these pages:
   - success/error trend graph with selectable time range.
 - Provider account administration for system administrators.
 - Repository selection, tracking, workflow filters, retention, and memberships.
+- Permission-scoped repository synchronization jobs with administrator-only manual start actions and live progress.
 - Notification channel, rule, and delivery-history management.
 - User administration for system administrators.
 

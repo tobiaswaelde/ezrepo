@@ -162,13 +162,52 @@
       "UNKNOWN": "Unbekannt"
     }
   },
+  "jobs": {
+    "columns": {
+      "actions": "Aktionen",
+      "attempt": "Versuch",
+      "progress": "Fortschritt",
+      "error": "Fehler",
+      "provider": "Provider",
+      "requestedAt": "Angefordert",
+      "runAfter": "Geplant",
+      "startedAt": "Gestartet",
+      "repository": "Repository",
+      "scopes": "Bereiche",
+      "status": "Status"
+    },
+    "description": "Synchronisiert Workflows, Issues und Pull Requests von den konfigurierten Anbietern.",
+    "empty": "Es sind keine aktivierten Repository-Synchronisierungsjobs verfügbar.",
+    "loadError": "Repository-Synchronisierungsjobs konnten nicht geladen werden.",
+    "phases": {
+      "FETCHING_WORKFLOWS": "Workflows abrufen",
+      "LOADING_REPOSITORY": "Repository-Metadaten laden",
+      "PROCESSING_WORKFLOWS": "Workflows verarbeiten",
+      "REFRESHING_CHANGE_REQUESTS": "Änderungsanfragen aktualisieren",
+      "SYNCING_ISSUES": "Issues synchronisieren",
+      "SYNCING_PULL_REQUESTS": "Pull Requests synchronisieren"
+    },
+    "progressCount": "{phase}: {current}/{total}",
+    "repositorySync": "Repository-Synchronisierung",
+    "retry": "Erneut versuchen",
+    "run": "Starten",
+    "runAll": "Alle starten",
+    "scopes": { "ISSUES": "Issues", "PULL_REQUESTS": "Pull Requests", "WORKFLOWS": "Workflows" },
+    "status": { "FAILED": "Fehlgeschlagen", "IDLE": "Inaktiv", "PENDING": "Wartend", "RUNNING": "Läuft" },
+    "summary": "Status der Repository-Synchronisierung",
+    "title": "Jobs",
+    "waiting": "Wartend"
+  },
   "layout": {
     "administration": "Verwaltung",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Dashboard",
     "issues": "Issues",
+    "jobs": "Jobs",
     "language": "Sprache",
     "notifications": "Benachrichtigungen",
+    "operations": "Betrieb",
+    "overview": "Übersicht",
     "primaryNavigation": "Hauptnavigation",
     "providers": "Anbieter-Konten",
     "pullRequests": "Pull Requests",
@@ -407,6 +446,7 @@
       "DISCONNECTED": "Offline"
     },
     "label": "API-Status",
+    "openJobs": "Jobs öffnen. Laufend: {count}",
     "progress": "{current}/{total}",
     "runningWorkflows": "Laufend: {count}"
   },

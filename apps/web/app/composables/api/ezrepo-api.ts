@@ -28,6 +28,7 @@ import type {
   Repository,
   RepositoryHealth,
   RepositoryMembership,
+  RepositorySyncJobSummary,
   StartProviderOAuth,
   UpdateApplicationSettings,
   UpdateNotificationChannel,
@@ -64,6 +65,14 @@ export function useEzRepoApi() {
         api.get(`${apiEndpoints.issues}/filter-options`),
       get: (id: string): Promise<AxiosResponse<Issue>> => api.get(`${apiEndpoints.issues}/${id}`),
       summary: (): Promise<AxiosResponse<IssueSummary>> => api.get(`${apiEndpoints.issues}/summary`),
+    },
+    jobs: {
+      start: (repositoryId: string): Promise<AxiosResponse<{ queuedCount: number }>> =>
+        api.post(`${apiEndpoints.repositorySyncJobs}/${repositoryId}/run`),
+      startAll: (): Promise<AxiosResponse<{ queuedCount: number }>> =>
+        api.post(`${apiEndpoints.repositorySyncJobs}/run`),
+      summary: (): Promise<AxiosResponse<RepositorySyncJobSummary>> =>
+        api.get(`${apiEndpoints.repositorySyncJobs}/summary`),
     },
     mcpTokens: {
       create: (input: CreateMcpAccessToken): Promise<AxiosResponse<CreatedMcpAccessToken>> =>

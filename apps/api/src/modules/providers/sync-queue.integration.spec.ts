@@ -48,7 +48,11 @@ describe('provider sync queue integration', () => {
     await processing;
 
     expect(sync.syncRepositoryById).toHaveBeenCalledTimes(1);
-    expect(sync.syncRepositoryById).toHaveBeenCalledWith(repository.id);
+    expect(sync.syncRepositoryById).toHaveBeenCalledWith(
+      repository.id,
+      ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+      expect.any(Function),
+    );
     await expect(prisma.repositorySyncRequest.count()).resolves.toBe(0);
   });
 
@@ -134,6 +138,36 @@ describe('provider sync queue integration', () => {
       lastError: null,
       status: 'PENDING',
     });
+  });
+
+  it('enqueues each available repository once across repeated run-all requests', async () => {
+    const { repository } = await createRepository(prisma);
+    const service = createService(prisma, { syncRepositoryById: jest.fn() });
+
+    await expect(service.enqueueAvailableRepositories()).resolves.toBe(1);
+    await expect(service.enqueueAvailableRepositories()).resolves.toBe(0);
+    await expect(prisma.repositorySyncRequest.count({ where: { repositoryId: repository.id } })).resolves.toBe(1);
+  });
+
+  it('persists reported progress and returns successful jobs to idle', async () => {
+    const { repository } = await createRepository(prisma);
+    const sync = {
+      syncRepositoryById: jest.fn(async (_repositoryId, _scopes, reportProgress) => {
+        await reportProgress({ current: 2, phase: 'SYNCING_ISSUES', total: 5 });
+        await expect(
+          prisma.repositorySyncRequest.findUnique({ where: { repositoryId: repository.id } }),
+        ).resolves.toMatchObject({ progressCurrent: 2, progressPhase: 'SYNCING_ISSUES', progressTotal: 5 });
+        return true;
+      }),
+    };
+    const service = createService(prisma, sync);
+    await service.enqueueAvailableRepositories();
+
+    await service.processDueRequests();
+
+    await expect(
+      prisma.repositorySyncRequest.findUnique({ where: { repositoryId: repository.id } }),
+    ).resolves.toBeNull();
   });
 });
 

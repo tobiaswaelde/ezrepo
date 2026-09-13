@@ -77,6 +77,12 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     label: t('layout.repositories'),
     to: '/repositories',
   }));
+  const jobs = computed<AppNavigationItem>(() => ({
+    active: isActive('/jobs'),
+    icon: 'i-lucide-list-checks',
+    label: t('layout.jobs'),
+    to: '/jobs',
+  }));
   const issues = computed<AppNavigationItem>(() => ({
     active: isActive('/issues'),
     icon: 'i-tabler-circle-dot',
@@ -105,26 +111,24 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
         to: '/admin/providers',
       },
       {
-        active: isActive('/admin/settings'),
-        icon: 'i-lucide-settings',
-        label: t('layout.settings'),
-        to: '/admin/settings',
-      },
-      {
         active: isActive('/admin/users'),
         icon: 'i-lucide-users',
         label: t('layout.users'),
         to: '/admin/users',
+      },
+      {
+        active: isActive('/admin/settings'),
+        icon: 'i-lucide-settings',
+        label: t('layout.settings'),
+        to: '/admin/settings',
       },
     ];
   });
 
   const navigationItems = computed<NavigationMenuItem[]>(() => {
     const items: NavigationMenuItem[] = [
+      { label: t('layout.overview'), type: 'label' },
       toMenuItem(dashboard.value),
-      toMenuItem(repositories.value),
-      toMenuItem(issues.value),
-      toMenuItem(pullRequests.value),
       {
         'aria-label': t('layout.workflowRuns'),
         active: workflowRuns.value.some((item) => item.active),
@@ -134,19 +138,16 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
         label: t('layout.workflowRuns'),
         type: 'trigger',
       },
+      toMenuItem(issues.value),
+      toMenuItem(pullRequests.value),
+      { label: t('layout.operations'), type: 'label' },
+      toMenuItem(repositories.value),
+      toMenuItem(jobs.value),
       toMenuItem(notifications.value),
     ];
 
     if (administration.value.length > 0) {
-      items.push({
-        'aria-label': t('layout.administration'),
-        active: administration.value.some((item) => item.active),
-        children: administration.value.map(toMenuItem),
-        defaultOpen: true,
-        icon: 'i-lucide-settings-2',
-        label: t('layout.administration'),
-        type: 'trigger',
-      });
+      items.push({ label: t('layout.administration'), type: 'label' }, ...administration.value.map(toMenuItem));
     }
 
     return items;
@@ -154,10 +155,11 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
 
   const navigationSearchItems = computed<NavigationSearchItem[]>(() => [
     dashboard.value,
-    repositories.value,
+    ...workflowRuns.value,
     issues.value,
     pullRequests.value,
-    ...workflowRuns.value,
+    repositories.value,
+    jobs.value,
     notifications.value,
     ...administration.value,
   ]);

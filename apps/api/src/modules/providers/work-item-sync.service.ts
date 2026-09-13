@@ -12,6 +12,7 @@ import type {
   ProviderSyncScope,
   ProviderWorkItemLabel,
 } from './provider-adapter.js';
+import type { RepositorySyncProgressReporter } from './sync-progress.js';
 
 const initialHistoryMs = 90 * 24 * 60 * 60 * 1_000;
 const cursorOverlapMs = 5 * 60 * 1_000;
@@ -29,19 +30,27 @@ export class WorkItemSyncService {
     repository: SyncRepository,
     adapter: ProviderAdapter,
     scopes: ProviderSyncScope[] = ['ISSUES', 'PULL_REQUESTS'],
+    reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
-    if (scopes.includes('ISSUES')) await this.synchronizeIssues(context, repository, adapter);
-    if (scopes.includes('PULL_REQUESTS')) await this.synchronizePullRequests(context, repository, adapter);
+    if (scopes.includes('ISSUES')) await this.synchronizeIssues(context, repository, adapter, reportProgress);
+    if (scopes.includes('PULL_REQUESTS'))
+      await this.synchronizePullRequests(context, repository, adapter, reportProgress);
   }
 
   private async synchronizeIssues(
     context: ProviderAccountContext,
     repository: SyncRepository,
     adapter: ProviderAdapter,
+    reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
+    await reportProgress?.({ current: null, phase: 'SYNCING_ISSUES', total: null });
     const { query, synchronizedThrough } = await this.syncWindow(repository.id, 'ISSUE');
     const issues = await adapter.listIssues(context, repository, query);
-    for (const issue of issues) await this.persistIssue(repository, issue);
+    await reportProgress?.({ current: 0, phase: 'SYNCING_ISSUES', total: issues.length });
+    for (const [index, issue] of issues.entries()) {
+      await this.persistIssue(repository, issue);
+      await reportProgress?.({ current: index + 1, phase: 'SYNCING_ISSUES', total: issues.length });
+    }
     await this.advanceCursor(repository.id, 'ISSUE', synchronizedThrough);
   }
 
@@ -49,10 +58,16 @@ export class WorkItemSyncService {
     context: ProviderAccountContext,
     repository: SyncRepository,
     adapter: ProviderAdapter,
+    reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
+    await reportProgress?.({ current: null, phase: 'SYNCING_PULL_REQUESTS', total: null });
     const { query, synchronizedThrough } = await this.syncWindow(repository.id, 'PULL_REQUEST');
     const pullRequests = await adapter.listPullRequests(context, repository, query);
-    for (const pullRequest of pullRequests) await this.persistPullRequest(repository, pullRequest);
+    await reportProgress?.({ current: 0, phase: 'SYNCING_PULL_REQUESTS', total: pullRequests.length });
+    for (const [index, pullRequest] of pullRequests.entries()) {
+      await this.persistPullRequest(repository, pullRequest);
+      await reportProgress?.({ current: index + 1, phase: 'SYNCING_PULL_REQUESTS', total: pullRequests.length });
+    }
     await this.advanceCursor(repository.id, 'PULL_REQUEST', synchronizedThrough);
   }
 

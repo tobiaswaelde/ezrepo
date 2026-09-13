@@ -108,6 +108,46 @@ export interface PaginatedResource<T> {
   };
 }
 
+/** Lifecycle state of one available repository synchronization job. */
+export type RepositorySyncJobStatus = 'IDLE' | 'PENDING' | 'RUNNING' | 'FAILED';
+
+/** Persisted phase of a running repository synchronization job. */
+export type RepositorySyncProgressPhase =
+  | 'LOADING_REPOSITORY'
+  | 'SYNCING_ISSUES'
+  | 'SYNCING_PULL_REQUESTS'
+  | 'FETCHING_WORKFLOWS'
+  | 'PROCESSING_WORKFLOWS'
+  | 'REFRESHING_CHANGE_REQUESTS';
+
+/** Public state for one permanently available repository synchronization job. */
+export interface RepositorySyncJob {
+  attempt: number;
+  id: string;
+  lastError: string | null;
+  progressCurrent: number | null;
+  progressPhase: RepositorySyncProgressPhase | null;
+  progressTotal: number | null;
+  providerName: string;
+  providerType: ProviderType;
+  repositoryName: string;
+  repositoryOwner: string;
+  requestedAt: ApiTimestamp | null;
+  runAfter: ApiTimestamp | null;
+  scopes: Array<'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS'>;
+  startedAt: ApiTimestamp | null;
+  status: RepositorySyncJobStatus;
+}
+
+/** Aggregate status counts for visible repository synchronization jobs. */
+export interface RepositorySyncJobSummary {
+  failed: number;
+  idle: number;
+  pending: number;
+  running: number;
+  total: number;
+}
+
 /** Input used to start a provider OAuth authorization. */
 export interface StartProviderOAuth {
   baseUrl?: string;

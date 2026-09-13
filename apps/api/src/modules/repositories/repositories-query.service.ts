@@ -1,3 +1,4 @@
+import { accessibleBy } from '@casl/prisma';
 import { Injectable } from '@nestjs/common';
 import {
   QueryService,
@@ -84,5 +85,12 @@ export class RepositoriesQueryService extends QueryService<
       where: searchWhere ? { AND: [where ?? {}, searchWhere] } : where,
       orderBy: query.orderBy ?? [{ owner: 'asc' }, { name: 'asc' }, { id: 'asc' }],
     };
+  }
+
+  /** Return the Prisma restriction for repositories readable through the supplied ability. */
+  visibleWhere(ability: AppAbility): Prisma.RepositoryWhereInput {
+    return accessibleBy(ability, CaslAction.Read).ofType(
+      CaslSubject.Repository as never,
+    ) as Prisma.RepositoryWhereInput;
   }
 }

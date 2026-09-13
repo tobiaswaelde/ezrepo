@@ -6,8 +6,9 @@ description: Sign in to ezRepo, use the sidebar, and find pages with global sear
 # Sign in and navigation
 
 After an administrator has completed the one-time setup, open **Sign in** and enter your username and password. The
-sidebar lists only the pages your role can access. Use the search control in the app bar to find repositories, provider
-accounts, pages, and workflow runs.
+sidebar groups pages into **Overview**, **Operations**, and, for system administrators, **Administration**. Use the search
+control in the app bar to find repositories, provider accounts, pages, and workflow runs. The running counter in the
+global status bar links directly to the [repository synchronization jobs](./jobs) page.
 
 ![ezRepo sign-in page](/screenshots/sign-in.png)
 

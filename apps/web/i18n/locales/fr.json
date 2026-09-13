@@ -162,14 +162,53 @@
       "UNKNOWN": "Inconnu"
     }
   },
+  "jobs": {
+    "columns": {
+      "actions": "Actions",
+      "attempt": "Tentative",
+      "error": "Erreur",
+      "progress": "Progression",
+      "provider": "Fournisseur",
+      "requestedAt": "Demandé",
+      "repository": "Dépôt",
+      "runAfter": "Planifié",
+      "scopes": "Périmètres",
+      "startedAt": "Démarré",
+      "status": "État"
+    },
+    "description": "Synchronise les workflows, tickets et demandes de fusion depuis les fournisseurs configurés.",
+    "empty": "Aucune tâche de synchronisation de dépôt activée n’est disponible.",
+    "loadError": "Les tâches de synchronisation n’ont pas pu être chargées.",
+    "phases": {
+      "FETCHING_WORKFLOWS": "Récupération des workflows",
+      "LOADING_REPOSITORY": "Chargement des métadonnées",
+      "PROCESSING_WORKFLOWS": "Traitement des workflows",
+      "REFRESHING_CHANGE_REQUESTS": "Actualisation des demandes de changement",
+      "SYNCING_ISSUES": "Synchronisation des tickets",
+      "SYNCING_PULL_REQUESTS": "Synchronisation des demandes de fusion"
+    },
+    "progressCount": "{phase} : {current}/{total}",
+    "repositorySync": "Synchronisation des dépôts",
+    "retry": "Réessayer",
+    "run": "Exécuter",
+    "runAll": "Tout exécuter",
+    "scopes": { "ISSUES": "Tickets", "PULL_REQUESTS": "Demandes de fusion", "WORKFLOWS": "Workflows" },
+    "status": { "FAILED": "Échec", "IDLE": "Inactive", "PENDING": "En attente", "RUNNING": "En cours" },
+    "summary": "État de synchronisation des dépôts",
+    "title": "Tâches",
+    "waiting": "En attente"
+  },
   "layout": {
     "issues": "Tickets",
+    "jobs": "Tâches",
     "pullRequests": "Pull requests",
     "administration": "Administration",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Tableau de bord",
     "language": "Langue",
     "notifications": "Notifications",
+    "operations": "Opérations",
+    "overview": "Vue d’ensemble",
     "primaryNavigation": "Navigation principale",
     "providers": "Comptes fournisseurs",
     "readOnlyStatus": "Surveillance en lecture seule des flux de travail",
@@ -407,6 +446,7 @@
       "DISCONNECTED": "Hors ligne"
     },
     "label": "État de l’API",
+    "openJobs": "Ouvrir les tâches. En cours : {count}",
     "progress": "{current}/{total}",
     "runningWorkflows": "En cours : {count}"
   },

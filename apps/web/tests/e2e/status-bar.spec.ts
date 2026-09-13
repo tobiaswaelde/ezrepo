@@ -11,6 +11,17 @@ async function mockDashboardShell(page: Page): Promise<void> {
   await page.route('**/api/v1/dashboard/failures', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/dashboard/latest-runs', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/dashboard/trend**', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/v1/jobs/repository-sync/summary', (route) =>
+    route.fulfill({ json: { failed: 0, idle: 0, pending: 0, running: 0, total: 0 } }),
+  );
+  await page.route(/\/api\/v1\/jobs\/repository-sync(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        meta: { hasNextPage: false, hasPrevPage: false, itemCount: 0, page: 1, pageCount: 0, perPage: 10 },
+      },
+    }),
+  );
 }
 
 /** Encode a Socket.IO event for the status namespace. */
@@ -91,4 +102,8 @@ test('shows live workflow counts and provider synchronization progress globally'
   await expect(statusBar).toContainText('Running: 4');
   await expect(statusBar).toContainText('Processing workflows');
   await expect(statusBar).toContainText('7/12');
+  const runningLink = statusBar.getByRole('link', { name: 'Open jobs. Running: 4' });
+  await expect(runningLink).toHaveAttribute('href', '/jobs');
+  await runningLink.click();
+  await expect(page).toHaveURL(/\/jobs$/);
 });

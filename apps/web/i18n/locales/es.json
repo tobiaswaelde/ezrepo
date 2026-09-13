@@ -162,14 +162,57 @@
       "UNKNOWN": "Desconocido"
     }
   },
+  "jobs": {
+    "columns": {
+      "actions": "Acciones",
+      "attempt": "Intento",
+      "error": "Error",
+      "progress": "Progreso",
+      "provider": "Proveedor",
+      "requestedAt": "Solicitado",
+      "repository": "Repositorio",
+      "runAfter": "Programado",
+      "scopes": "Ámbitos",
+      "startedAt": "Iniciado",
+      "status": "Estado"
+    },
+    "description": "Sincroniza flujos de trabajo, incidencias y solicitudes de incorporación desde los proveedores configurados.",
+    "empty": "No hay trabajos de sincronización de repositorios habilitados.",
+    "loadError": "No se pudieron cargar los trabajos de sincronización.",
+    "phases": {
+      "FETCHING_WORKFLOWS": "Obteniendo flujos de trabajo",
+      "LOADING_REPOSITORY": "Cargando metadatos",
+      "PROCESSING_WORKFLOWS": "Procesando flujos de trabajo",
+      "REFRESHING_CHANGE_REQUESTS": "Actualizando solicitudes de cambio",
+      "SYNCING_ISSUES": "Sincronizando incidencias",
+      "SYNCING_PULL_REQUESTS": "Sincronizando solicitudes de incorporación"
+    },
+    "progressCount": "{phase}: {current}/{total}",
+    "repositorySync": "Sincronización de repositorios",
+    "retry": "Reintentar",
+    "run": "Ejecutar",
+    "runAll": "Ejecutar todos",
+    "scopes": {
+      "ISSUES": "Incidencias",
+      "PULL_REQUESTS": "Solicitudes de incorporación",
+      "WORKFLOWS": "Flujos de trabajo"
+    },
+    "status": { "FAILED": "Fallido", "IDLE": "Inactivo", "PENDING": "Pendiente", "RUNNING": "En ejecución" },
+    "summary": "Estado de sincronización de repositorios",
+    "title": "Trabajos",
+    "waiting": "En espera"
+  },
   "layout": {
     "issues": "Incidencias",
+    "jobs": "Trabajos",
     "pullRequests": "Pull requests",
     "administration": "Administración",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Panel",
     "language": "Idioma",
     "notifications": "Notificaciones",
+    "operations": "Operaciones",
+    "overview": "Resumen",
     "primaryNavigation": "Navegación principal",
     "providers": "Cuentas de proveedores",
     "readOnlyStatus": "Supervisión de estado de flujos de trabajo de solo lectura",
@@ -407,6 +450,7 @@
       "DISCONNECTED": "Sin conexión"
     },
     "label": "Estado de la API",
+    "openJobs": "Abrir trabajos. En ejecución: {count}",
     "progress": "{current}/{total}",
     "runningWorkflows": "En ejecución: {count}"
   },

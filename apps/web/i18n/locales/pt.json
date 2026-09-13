@@ -162,14 +162,53 @@
       "UNKNOWN": "Desconhecido"
     }
   },
+  "jobs": {
+    "columns": {
+      "actions": "Ações",
+      "attempt": "Tentativa",
+      "progress": "Progresso",
+      "error": "Erro",
+      "provider": "Provedor",
+      "requestedAt": "Solicitado",
+      "runAfter": "Agendado",
+      "startedAt": "Iniciado",
+      "repository": "Repositório",
+      "scopes": "Âmbitos",
+      "status": "Estado"
+    },
+    "description": "Sincroniza workflows, problemas e pull requests dos fornecedores configurados.",
+    "empty": "Não existem tarefas de sincronização de repositórios ativadas.",
+    "loadError": "Não foi possível carregar as tarefas de sincronização.",
+    "phases": {
+      "FETCHING_WORKFLOWS": "A obter workflows",
+      "LOADING_REPOSITORY": "A carregar metadados",
+      "PROCESSING_WORKFLOWS": "A processar workflows",
+      "REFRESHING_CHANGE_REQUESTS": "A atualizar pedidos de alteração",
+      "SYNCING_ISSUES": "A sincronizar problemas",
+      "SYNCING_PULL_REQUESTS": "A sincronizar pull requests"
+    },
+    "progressCount": "{phase}: {current}/{total}",
+    "repositorySync": "Sincronização de repositórios",
+    "retry": "Tentar novamente",
+    "run": "Executar",
+    "runAll": "Executar todas",
+    "scopes": { "ISSUES": "Problemas", "PULL_REQUESTS": "Pull requests", "WORKFLOWS": "Workflows" },
+    "status": { "FAILED": "Falhou", "IDLE": "Inativa", "PENDING": "Pendente", "RUNNING": "Em execução" },
+    "summary": "Estado da sincronização de repositórios",
+    "title": "Tarefas",
+    "waiting": "Em espera"
+  },
   "layout": {
     "issues": "Problemas",
+    "jobs": "Tarefas",
     "pullRequests": "Pull requests",
     "administration": "Administração",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Painel",
     "language": "Idioma",
     "notifications": "Notificações",
+    "operations": "Operações",
+    "overview": "Visão geral",
     "primaryNavigation": "Navegação principal",
     "providers": "Contas de fornecedores",
     "readOnlyStatus": "Monitorização apenas de leitura do estado dos fluxos de trabalho",
@@ -407,6 +446,7 @@
       "DISCONNECTED": "Offline"
     },
     "label": "Status da API",
+    "openJobs": "Abrir tarefas. Em execução: {count}",
     "progress": "{current}/{total}",
     "runningWorkflows": "Em execução: {count}"
   },

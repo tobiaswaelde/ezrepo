@@ -9,6 +9,7 @@ import type {
   ProviderAccount,
   PullRequest,
   Repository,
+  RepositorySyncJob,
   UpdateNotificationChannel,
   UpdateNotificationRule,
   User,
@@ -44,6 +45,7 @@ export const apiEndpoints = {
     base: '/provider-accounts',
   },
   repositories: '/repositories',
+  repositorySyncJobs: '/jobs/repository-sync',
   settings: { base: '/settings' },
   users: '/users',
   version: '/version/latest',
@@ -62,6 +64,11 @@ export interface Endpoints {
   repositories: {
     create: never;
     dto: Repository;
+    update: never;
+  };
+  'jobs/repository-sync': {
+    create: never;
+    dto: RepositorySyncJob;
     update: never;
   };
   users: {

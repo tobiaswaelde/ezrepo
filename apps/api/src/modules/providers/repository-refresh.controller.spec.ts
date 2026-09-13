@@ -14,7 +14,7 @@ describe('RepositoryRefreshController', () => {
       workflowRunRetentionDays: null,
     };
     const metadata = { refreshById: jest.fn().mockResolvedValue(repository) };
-    const syncQueue = { enqueueRepositorySync: jest.fn() };
+    const syncQueue = { enqueueRepositorySyncIfAvailable: jest.fn() };
     const controller = new RepositoryRefreshController(metadata as never, syncQueue as never);
     const user = { id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
 
@@ -28,11 +28,11 @@ describe('RepositoryRefreshController', () => {
 
   it('queues an immediate workflow synchronization for administrators', async () => {
     const metadata = { refreshById: jest.fn() };
-    const syncQueue = { enqueueRepositorySync: jest.fn().mockResolvedValue(undefined) };
+    const syncQueue = { enqueueRepositorySyncIfAvailable: jest.fn().mockResolvedValue(true) };
     const controller = new RepositoryRefreshController(metadata as never, syncQueue as never);
     const user = { id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
 
     await expect(controller.sync({ user }, 'repository-id')).resolves.toBeUndefined();
-    expect(syncQueue.enqueueRepositorySync).toHaveBeenCalledWith('repository-id');
+    expect(syncQueue.enqueueRepositorySyncIfAvailable).toHaveBeenCalledWith('repository-id');
   });
 });

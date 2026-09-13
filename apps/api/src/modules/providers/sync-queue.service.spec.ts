@@ -38,7 +38,11 @@ describe('ProviderSyncQueueService', () => {
 
     await service.processDueRequests();
 
-    expect(mocks.sync.syncRepositoryById).toHaveBeenCalledWith(mocks.candidate.repositoryId);
+    expect(mocks.sync.syncRepositoryById).toHaveBeenCalledWith(
+      mocks.candidate.repositoryId,
+      ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+      expect.any(Function),
+    );
     expect(mocks.transaction.repositorySyncRequest.delete).toHaveBeenCalledWith({
       where: { id: mocks.candidate.id },
     });
@@ -75,6 +79,45 @@ describe('ProviderSyncQueueService', () => {
     expect(mocks.transaction.providerAccount.updateMany).toHaveBeenLastCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ rateLimitResetAt: retryAt }) }),
     );
+  });
+
+  it('enqueues only idle or failed repositories for a manual run-all request', async () => {
+    const repository = { id: '00000000-0000-0000-0000-000000000001' };
+    const service = createService({
+      repository: {
+        findFirst: jest.fn().mockResolvedValue({ ...repository, syncRequest: null }),
+        findMany: jest.fn().mockResolvedValue([repository]),
+      },
+      repositorySyncRequest: { create: jest.fn().mockResolvedValue(undefined) },
+    });
+
+    await expect(service.enqueueAvailableRepositories()).resolves.toBe(1);
+  });
+
+  it('does not enqueue a repository that is already waiting or running', async () => {
+    const service = createService({
+      repository: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'repository-id', syncRequest: { status: 'RUNNING' } }),
+      },
+    });
+
+    await expect(service.enqueueRepositorySyncIfAvailable('repository-id')).resolves.toBe(false);
+  });
+
+  it('persists progress only for the active request lease', async () => {
+    const mocks = processingMocks();
+    mocks.sync.syncRepositoryById.mockImplementation(async (_repositoryId, _scopes, reportProgress) => {
+      await reportProgress({ current: 2, phase: 'SYNCING_ISSUES', total: 5 });
+      return true;
+    });
+    const service = createService(mocks.prisma, mocks.sync);
+
+    await service.processDueRequests();
+
+    expect(mocks.prisma.repositorySyncRequest.updateMany).toHaveBeenCalledWith({
+      data: { progressCurrent: 2, progressPhase: 'SYNCING_ISSUES', progressTotal: 5 },
+      where: { id: mocks.candidate.id, leaseToken: expect.any(String), status: 'RUNNING' },
+    });
   });
 });
 
@@ -127,6 +170,7 @@ function processingMocks(options: { completedGeneration?: number; error?: Error 
     repositorySyncRequest: {
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       findMany: jest.fn().mockResolvedValueOnce([candidate]).mockResolvedValueOnce([]),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     transaction: jest.fn((callback) => callback(transaction)),
   };

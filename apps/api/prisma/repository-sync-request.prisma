@@ -11,6 +11,10 @@ model RepositorySyncRequest {
   leaseToken     String?                     @db.VarChar(64)
   leaseExpiresAt DateTime?
   lastError      String?                     @db.Text
+  startedAt      DateTime?
+  progressPhase  RepositorySyncProgressPhase?
+  progressCurrent Int?
+  progressTotal   Int?
   syncWorkflows  Boolean                     @default(true)
   syncIssues     Boolean                     @default(true)
   syncPullRequests Boolean                   @default(true)

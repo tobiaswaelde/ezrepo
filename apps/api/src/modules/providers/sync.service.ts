@@ -15,6 +15,7 @@ import type {
 import { ProviderAdapterRegistry } from './provider-adapter.registry.js';
 import { ProviderCredentialService } from './provider-credential.service.js';
 import { RepositoryMetadataService } from './repository-metadata.service.js';
+import type { RepositorySyncProgressReporter } from './sync-progress.js';
 import { WorkItemSyncService } from './work-item-sync.service.js';
 
 const terminalWorkflowRunStatuses = ['SUCCESS', 'FAILED', 'CANCELLED', 'SKIPPED', 'UNKNOWN'] as const;
@@ -101,6 +102,7 @@ export class ProviderSyncService {
   async syncRepositoryById(
     repositoryId: string,
     scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+    reportProgress?: RepositorySyncProgressReporter,
   ): Promise<boolean> {
     const syncId = this.status.beginProviderSync();
     try {
@@ -110,7 +112,12 @@ export class ProviderSyncService {
       });
       if (!repository) return false;
 
-      await this.syncRepository(repository, { id: syncId, repositoriesCompleted: 0, repositoriesTotal: 1 }, scopes);
+      await this.syncRepository(
+        repository,
+        { id: syncId, repositoriesCompleted: 0, repositoriesTotal: 1 },
+        scopes,
+        reportProgress,
+      );
       this.status.updateProviderSync(syncId, {
         phase: 'FETCHING_WORKFLOWS',
         repositoriesCompleted: 1,
@@ -131,6 +138,7 @@ export class ProviderSyncService {
     },
     progress: { id: string; repositoriesCompleted: number; repositoriesTotal: number },
     scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+    reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
     this.status.updateProviderSync(progress.id, {
       phase: 'FETCHING_WORKFLOWS',
@@ -140,6 +148,7 @@ export class ProviderSyncService {
       workflowRunsTotal: null,
     });
     try {
+      await reportProgress?.({ current: null, phase: 'LOADING_REPOSITORY', total: null });
       const refreshedRepository = await this.metadata.refresh(repository);
       const adapter = this.adapters.get(refreshedRepository.providerAccount.providerType);
       const context = {
@@ -147,11 +156,12 @@ export class ProviderSyncService {
         baseUrl: refreshedRepository.providerAccount.baseUrl,
         accessToken: this.credentials.decrypt(refreshedRepository.providerAccount.encryptedAccessToken),
       };
-      await this.workItems?.synchronize(context, refreshedRepository, adapter, scopes);
+      await this.workItems?.synchronize(context, refreshedRepository, adapter, scopes, reportProgress);
       if (!scopes.includes('WORKFLOWS')) {
         await this.markSynchronizationSuccess(repository);
         return;
       }
+      await reportProgress?.({ current: null, phase: 'FETCHING_WORKFLOWS', total: null });
       const discoveredRuns = await adapter.listWorkflowRuns(
         context,
         refreshedRepository,
@@ -177,6 +187,7 @@ export class ProviderSyncService {
       const runsByProviderId = new Map(discoveredRuns.map((run) => [run.providerRunId, run]));
       for (const run of refreshedRuns) if (run) runsByProviderId.set(run.providerRunId, run);
       const runs = [...runsByProviderId.values()];
+      await reportProgress?.({ current: 0, phase: 'PROCESSING_WORKFLOWS', total: runs.length });
       this.status.updateProviderSync(progress.id, {
         phase: 'PROCESSING_WORKFLOWS',
         repositoriesCompleted: progress.repositoriesCompleted,
@@ -187,6 +198,7 @@ export class ProviderSyncService {
       for (const [index, run] of runs.entries()) {
         if (this.filters.shouldTrack(run.workflowName, repository.workflowFilters))
           await this.persistRunAndEvaluateRules(repository.id, run);
+        await reportProgress?.({ current: index + 1, phase: 'PROCESSING_WORKFLOWS', total: runs.length });
         this.status.updateProviderSync(progress.id, {
           phase: 'PROCESSING_WORKFLOWS',
           repositoriesCompleted: progress.repositoriesCompleted,
@@ -195,6 +207,7 @@ export class ProviderSyncService {
           workflowRunsTotal: runs.length,
         });
       }
+      await reportProgress?.({ current: null, phase: 'REFRESHING_CHANGE_REQUESTS', total: null });
       await this.refreshChangeRequestStates(context, refreshedRepository, adapter);
       await this.markSynchronizationSuccess(repository);
     } catch (error) {

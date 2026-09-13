@@ -45,6 +45,33 @@ describe('WorkItemSyncService', () => {
     expect(adapter.listPullRequests).not.toHaveBeenCalled();
   });
 
+  it('reports indeterminate provider phases before publishing known item totals', async () => {
+    const prisma = {
+      workItemSyncCursor: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn().mockResolvedValue({}) },
+    };
+    const adapter = {
+      listIssues: jest.fn().mockResolvedValue([]),
+      listPullRequests: jest.fn().mockResolvedValue([]),
+    } as unknown as ProviderAdapter;
+    const reportProgress = jest.fn().mockResolvedValue(undefined);
+    const service = new WorkItemSyncService(prisma as unknown as PrismaService);
+
+    await service.synchronize(
+      { accessToken: 'token', baseUrl: null, providerAccountId: 'account' },
+      { id: 'repository', name: 'ezrepo', owner: 'ezrepo', providerAccountId: 'account', providerRepositoryId: '1' },
+      adapter,
+      ['ISSUES', 'PULL_REQUESTS'],
+      reportProgress,
+    );
+
+    expect(reportProgress.mock.calls).toEqual([
+      [{ current: null, phase: 'SYNCING_ISSUES', total: null }],
+      [{ current: 0, phase: 'SYNCING_ISSUES', total: 0 }],
+      [{ current: null, phase: 'SYNCING_PULL_REQUESTS', total: null }],
+      [{ current: 0, phase: 'SYNCING_PULL_REQUESTS', total: 0 }],
+    ]);
+  });
+
   it.each([
     [['SUCCESS', 'SKIPPED'], 'SUCCESS'],
     [['SUCCESS', 'QUEUED'], 'PENDING'],

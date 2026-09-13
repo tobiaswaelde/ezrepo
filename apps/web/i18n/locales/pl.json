@@ -162,14 +162,53 @@
       "UNKNOWN": "Nieznany"
     }
   },
+  "jobs": {
+    "columns": {
+      "actions": "Akcje",
+      "attempt": "Próba",
+      "error": "Błąd",
+      "progress": "Postęp",
+      "provider": "Dostawca",
+      "requestedAt": "Zażądano",
+      "repository": "Repozytorium",
+      "runAfter": "Zaplanowano",
+      "scopes": "Zakresy",
+      "startedAt": "Uruchomiono",
+      "status": "Status"
+    },
+    "description": "Synchronizuje workflow, zgłoszenia i pull requesty ze skonfigurowanych dostawców.",
+    "empty": "Brak dostępnych aktywnych zadań synchronizacji repozytoriów.",
+    "loadError": "Nie udało się wczytać zadań synchronizacji.",
+    "phases": {
+      "FETCHING_WORKFLOWS": "Pobieranie workflow",
+      "LOADING_REPOSITORY": "Wczytywanie metadanych",
+      "PROCESSING_WORKFLOWS": "Przetwarzanie workflow",
+      "REFRESHING_CHANGE_REQUESTS": "Odświeżanie zmian",
+      "SYNCING_ISSUES": "Synchronizacja zgłoszeń",
+      "SYNCING_PULL_REQUESTS": "Synchronizacja pull requestów"
+    },
+    "progressCount": "{phase}: {current}/{total}",
+    "repositorySync": "Synchronizacja repozytoriów",
+    "retry": "Ponów",
+    "run": "Uruchom",
+    "runAll": "Uruchom wszystkie",
+    "scopes": { "ISSUES": "Zgłoszenia", "PULL_REQUESTS": "Pull requesty", "WORKFLOWS": "Workflow" },
+    "status": { "FAILED": "Niepowodzenie", "IDLE": "Bezczynne", "PENDING": "Oczekujące", "RUNNING": "Uruchomione" },
+    "summary": "Status synchronizacji repozytoriów",
+    "title": "Zadania",
+    "waiting": "Oczekujące"
+  },
   "layout": {
     "issues": "Zgłoszenia",
+    "jobs": "Zadania",
     "pullRequests": "Pull requesty",
     "administration": "Administracja",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Panel",
     "language": "Język",
     "notifications": "Powiadomienia",
+    "operations": "Operacje",
+    "overview": "Przegląd",
     "primaryNavigation": "Nawigacja główna",
     "providers": "Konta dostawców",
     "readOnlyStatus": "Monitorowanie stanu przepływów pracy tylko do odczytu",
@@ -407,6 +446,7 @@
       "DISCONNECTED": "Offline"
     },
     "label": "Stan API",
+    "openJobs": "Otwórz zadania. Uruchomione: {count}",
     "progress": "{current}/{total}",
     "runningWorkflows": "Uruchomione: {count}"
   },

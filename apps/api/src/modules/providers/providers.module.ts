@@ -21,13 +21,20 @@ import { ProviderOAuthController } from './provider-oauth.controller.js';
 import { ProviderOAuthService } from './provider-oauth.service.js';
 import { RepositoryMetadataService } from './repository-metadata.service.js';
 import { RepositoryRefreshController } from './repository-refresh.controller.js';
+import { RepositorySyncJobsController } from './repository-sync-jobs.controller.js';
+import { RepositorySyncJobsService } from './repository-sync-jobs.service.js';
 import { ProviderSyncQueueService } from './sync-queue.service.js';
 import { ProviderSyncService } from './sync.service.js';
 import { WorkItemSyncService } from './work-item-sync.service.js';
 
 @Module({
   imports: [CaslModule, JobsModule, NotificationsModule, RepositoriesModule, SecurityModule, SystemStatusModule],
-  controllers: [ProviderAccountsController, ProviderOAuthController, RepositoryRefreshController],
+  controllers: [
+    ProviderAccountsController,
+    ProviderOAuthController,
+    RepositoryRefreshController,
+    RepositorySyncJobsController,
+  ],
   providers: [
     {
       provide: PROVIDER_FETCH,
@@ -39,6 +46,7 @@ import { WorkItemSyncService } from './work-item-sync.service.js';
     ProviderOAuthService,
     ProviderOAuthStateService,
     RepositoryMetadataService,
+    RepositorySyncJobsService,
     GitHubActionsAdapter,
     GitLabPipelinesAdapter,
     ForgejoActionsAdapter,

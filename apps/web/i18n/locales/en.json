@@ -162,13 +162,52 @@
       "UNKNOWN": "Unknown"
     }
   },
+  "jobs": {
+    "columns": {
+      "actions": "Actions",
+      "attempt": "Attempt",
+      "error": "Error",
+      "progress": "Progress",
+      "provider": "Provider",
+      "requestedAt": "Requested",
+      "repository": "Repository",
+      "runAfter": "Scheduled",
+      "scopes": "Scopes",
+      "startedAt": "Started",
+      "status": "Status"
+    },
+    "description": "Synchronize workflows, issues, and pull requests from configured providers.",
+    "empty": "No enabled repository synchronization jobs are available.",
+    "loadError": "Repository synchronization jobs could not be loaded.",
+    "phases": {
+      "FETCHING_WORKFLOWS": "Fetching workflows",
+      "LOADING_REPOSITORY": "Loading repository metadata",
+      "PROCESSING_WORKFLOWS": "Processing workflows",
+      "REFRESHING_CHANGE_REQUESTS": "Refreshing change requests",
+      "SYNCING_ISSUES": "Synchronizing issues",
+      "SYNCING_PULL_REQUESTS": "Synchronizing pull requests"
+    },
+    "progressCount": "{phase}: {current}/{total}",
+    "repositorySync": "Repository synchronization",
+    "retry": "Retry",
+    "run": "Run",
+    "runAll": "Run all",
+    "scopes": { "ISSUES": "Issues", "PULL_REQUESTS": "Pull requests", "WORKFLOWS": "Workflows" },
+    "status": { "FAILED": "Failed", "IDLE": "Idle", "PENDING": "Pending", "RUNNING": "Running" },
+    "summary": "Repository synchronization status",
+    "title": "Jobs",
+    "waiting": "Waiting"
+  },
   "layout": {
     "administration": "Administration",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Dashboard",
     "issues": "Issues",
+    "jobs": "Jobs",
     "language": "Language",
     "notifications": "Notifications",
+    "operations": "Operations",
+    "overview": "Overview",
     "primaryNavigation": "Primary navigation",
     "providers": "Provider accounts",
     "pullRequests": "Pull requests",
@@ -407,6 +446,7 @@
       "DISCONNECTED": "Offline"
     },
     "label": "API status",
+    "openJobs": "Open jobs. Running: {count}",
     "progress": "{current}/{total}",
     "runningWorkflows": "Running: {count}"
   },

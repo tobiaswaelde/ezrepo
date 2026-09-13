@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { ProviderSyncScope } from './provider-adapter.js';
 import { ProviderRequestError } from './provider-request.error.js';
 import { providerRetryDecision } from './provider-retry.js';
+import type { RepositorySyncProgressUpdate } from './sync-progress.js';
 import { ProviderSyncService } from './sync.service.js';
 
 const webhookDebounceMs = 15_000;
@@ -61,9 +62,78 @@ export class ProviderSyncQueueService {
     for (const repository of repositories) await this.enqueueRepository(repository.id, 0);
   }
 
+  /** Enqueue enabled repositories that are not already waiting or running. */
+  async enqueueAvailableRepositories(): Promise<number> {
+    const repositories = await this.prisma.repository.findMany({
+      select: { id: true },
+      where: {
+        enabled: true,
+        providerAccount: { enabled: true },
+        OR: [{ syncRequest: null }, { syncRequest: { status: 'FAILED' } }],
+      },
+    });
+    let queuedCount = 0;
+    for (const repository of repositories) {
+      if (await this.enqueueRepositorySyncIfAvailable(repository.id)) queuedCount += 1;
+    }
+    return queuedCount;
+  }
+
   /** Persist an immediate synchronization request for one newly tracked or manually selected repository. */
   async enqueueRepositorySync(repositoryId: string, database: QueueDatabase = this.prisma): Promise<void> {
     await this.enqueueRepository(repositoryId, 0, database);
+  }
+
+  /** Enqueue an enabled repository unless it is already waiting or running. */
+  async enqueueRepositorySyncIfAvailable(repositoryId: string): Promise<boolean> {
+    const repository = await this.prisma.repository.findFirst({
+      select: { id: true, syncRequest: { select: { status: true } } },
+      where: {
+        id: repositoryId,
+        enabled: true,
+        providerAccount: { enabled: true },
+      },
+    });
+    if (!repository || (repository.syncRequest && repository.syncRequest.status !== 'FAILED')) return false;
+
+    const requestedAt = new Date();
+    if (repository.syncRequest) {
+      const updated = await this.prisma.repositorySyncRequest.updateMany({
+        data: {
+          attempt: 0,
+          generation: { increment: 1 },
+          lastError: null,
+          leaseExpiresAt: null,
+          leaseToken: null,
+          progressCurrent: null,
+          progressPhase: null,
+          progressTotal: null,
+          requestedAt,
+          runAfter: requestedAt,
+          startedAt: null,
+          status: 'PENDING',
+          syncIssues: true,
+          syncPullRequests: true,
+          syncWorkflows: true,
+        },
+        where: { repositoryId, status: 'FAILED' },
+      });
+      return updated.count > 0;
+    }
+
+    try {
+      await this.prisma.repositorySyncRequest.create({
+        data: { repositoryId, requestedAt, runAfter: requestedAt },
+      });
+      return true;
+    } catch (error) {
+      const existing = await this.prisma.repositorySyncRequest.findUnique({
+        select: { id: true },
+        where: { repositoryId },
+      });
+      if (existing) return false;
+      throw error;
+    }
   }
 
   /** Persist a debounced request for a provider-native repository reference. */
@@ -136,6 +206,14 @@ export class ProviderSyncQueueService {
           THEN "repository_sync_requests"."attempt" ELSE 0 END,
         "lastError" = CASE WHEN "repository_sync_requests"."status" = 'RUNNING'
           THEN "repository_sync_requests"."lastError" ELSE NULL END,
+        "startedAt" = CASE WHEN "repository_sync_requests"."status" = 'RUNNING'
+          THEN "repository_sync_requests"."startedAt" ELSE NULL END,
+        "progressPhase" = CASE WHEN "repository_sync_requests"."status" = 'RUNNING'
+          THEN "repository_sync_requests"."progressPhase" ELSE NULL END,
+        "progressCurrent" = CASE WHEN "repository_sync_requests"."status" = 'RUNNING'
+          THEN "repository_sync_requests"."progressCurrent" ELSE NULL END,
+        "progressTotal" = CASE WHEN "repository_sync_requests"."status" = 'RUNNING'
+          THEN "repository_sync_requests"."progressTotal" ELSE NULL END,
         "leaseToken" = CASE WHEN "repository_sync_requests"."status" = 'RUNNING'
           THEN "repository_sync_requests"."leaseToken" ELSE NULL END,
         "leaseExpiresAt" = CASE WHEN "repository_sync_requests"."status" = 'RUNNING'
@@ -197,6 +275,10 @@ export class ProviderSyncQueueService {
           attempt: { increment: 1 },
           leaseExpiresAt,
           leaseToken,
+          progressCurrent: null,
+          progressPhase: 'LOADING_REPOSITORY',
+          progressTotal: null,
+          startedAt: now,
           status: 'RUNNING',
         },
         where: {
@@ -235,8 +317,9 @@ export class ProviderSyncQueueService {
 
   private async processClaimedRequest(request: ClaimedSyncRequest): Promise<void> {
     try {
-      if (request.scopes.length === 3) await this.sync.syncRepositoryById(request.repositoryId);
-      else await this.sync.syncRepositoryById(request.repositoryId, request.scopes);
+      await this.sync.syncRepositoryById(request.repositoryId, request.scopes, (update) =>
+        this.updateRequestProgress(request, update),
+      );
       await this.completeRequest(request);
     } catch (error) {
       await this.failRequest(request, error);
@@ -254,6 +337,10 @@ export class ProviderSyncQueueService {
               lastError: null,
               leaseExpiresAt: null,
               leaseToken: null,
+              progressCurrent: null,
+              progressPhase: null,
+              progressTotal: null,
+              startedAt: null,
               status: 'PENDING',
             },
             where: { id: request.id },
@@ -282,6 +369,10 @@ export class ProviderSyncQueueService {
                 lastError: null,
                 leaseExpiresAt: null,
                 leaseToken: null,
+                progressCurrent: null,
+                progressPhase: null,
+                progressTotal: null,
+                startedAt: null,
                 status: 'PENDING',
               }
             : {
@@ -314,6 +405,20 @@ export class ProviderSyncQueueService {
     await database.providerAccount.updateMany({
       data: { syncLeaseExpiresAt: null, syncLeaseToken: null },
       where: { id: providerAccountId, syncLeaseToken: leaseToken },
+    });
+  }
+
+  private async updateRequestProgress(
+    request: Pick<ClaimedSyncRequest, 'id' | 'leaseToken'>,
+    update: RepositorySyncProgressUpdate,
+  ): Promise<void> {
+    await this.prisma.repositorySyncRequest.updateMany({
+      data: {
+        progressCurrent: update.current,
+        progressPhase: update.phase,
+        progressTotal: update.total,
+      },
+      where: { id: request.id, leaseToken: request.leaseToken, status: 'RUNNING' },
     });
   }
 

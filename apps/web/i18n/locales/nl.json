@@ -162,14 +162,53 @@
       "UNKNOWN": "Onbekend"
     }
   },
+  "jobs": {
+    "columns": {
+      "actions": "Acties",
+      "attempt": "Poging",
+      "error": "Fout",
+      "progress": "Voortgang",
+      "provider": "Provider",
+      "requestedAt": "Aangevraagd",
+      "repository": "Repository",
+      "runAfter": "Gepland",
+      "scopes": "Onderdelen",
+      "startedAt": "Gestart",
+      "status": "Status"
+    },
+    "description": "Synchroniseert workflows, issues en pull requests van geconfigureerde providers.",
+    "empty": "Er zijn geen ingeschakelde repository-synchronisatietaken beschikbaar.",
+    "loadError": "De synchronisatietaken konden niet worden geladen.",
+    "phases": {
+      "FETCHING_WORKFLOWS": "Workflows ophalen",
+      "LOADING_REPOSITORY": "Repositorymetadata laden",
+      "PROCESSING_WORKFLOWS": "Workflows verwerken",
+      "REFRESHING_CHANGE_REQUESTS": "Wijzigingsverzoeken vernieuwen",
+      "SYNCING_ISSUES": "Issues synchroniseren",
+      "SYNCING_PULL_REQUESTS": "Pull requests synchroniseren"
+    },
+    "progressCount": "{phase}: {current}/{total}",
+    "repositorySync": "Repositorysynchronisatie",
+    "retry": "Opnieuw proberen",
+    "run": "Starten",
+    "runAll": "Alles starten",
+    "scopes": { "ISSUES": "Issues", "PULL_REQUESTS": "Pull requests", "WORKFLOWS": "Workflows" },
+    "status": { "FAILED": "Mislukt", "IDLE": "Inactief", "PENDING": "Wachtend", "RUNNING": "Actief" },
+    "summary": "Status van repositorysynchronisatie",
+    "title": "Taken",
+    "waiting": "Wachtend"
+  },
   "layout": {
     "issues": "Issues",
+    "jobs": "Taken",
     "pullRequests": "Pull requests",
     "administration": "Beheer",
     "copyright": "Copyright {year} ezRepo",
     "dashboard": "Dashboard",
     "language": "Taal",
     "notifications": "Meldingen",
+    "operations": "Operaties",
+    "overview": "Overzicht",
     "primaryNavigation": "Hoofdnavigatie",
     "providers": "Provideraccounts",
     "readOnlyStatus": "Alleen-lezenbewaking van workflowstatus",
@@ -407,6 +446,7 @@
       "DISCONNECTED": "Offline"
     },
     "label": "API-status",
+    "openJobs": "Taken openen. Actief: {count}",
     "progress": "{current}/{total}",
     "runningWorkflows": "Actief: {count}"
   },

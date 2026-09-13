@@ -122,9 +122,9 @@ test('opens globally, restores focus, supports keyboard navigation, and opens re
   await expect(paletteSearch).toBeFocused();
   await expect(palette.getByRole('option', { name: 'Dashboard', exact: true })).toHaveAttribute('data-highlighted');
   await page.keyboard.press('ArrowDown');
-  await expect.poll(() => palette.locator('[data-highlighted]').allTextContents()).toEqual(['Repositories']);
+  await expect.poll(() => palette.locator('[data-highlighted]').allTextContents()).toEqual(['All runs']);
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/repositories$/);
+  await expect(page).toHaveURL(/\/workflow-runs$/);
 
   await page.keyboard.press('Control+K');
   await paletteSearch.fill('flow');

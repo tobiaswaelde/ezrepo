@@ -11,10 +11,14 @@
 
     <span class="h-3 border-l border-default" aria-hidden="true" />
 
-    <span class="flex shrink-0 items-center gap-1.5 text-default">
+    <NuxtLink
+      to="/jobs"
+      class="flex shrink-0 items-center gap-1.5 rounded-sm text-default hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+      :aria-label="t('systemStatus.openJobs', { count: snapshot.runningWorkflowCount })"
+    >
       <UIcon class="size-3.5" name="i-tabler-player-play" aria-hidden="true" />
       {{ t('systemStatus.runningWorkflows', { count: snapshot.runningWorkflowCount }) }}
-    </span>
+    </NuxtLink>
 
     <span class="ml-auto flex min-w-0 items-center gap-2">
       <UIcon

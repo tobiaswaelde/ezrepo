@@ -29,6 +29,6 @@ export class RepositoryRefreshController {
   @HttpCode(202)
   async sync(@Req() request: { user: AuthenticatedUser }, @Param('id') repositoryId: string): Promise<void> {
     if (request.user.role !== 'SYSTEM_ADMIN') throw new ForbiddenException('System administrator access is required.');
-    await this.syncQueue.enqueueRepositorySync(repositoryId);
+    await this.syncQueue.enqueueRepositorySyncIfAvailable(repositoryId);
   }
 }
