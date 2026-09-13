@@ -1,6 +1,6 @@
 {
   "name": "ezrepo",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "description": "Read-only workflow status dashboard for GitHub, GitLab, Forgejo, and Gitea.",
   "license": "MIT",

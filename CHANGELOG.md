@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.5
+
+### Patch Changes
+
+- b082487: Add the ezRepo logo and favicon, and recognize Changesets release tags in the update check.
+
 ## 0.2.4
 
 ### Patch Changes
