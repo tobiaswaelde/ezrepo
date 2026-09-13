@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- 2709d76: Add routed notification channel, rule, and delivery-history management with guided Apprise transports and optional
+  native browser push.
+
+### Patch Changes
+
+- 7bcfeb8: Add installable PWA support with generated application icons, online-only caching, and a localized update prompt.
+- f005d74: Bundle all web application icons into the client build and disable runtime icon CDN requests.
+
 ## 0.2.9
 
 ### Patch Changes
