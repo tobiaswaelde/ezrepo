@@ -6,6 +6,9 @@ test('US English docs support navigation, search, keyboard access, and narrow vi
   await page.goto(`${base}/`);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('ezRepo');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
+  const logo = page.getByRole('img', { name: 'ezRepo logo' });
+  await expect(logo).toBeVisible();
+  await expect(logo).toHaveAttribute('src', `${base}/logo.svg`);
 
   await page.getByRole('link', { name: 'Deploy ezRepo' }).click();
   await expect(page).toHaveURL(new RegExp(`${base}/deployment/?$`));

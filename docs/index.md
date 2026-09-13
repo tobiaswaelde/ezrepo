@@ -7,6 +7,9 @@ hero:
   name: ezRepo
   text: Read-only workflow visibility
   tagline: Track workflows, issues, and pull requests without modifying provider resources.
+  image:
+    src: /logo.svg
+    alt: ezRepo logo
   actions:
     - theme: brand
       text: Deploy ezRepo
