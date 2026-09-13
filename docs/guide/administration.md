@@ -19,7 +19,10 @@ never shown in tables, errors, or logs. Use only the documented [read scopes](..
 
 Disabling an account pauses its participation without removing configuration. Deleting one can also remove dependent
 tracked data, so confirm that the account is no longer required. See [Provider OAuth setup](../provider-oauth) and
-[Manual provider webhook setup](../provider-webhooks) for provider-side configuration.
+[Repository webhook setup](../provider-webhooks) for provider-side configuration.
+
+Repository webhook secrets and callback status are managed per tracked repository from the repository details dialog.
+There is no provider-account-level webhook configuration.
 
 ## Users, roles, and repository access
 

@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { ENV } from '../../config/env.js';
 import type {
+  ProviderType,
   Repository,
   RepositoryMembership,
   RepositoryRole,
@@ -8,7 +10,9 @@ import type {
   WorkflowFilter,
 } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { CredentialEncryptionService } from '../../security/credential-encryption.service.js';
 import type { AuthenticatedUser } from '../auth/types.js';
+import type { RepositoryWebhookConfigurationDto } from './dto/repository-webhook-configuration.dto.js';
 import { WorkflowFilterService, type WorkflowFilterMode } from './workflow-filter.service.js';
 
 /** System-administrator repository configuration operations. */
@@ -16,8 +20,66 @@ import { WorkflowFilterService, type WorkflowFilterMode } from './workflow-filte
 export class RepositoryConfigurationService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly credentials: CredentialEncryptionService,
     private readonly workflowFilters: WorkflowFilterService,
   ) {}
+
+  /** Return safe webhook setup metadata for every tracked repository. */
+  async listWebhookConfigurations(user: AuthenticatedUser): Promise<RepositoryWebhookConfigurationDto[]> {
+    this.assertAdministrator(user);
+    const repositories = await this.prisma.repository.findMany({
+      orderBy: [{ owner: 'asc' }, { name: 'asc' }],
+      select: {
+        encryptedWebhookSecret: true,
+        id: true,
+        providerAccount: { select: { providerType: true } },
+        webhookDeliveries: {
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+          take: 1,
+        },
+      },
+    });
+    return repositories.map((repository) =>
+      this.toWebhookConfiguration(
+        repository.id,
+        repository.providerAccount.providerType,
+        repository.encryptedWebhookSecret !== null,
+        repository.webhookDeliveries[0]?.createdAt ?? null,
+      ),
+    );
+  }
+
+  /** Store or rotate one repository's encrypted webhook signing secret. */
+  async setWebhookSecret(
+    user: AuthenticatedUser,
+    repositoryId: string,
+    webhookSecret: string,
+  ): Promise<RepositoryWebhookConfigurationDto> {
+    this.assertAdministrator(user);
+    await this.requireRepository(repositoryId);
+    const repository = await this.prisma.repository.update({
+      where: { id: repositoryId },
+      data: { encryptedWebhookSecret: this.credentials.encrypt(webhookSecret) },
+      include: {
+        providerAccount: { select: { providerType: true } },
+        webhookDeliveries: { orderBy: { createdAt: 'desc' }, select: { createdAt: true }, take: 1 },
+      },
+    });
+    return this.toWebhookConfiguration(
+      repository.id,
+      repository.providerAccount.providerType,
+      true,
+      repository.webhookDeliveries[0]?.createdAt ?? null,
+    );
+  }
+
+  /** Remove one repository's webhook secret while retaining its delivery history. */
+  async clearWebhookSecret(user: AuthenticatedUser, repositoryId: string): Promise<void> {
+    this.assertAdministrator(user);
+    await this.requireRepository(repositoryId);
+    await this.prisma.repository.update({ where: { id: repositoryId }, data: { encryptedWebhookSecret: null } });
+  }
 
   /** Get one repository after administrator authorization. */
   async getRepository(user: AuthenticatedUser, repositoryId: string): Promise<Repository> {
@@ -126,6 +188,25 @@ export class RepositoryConfigurationService {
   /** Reject role or tenant boundaries that may mutate repository access. */
   private assertAdministrator(user: AuthenticatedUser): void {
     if (user.role !== 'SYSTEM_ADMIN') throw new ForbiddenException('System administrator access is required.');
+  }
+
+  /** Build safe webhook metadata for one repository. */
+  private toWebhookConfiguration(
+    repositoryId: string,
+    providerType: ProviderType,
+    configured: boolean,
+    lastDeliveryAt: Date | null,
+  ): RepositoryWebhookConfigurationDto {
+    return {
+      callbackUrl: new URL(
+        `/api/webhooks/${providerType.toLocaleLowerCase('en-US')}/${repositoryId}`,
+        ENV.PUBLIC_URL,
+      ).toString(),
+      configured,
+      lastDeliveryAt,
+      providerType,
+      repositoryId,
+    };
   }
 
   /** Load the target repository with a stable not-found contract. */

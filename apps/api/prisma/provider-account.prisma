@@ -7,7 +7,6 @@ model ProviderAccount {
   displayName            String   @db.VarChar(255)
   baseUrl                String?  @db.VarChar(2048)
   encryptedAccessToken   String   @db.Text
-  encryptedWebhookSecret String?  @db.Text
   enabled                Boolean  @default(true)
   lastSyncAt             DateTime?
   lastSyncError          String?  @db.Text
@@ -15,7 +14,6 @@ model ProviderAccount {
   syncLeaseExpiresAt     DateTime?
   rateLimitResetAt       DateTime?
   repositories           Repository[]
-  webhookDeliveries      WebhookDelivery[]
   actors                 ProviderActor[]
 
   @@unique([providerType, displayName])

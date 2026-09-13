@@ -86,13 +86,13 @@ export interface ProviderAccount {
   providerType: ProviderType;
 }
 
-/** Safe webhook setup metadata for a configured provider account. */
-export interface ProviderWebhookConfiguration {
+/** Safe webhook setup metadata for a tracked repository. */
+export interface RepositoryWebhookConfiguration {
   callbackUrl: string;
   configured: boolean;
   lastDeliveryAt: ApiTimestamp | null;
-  providerAccountId: string;
   providerType: ProviderType;
+  repositoryId: string;
 }
 
 /** Repository discovered through a configured provider account. */
@@ -171,7 +171,6 @@ export interface CreateProviderAccount {
   displayName: string;
   enabled?: boolean;
   providerType: ProviderType;
-  webhookSecret?: string;
 }
 
 /** Browser destination returned when an OAuth authorization is started. */
@@ -188,10 +187,8 @@ export interface ProviderAuthenticationOptions {
 export interface UpdateProviderAccount {
   accessToken?: string;
   baseUrl?: string | null;
-  clearWebhookSecret?: boolean;
   displayName?: string;
   enabled?: boolean;
-  webhookSecret?: string;
 }
 
 /** Tracked repository and its retention settings. */

@@ -32,35 +32,39 @@ export class WebhookService {
    * Verify and record one webhook delivery before scheduling its repository synchronization.
    *
    * @param providerType - Provider that owns the endpoint.
-   * @param providerAccountId - Configured ezRepo provider account identifier.
+   * @param repositoryId - Configured ezRepo repository identifier.
    * @param request - Raw request data required for signature validation.
    * @returns Accepted delivery metadata, including duplicate delivery detection.
    * @throws {UnauthorizedException} When the account or signature cannot be verified.
    */
-  async receive(
-    providerType: ProviderType,
-    providerAccountId: string,
-    request: WebhookRequest,
-  ): Promise<WebhookAcceptance> {
-    const account = await this.prisma.providerAccount.findUnique({
-      where: { id: providerAccountId },
+  async receive(providerType: ProviderType, repositoryId: string, request: WebhookRequest): Promise<WebhookAcceptance> {
+    const repository = await this.prisma.repository.findUnique({
+      where: { id: repositoryId },
       select: {
         enabled: true,
         encryptedWebhookSecret: true,
-        providerType: true,
+        providerRepositoryId: true,
+        providerAccount: { select: { enabled: true, providerType: true } },
       },
     });
-    if (!account || !account.enabled || account.providerType !== providerType || !account.encryptedWebhookSecret) {
+    if (
+      !repository ||
+      !repository.enabled ||
+      !repository.providerAccount.enabled ||
+      repository.providerAccount.providerType !== providerType ||
+      !repository.encryptedWebhookSecret
+    ) {
       throw new UnauthorizedException('Webhook signature validation failed.');
     }
 
     const verified = await this.adapters.get(providerType).verifyWebhook({
       headers: request.headers,
       payload: request.payload,
-      signingSecret: this.credentials.decrypt(account.encryptedWebhookSecret),
+      signingSecret: this.credentials.decrypt(repository.encryptedWebhookSecret),
     });
     const deliveryId = this.getDeliveryId(providerType, request.headers);
-    if (!verified || !deliveryId) throw new UnauthorizedException('Webhook signature validation failed.');
+    if (!verified || !deliveryId || verified.providerRepositoryId !== repository.providerRepositoryId)
+      throw new UnauthorizedException('Webhook signature validation failed.');
 
     try {
       await this.prisma.transaction(async (transaction) => {
@@ -68,24 +72,10 @@ export class WebhookService {
           data: {
             deliveryId,
             event: verified.event,
-            providerAccountId,
-            providerRepositoryId: verified.providerRepositoryId,
+            repositoryId,
           },
         });
-        if (verified.providerRepositoryId)
-          if (verified.syncScopes)
-            await this.syncQueue.enqueueWebhookRepository(
-              providerAccountId,
-              verified.providerRepositoryId,
-              transaction,
-              verified.syncScopes,
-            );
-          else
-            await this.syncQueue.enqueueWebhookRepository(
-              providerAccountId,
-              verified.providerRepositoryId,
-              transaction,
-            );
+        await this.syncQueue.enqueueWebhookRepository(repositoryId, transaction, verified.syncScopes);
       });
     } catch (error) {
       if (this.isDuplicateDeliveryError(error)) return { accepted: true, duplicate: true };

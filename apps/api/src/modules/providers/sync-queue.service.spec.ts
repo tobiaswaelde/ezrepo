@@ -5,14 +5,14 @@ import { ProviderSyncQueueService } from './sync-queue.service.js';
 import type { ProviderSyncService } from './sync.service.js';
 
 describe('ProviderSyncQueueService', () => {
-  it('enqueues provider webhook references with a 15-second database debounce', async () => {
+  it('enqueues repository webhooks with a 15-second database debounce', async () => {
     const executeRaw = jest.fn().mockResolvedValue(1);
     const service = createService({
       $executeRaw: executeRaw,
       repository: { findFirst: jest.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-000000000001' }) },
     });
 
-    await expect(service.enqueueWebhookRepository('account-id', '42')).resolves.toBe(true);
+    await expect(service.enqueueWebhookRepository('00000000-0000-0000-0000-000000000001')).resolves.toBe(true);
 
     const query = executeRaw.mock.calls[0]?.[0] as { values: unknown[] };
     const requestedAt = query.values[1] as Date;

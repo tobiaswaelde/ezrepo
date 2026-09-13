@@ -9,47 +9,38 @@ import { WebhookService } from './webhook.service.js';
 describe('WebhookService', () => {
   const payload = Buffer.from('{"repository":{"id":42}}');
 
-  it('records a verified delivery and queues its repository in one transaction', async () => {
-    const mocks = createMocks();
-    mocks.prisma.providerAccount.findUnique.mockResolvedValue({
-      enabled: true,
-      encryptedWebhookSecret: 'encrypted-secret',
-      providerType: 'GITHUB',
-    });
-    mocks.adapter.verifyWebhook.mockResolvedValue({ event: 'workflow_run', providerRepositoryId: '42' });
-    const service = createService(mocks);
+  it.each([
+    ['GITHUB', 'x-github-delivery'],
+    ['GITLAB', 'x-gitlab-event-uuid'],
+    ['FORGEJO', 'x-forgejo-delivery'],
+    ['GITEA', 'x-gitea-delivery'],
+  ] as const)(
+    'records and queues a verified %s delivery for the URL repository',
+    async (providerType, deliveryHeader) => {
+      const mocks = createMocks(providerType);
 
-    await expect(
-      service.receive('GITHUB', 'account-id', {
-        headers: { 'x-github-delivery': 'delivery-id' },
-        payload,
-      }),
-    ).resolves.toEqual({ accepted: true, duplicate: false });
-    expect(mocks.credentials.decrypt).toHaveBeenCalledWith('encrypted-secret');
-    expect(mocks.transaction.webhookDelivery.create).toHaveBeenCalledWith({
-      data: {
-        deliveryId: 'delivery-id',
-        event: 'workflow_run',
-        providerAccountId: 'account-id',
-        providerRepositoryId: '42',
-      },
-    });
-    expect(mocks.syncQueue.enqueueWebhookRepository).toHaveBeenCalledWith('account-id', '42', mocks.transaction);
-  });
+      await expect(
+        createService(mocks).receive(providerType, 'repository-id', {
+          headers: { [deliveryHeader]: 'delivery-id' },
+          payload,
+        }),
+      ).resolves.toEqual({ accepted: true, duplicate: false });
+      expect(mocks.credentials.decrypt).toHaveBeenCalledWith('encrypted-secret');
+      expect(mocks.transaction.webhookDelivery.create).toHaveBeenCalledWith({
+        data: { deliveryId: 'delivery-id', event: 'workflow_run', repositoryId: 'repository-id' },
+      });
+      expect(mocks.syncQueue.enqueueWebhookRepository).toHaveBeenCalledWith('repository-id', mocks.transaction, [
+        'WORKFLOWS',
+      ]);
+    },
+  );
 
-  it('accepts a repeated verified delivery without scheduling it again', async () => {
-    const mocks = createMocks();
-    mocks.prisma.providerAccount.findUnique.mockResolvedValue({
-      enabled: true,
-      encryptedWebhookSecret: 'encrypted-secret',
-      providerType: 'GITLAB',
-    });
-    mocks.adapter.verifyWebhook.mockResolvedValue({ event: 'Pipeline Hook', providerRepositoryId: '42' });
+  it('accepts a repeated repository delivery without scheduling it again', async () => {
+    const mocks = createMocks('GITLAB');
     mocks.transaction.webhookDelivery.create.mockRejectedValue({ code: 'P2002' });
-    const service = createService(mocks);
 
     await expect(
-      service.receive('GITLAB', 'account-id', {
+      createService(mocks).receive('GITLAB', 'repository-id', {
         headers: { 'x-gitlab-event-uuid': 'delivery-id' },
         payload,
       }),
@@ -57,51 +48,75 @@ describe('WebhookService', () => {
     expect(mocks.syncQueue.enqueueWebhookRepository).not.toHaveBeenCalled();
   });
 
-  it('uses the native Gitea delivery ID for idempotent synchronization', async () => {
-    const mocks = createMocks();
-    mocks.prisma.providerAccount.findUnique.mockResolvedValue({
-      enabled: true,
-      encryptedWebhookSecret: 'encrypted-secret',
-      providerType: 'GITEA',
-    });
-    mocks.adapter.verifyWebhook.mockResolvedValue({ event: 'workflow_run', providerRepositoryId: '42' });
+  it.each([
+    { encryptedWebhookSecret: null },
+    { enabled: false },
+    { providerAccount: { enabled: false, providerType: 'GITHUB' } },
+  ])('rejects an unavailable repository webhook configuration', async (override) => {
+    const mocks = createMocks('GITHUB', override);
 
     await expect(
-      createService(mocks).receive('GITEA', 'account-id', {
-        headers: { 'x-gitea-delivery': 'delivery-id' },
-        payload,
-      }),
-    ).resolves.toEqual({ accepted: true, duplicate: false });
-    expect(mocks.transaction.webhookDelivery.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ deliveryId: 'delivery-id' }) }),
-    );
-  });
-
-  it('rejects a request without a configured account secret', async () => {
-    const mocks = createMocks();
-    mocks.prisma.providerAccount.findUnique.mockResolvedValue({
-      enabled: true,
-      encryptedWebhookSecret: null,
-      providerType: 'FORGEJO',
-    });
-
-    await expect(
-      createService(mocks).receive('FORGEJO', 'account-id', {
-        headers: { 'x-gitea-delivery': 'delivery-id' },
+      createService(mocks).receive('GITHUB', 'repository-id', {
+        headers: { 'x-github-delivery': 'delivery-id' },
         payload,
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(mocks.adapter.verifyWebhook).not.toHaveBeenCalled();
   });
+
+  it('rejects a provider type that does not own the repository', async () => {
+    const mocks = createMocks('GITHUB');
+
+    await expect(
+      createService(mocks).receive('FORGEJO', 'repository-id', {
+        headers: { 'x-forgejo-delivery': 'delivery-id' },
+        payload,
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('rejects a signed payload for another provider repository', async () => {
+    const mocks = createMocks('GITHUB');
+    mocks.adapter.verifyWebhook.mockResolvedValue({
+      event: 'workflow_run',
+      providerRepositoryId: '99',
+      syncScopes: ['WORKFLOWS'],
+    });
+
+    await expect(
+      createService(mocks).receive('GITHUB', 'repository-id', {
+        headers: { 'x-github-delivery': 'delivery-id' },
+        payload,
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(mocks.transaction.webhookDelivery.create).not.toHaveBeenCalled();
+  });
 });
 
-function createMocks() {
+function createMocks(
+  providerType: 'GITHUB' | 'GITLAB' | 'FORGEJO' | 'GITEA',
+  repositoryOverride: Record<string, unknown> = {},
+) {
   const transaction = { webhookDelivery: { create: jest.fn().mockResolvedValue(undefined) } };
   return {
-    adapter: { verifyWebhook: jest.fn() },
+    adapter: {
+      verifyWebhook: jest.fn().mockResolvedValue({
+        event: 'workflow_run',
+        providerRepositoryId: '42',
+        syncScopes: ['WORKFLOWS'],
+      }),
+    },
     credentials: { decrypt: jest.fn().mockReturnValue('webhook-secret') },
     prisma: {
-      providerAccount: { findUnique: jest.fn() },
+      repository: {
+        findUnique: jest.fn().mockResolvedValue({
+          enabled: true,
+          encryptedWebhookSecret: 'encrypted-secret',
+          providerAccount: { enabled: true, providerType },
+          providerRepositoryId: '42',
+          ...repositoryOverride,
+        }),
+      },
       transaction: jest.fn((callback) => callback(transaction)),
     },
     syncQueue: { enqueueWebhookRepository: jest.fn().mockResolvedValue(true) },

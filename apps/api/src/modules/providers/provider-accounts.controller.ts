@@ -1,5 +1,4 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, Req } from '@nestjs/common';
-import { ApiOkResponse } from '@nestjs/swagger';
 import {
   ApiErrorResponses,
   ApiPaginatedResponse,
@@ -17,7 +16,6 @@ import { ProviderAccountDto, RepositoryDto } from '../repositories/dto/resource.
 import { ProviderAccountQueryDto } from './dto/provider-account-query.dto.js';
 import { StartProviderOAuthDto, type ProviderOAuthAuthorizationDto } from './dto/provider-oauth.dto.js';
 import { ProviderRepositoryDto } from './dto/provider-repository.dto.js';
-import { ProviderWebhookConfigurationDto } from './dto/provider-webhook-configuration.dto.js';
 import { ProviderAccountsQueryService } from './provider-accounts-query.service.js';
 import { ProviderAccountsService } from './provider-accounts.service.js';
 import { ProviderOAuthService } from './provider-oauth.service.js';
@@ -28,7 +26,6 @@ class CreateProviderAccountDto {
   @IsString() @MinLength(1) @MaxLength(4096) accessToken!: string;
   @IsOptional() @IsUrl() baseUrl?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
-  @IsOptional() @IsString() @MaxLength(4096) webhookSecret?: string;
 }
 
 class UpdateProviderAccountDto {
@@ -36,8 +33,6 @@ class UpdateProviderAccountDto {
   @IsOptional() @IsUrl() baseUrl?: string | null;
   @IsOptional() @IsBoolean() enabled?: boolean;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(4096) accessToken?: string;
-  @IsOptional() @IsString() @MaxLength(4096) webhookSecret?: string;
-  @IsOptional() @IsBoolean() clearWebhookSecret?: boolean;
 }
 
 class CreateTrackedRepositoryDto {
@@ -76,12 +71,6 @@ export class ProviderAccountsController {
   } {
     this.accounts.assertAdmin(req.user);
     return { oauthProviderTypes: this.oauth.availableProviderTypes() };
-  }
-  /** Return safe webhook setup metadata for all configured provider accounts. */
-  @Get('webhook-configurations')
-  @ApiOkResponse({ isArray: true, type: ProviderWebhookConfigurationDto })
-  async webhookConfigurations(@Req() req: { user: AuthenticatedUser }): Promise<ProviderWebhookConfigurationDto[]> {
-    return this.accounts.listWebhookConfigurations(req.user);
   }
   /** Discover repositories accessible through an enabled provider account. */
   @Get(':id/repositories')

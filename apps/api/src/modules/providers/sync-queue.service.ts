@@ -136,10 +136,9 @@ export class ProviderSyncQueueService {
     }
   }
 
-  /** Persist a debounced request for a provider-native repository reference. */
+  /** Persist a debounced request for one enabled tracked repository. */
   async enqueueWebhookRepository(
-    providerAccountId: string,
-    providerRepositoryId: string,
+    repositoryId: string,
     database: QueueDatabase = this.prisma,
     scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
   ): Promise<boolean> {
@@ -147,8 +146,7 @@ export class ProviderSyncQueueService {
       select: { id: true },
       where: {
         enabled: true,
-        providerAccountId,
-        providerRepositoryId,
+        id: repositoryId,
         providerAccount: { enabled: true },
       },
     });

@@ -52,6 +52,23 @@
           {{ row.original.enabled ? $t('repositories.enabled') : $t('repositories.disabled') }}
         </UBadge>
       </template>
+      <template #webhook-cell="{ row }">
+        <USkeleton v-if="webhookConfigurationsLoading" class="h-5 w-24" />
+        <UBadge
+          v-else-if="!webhookConfigurationsError"
+          variant="subtle"
+          :color="webhookConfiguration(row.original.id)?.configured ? 'success' : 'warning'"
+        >
+          {{
+            $t(
+              webhookConfiguration(row.original.id)?.configured
+                ? 'repositories.webhook.configured'
+                : 'repositories.webhook.notConfigured',
+            )
+          }}
+        </UBadge>
+        <UBadge v-else color="neutral" variant="subtle">{{ $t('repositories.webhook.unavailable') }}</UBadge>
+      </template>
       <template #members-cell="{ row }">
         <UAvatarGroup size="sm" :max="5">
           <UTooltip v-for="member in row.original.members" :key="member.userId" :text="getUserIdentityLabel(member)">
@@ -132,7 +149,11 @@
     <ModulesRepositoriesDetailsDialog
       v-model:open="detailsDialogOpen"
       :repository-id="selectedRepositoryId"
+      :webhook-configuration="selectedRepositoryWebhookConfiguration"
+      :webhook-configuration-error="webhookConfigurationsError"
+      :webhook-configuration-loading="webhookConfigurationsLoading"
       @updated="handleRepositoryUpdated"
+      @webhook-updated="handleWebhookUpdated"
     />
   </LayoutPage>
 </template>
@@ -146,7 +167,7 @@ import { useTable } from '~/composables/api/table';
 import { useDateTime } from '~/composables/use-date-time';
 import { usePendingActions } from '~/composables/use-pending-actions';
 import { useAuthStore } from '~/store/auth';
-import type { Repository } from '~/types/api/resources';
+import type { Repository, RepositoryWebhookConfiguration } from '~/types/api/resources';
 import type { ColumnDefinition } from '~/types/table';
 import { getUserIdentityLabel } from '~/utils/user-identity';
 
@@ -163,9 +184,15 @@ const route = useRoute();
 const router = useRouter();
 const isAdmin = computed(() => auth.user?.role === 'SYSTEM_ADMIN');
 const dialogOpen = ref(false);
+const webhookConfigurations = ref<RepositoryWebhookConfiguration[]>([]);
+const webhookConfigurationsLoading = ref(false);
+const webhookConfigurationsError = ref(false);
 const openedFromList = ref(false);
 const selectedRepositoryId = computed(() =>
   typeof route.query.repository === 'string' && route.query.repository ? route.query.repository : undefined,
+);
+const selectedRepositoryWebhookConfiguration = computed(() =>
+  selectedRepositoryId.value ? webhookConfiguration(selectedRepositoryId.value) : undefined,
 );
 const detailsDialogOpen = computed({
   get: () => Boolean(selectedRepositoryId.value),
@@ -174,20 +201,24 @@ const detailsDialogOpen = computed({
   },
 });
 const { isPending, run: runPendingAction } = usePendingActions();
-const columnDefinition = computed<RepositoryTableColumn[]>(() => [
-  { accessorKey: 'owner', header: t('repositories.columns.owner'), id: 'owner' },
-  { accessorKey: 'name', header: t('repositories.columns.name'), id: 'name' },
-  { accessorKey: 'enabled', header: t('repositories.columns.status'), id: 'enabled' },
-  { accessorKey: 'members', header: t('repositories.columns.members'), id: 'members' },
-  { accessorKey: 'workflowRunCount', header: t('repositories.columns.workflowRuns'), id: 'workflowRunCount' },
-  {
-    accessorKey: 'workflowRunRetentionDays',
-    header: t('repositories.columns.retention'),
-    id: 'workflowRunRetentionDays',
-  },
-  { accessorKey: 'lastSyncAt', header: t('repositories.columns.lastSync'), id: 'lastSyncAt' },
-  { enableHiding: false, header: t('repositories.columns.actions'), id: 'actions' },
-]);
+const columnDefinition = computed<RepositoryTableColumn[]>(() => {
+  const columns: RepositoryTableColumn[] = [
+    { accessorKey: 'owner', header: t('repositories.columns.owner'), id: 'owner' },
+    { accessorKey: 'name', header: t('repositories.columns.name'), id: 'name' },
+    { accessorKey: 'enabled', header: t('repositories.columns.status'), id: 'enabled' },
+    { accessorKey: 'members', header: t('repositories.columns.members'), id: 'members' },
+    { accessorKey: 'workflowRunCount', header: t('repositories.columns.workflowRuns'), id: 'workflowRunCount' },
+    {
+      accessorKey: 'workflowRunRetentionDays',
+      header: t('repositories.columns.retention'),
+      id: 'workflowRunRetentionDays',
+    },
+    { accessorKey: 'lastSyncAt', header: t('repositories.columns.lastSync'), id: 'lastSyncAt' },
+  ];
+  if (isAdmin.value) columns.push({ header: t('repositories.columns.webhook'), id: 'webhook' });
+  columns.push({ enableHiding: false, header: t('repositories.columns.actions'), id: 'actions' });
+  return columns;
+});
 const sortableFields = computed<SortingField[]>(() => [
   { label: t('repositories.columns.owner'), value: 'owner' },
   { label: t('repositories.columns.name'), value: 'name' },
@@ -237,6 +268,26 @@ function formatLastSync(lastSyncAt: string | null): string {
   return formatDateTime(lastSyncAt);
 }
 
+/** Resolve safe webhook metadata for one repository. */
+function webhookConfiguration(repositoryId: string): RepositoryWebhookConfiguration | undefined {
+  return webhookConfigurations.value.find((configuration) => configuration.repositoryId === repositoryId);
+}
+
+/** Load repository webhook states only for system administrators. */
+async function loadWebhookConfigurations(): Promise<void> {
+  if (!isAdmin.value) return;
+  webhookConfigurationsLoading.value = true;
+  webhookConfigurationsError.value = false;
+  try {
+    webhookConfigurations.value = (await api.repositories.webhookConfigurations()).data;
+  } catch {
+    webhookConfigurations.value = [];
+    webhookConfigurationsError.value = true;
+  } finally {
+    webhookConfigurationsLoading.value = false;
+  }
+}
+
 /** Open the dialog used to discover a provider-owned repository. */
 function openAddDialog(): void {
   dialogOpen.value = true;
@@ -270,13 +321,21 @@ defineShortcuts({
 /** Refresh the list from its first page after the dialog adds a repository. */
 async function handleRepositoryCreated(): Promise<void> {
   page.value = 1;
-  await repositoryTable.refresh();
+  await Promise.all([repositoryTable.refresh(), loadWebhookConfigurations()]);
 }
 
 /** Replace a changed repository row without reloading the complete table. */
 function handleRepositoryUpdated(repository: Repository): void {
   const existingRepository = items.value.find((item) => item.id === repository.id);
   repositoryTable.updateRow({ ...existingRepository, ...repository } as RepositoryRow);
+}
+
+/** Replace webhook metadata changed in the repository detail card. */
+function handleWebhookUpdated(configuration: RepositoryWebhookConfiguration): void {
+  webhookConfigurations.value = [
+    ...webhookConfigurations.value.filter((item) => item.repositoryId !== configuration.repositoryId),
+    configuration,
+  ];
 }
 
 /** Enable or disable a repository without changing its retention configuration. */
@@ -290,5 +349,5 @@ async function toggle(repository: Repository): Promise<void> {
   });
 }
 
-onMounted(() => void repositoryTable.initialize());
+onMounted(() => void Promise.all([repositoryTable.initialize(), loadWebhookConfigurations()]));
 </script>

@@ -58,6 +58,14 @@
           :repository="repository"
           @updated="handleRepositoryUpdated"
         />
+        <ModulesRepositoriesDetailsWebhookCard
+          v-if="isAdmin"
+          :configuration="webhookConfiguration"
+          :load-error="webhookConfigurationError"
+          :loading="webhookConfigurationLoading"
+          :repository-id="repository.id"
+          @updated="emit('webhookUpdated', $event)"
+        />
         <div v-if="isAdmin" class="grid gap-4 lg:grid-cols-2">
           <ModulesRepositoriesDetailsWorkflowFiltersCard :repository-id="repository.id" />
           <ModulesRepositoriesDetailsMembersCard :repository-id="repository.id" />
@@ -72,14 +80,18 @@ import { computed, ref, watch } from 'vue';
 
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useAuthStore } from '~/store/auth';
-import type { Repository } from '~/types/api/resources';
+import type { Repository, RepositoryWebhookConfiguration } from '~/types/api/resources';
 
 const props = defineProps<{
   repositoryId?: string;
+  webhookConfiguration?: RepositoryWebhookConfiguration;
+  webhookConfigurationError: boolean;
+  webhookConfigurationLoading: boolean;
 }>();
 const open = defineModel<boolean>('open', { required: true });
 const emit = defineEmits<{
   updated: [repository: Repository];
+  webhookUpdated: [configuration: RepositoryWebhookConfiguration];
 }>();
 
 const api = useEzRepoApi();

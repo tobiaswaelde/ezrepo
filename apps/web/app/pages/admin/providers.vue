@@ -70,25 +70,6 @@
           {{ row.original.enabled ? $t('providers.enabled') : $t('providers.disabled') }}
         </UBadge>
       </template>
-      <template #id-cell="{ row }">
-        <USkeleton v-if="webhookConfigurationsLoading" class="h-5 w-24" />
-        <UBadge
-          v-else-if="webhookConfiguration(row.original.id)"
-          variant="subtle"
-          :color="webhookConfiguration(row.original.id)?.configured ? 'success' : 'warning'"
-        >
-          {{
-            $t(
-              webhookConfiguration(row.original.id)?.configured
-                ? 'providers.webhook.configured'
-                : 'providers.webhook.notConfigured',
-            )
-          }}
-        </UBadge>
-        <UBadge v-else color="neutral" variant="subtle">
-          {{ $t(webhookConfigurationsError ? 'providers.webhook.unavailable' : 'providers.webhook.notConfigured') }}
-        </UBadge>
-      </template>
       <template #lastSyncAt-cell="{ row }">
         <span class="whitespace-nowrap text-sm text-muted">{{ formatLastSync(row.original.lastSyncAt) }}</span>
       </template>
@@ -97,18 +78,6 @@
       </template>
       <template #actions-cell="{ row }">
         <div class="flex justify-end gap-1">
-          <UTooltip :text="$t('providers.webhook.action')">
-            <span class="inline-flex">
-              <UButton
-                color="neutral"
-                icon="i-lucide-webhook"
-                variant="ghost"
-                :aria-label="$t('providers.webhook.action')"
-                :disabled="webhookConfigurationsLoading"
-                @click="openWebhookDialog(row.original)"
-              />
-            </span>
-          </UTooltip>
           <UTooltip :text="row.original.enabled ? $t('providers.disable') : $t('providers.enable')">
             <span class="inline-flex">
               <UButton
@@ -146,12 +115,6 @@
       shortcuts
     />
     <ModulesProvidersAddDialog v-model:open="dialogOpen" @created="handleProviderCreated" />
-    <ModulesProvidersWebhookDialog
-      v-model:open="webhookDialogOpen"
-      :configuration="selectedProvider ? webhookConfiguration(selectedProvider.id) : undefined"
-      :provider="selectedProvider"
-      @saved="handleWebhookSaved"
-    />
   </LayoutPage>
 </template>
 
@@ -165,7 +128,7 @@ import { useTable } from '~/composables/api/table';
 import { useProviderType } from '~/composables/enums/provider-type';
 import { useDateTime } from '~/composables/use-date-time';
 import { usePendingActions } from '~/composables/use-pending-actions';
-import { providerTypes, type ProviderAccount, type ProviderWebhookConfiguration } from '~/types/api/resources';
+import { providerTypes, type ProviderAccount } from '~/types/api/resources';
 import type { ColumnDefinition } from '~/types/table';
 
 type ProviderAccountRow = ProviderAccount & Record<string, unknown>;
@@ -176,14 +139,8 @@ definePageMeta({ fullWidth: true });
 const { t } = useI18n();
 const { formatDateTime } = useDateTime();
 const api = useEzRepoApi();
-const toast = useToast();
 const route = useRoute();
 const dialogOpen = ref(false);
-const webhookDialogOpen = ref(false);
-const selectedProvider = ref<ProviderAccount | null>(null);
-const webhookConfigurations = ref<ProviderWebhookConfiguration[]>([]);
-const webhookConfigurationsLoading = ref(true);
-const webhookConfigurationsError = ref(false);
 const { isPending, run: runPendingAction } = usePendingActions();
 const oauthStatus = computed(() => route.query.oauth);
 const { getLabel: getProviderTypeLabel } = useProviderType();
@@ -195,7 +152,6 @@ const columnDefinition = computed<ProviderTableColumn[]>(() => [
   { accessorKey: 'providerType', header: t('providers.columns.type'), id: 'providerType' },
   { accessorKey: 'baseUrl', header: t('providers.columns.baseUrl'), id: 'baseUrl' },
   { accessorKey: 'enabled', header: t('providers.columns.status'), id: 'enabled' },
-  { accessorKey: 'id', header: t('providers.columns.webhook'), id: 'id' },
   { accessorKey: 'lastSyncAt', header: t('providers.columns.lastSync'), id: 'lastSyncAt' },
   { enableHiding: false, header: t('providers.columns.actions'), id: 'actions' },
 ]);
@@ -253,31 +209,6 @@ function openAddDialog(): void {
   dialogOpen.value = true;
 }
 
-function openWebhookDialog(provider: ProviderAccount): void {
-  selectedProvider.value = provider;
-  webhookDialogOpen.value = true;
-}
-
-/** Resolve the safe webhook metadata loaded for one provider account. */
-function webhookConfiguration(providerAccountId: string): ProviderWebhookConfiguration | undefined {
-  return webhookConfigurations.value.find((configuration) => configuration.providerAccountId === providerAccountId);
-}
-
-/** Load all administrator-visible webhook setup states without exposing signing secrets. */
-async function loadWebhookConfigurations(): Promise<void> {
-  webhookConfigurationsLoading.value = true;
-  webhookConfigurationsError.value = false;
-  try {
-    webhookConfigurations.value = (await api.providerAccounts.webhookConfigurations()).data;
-  } catch {
-    webhookConfigurations.value = [];
-    webhookConfigurationsError.value = true;
-    toast.add({ color: 'error', title: t('providers.webhook.loadError') });
-  } finally {
-    webhookConfigurationsLoading.value = false;
-  }
-}
-
 /** Build a unique pending-state key for one provider action. */
 function providerActionKey(action: 'delete' | 'toggle', providerId: string): string {
   return `${action}:${providerId}`;
@@ -295,11 +226,7 @@ defineShortcuts({
 /** Refresh the list from its first page after the dialog creates an account. */
 async function handleProviderCreated(): Promise<void> {
   page.value = 1;
-  await Promise.all([providerTable.refresh(), loadWebhookConfigurations()]);
-}
-
-async function handleWebhookSaved(): Promise<void> {
-  await loadWebhookConfigurations();
+  await providerTable.refresh();
 }
 
 /** Remove a provider account and refresh the current Query Kit page. */
@@ -318,5 +245,5 @@ async function toggle(provider: ProviderAccount): Promise<void> {
   });
 }
 
-onMounted(() => void Promise.all([providerTable.initialize(), loadWebhookConfigurations()]));
+onMounted(() => void providerTable.initialize());
 </script>

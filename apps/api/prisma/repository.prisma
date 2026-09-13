@@ -8,6 +8,7 @@ model Repository {
   name                 String   @db.VarChar(255)
   url                  String   @db.VarChar(2048)
   enabled              Boolean  @default(true)
+  encryptedWebhookSecret String? @db.Text
   lastSyncAt           DateTime?
   workflowRunRetentionDays Int?
   retainedRunDurationMs BigInt @default(0)
@@ -25,6 +26,7 @@ model Repository {
   workflowFilters      WorkflowFilter[]
   workflows            Workflow[]
   workflowRuns      WorkflowRun[]
+  webhookDeliveries WebhookDelivery[]
 
   @@unique([providerAccountId, providerRepositoryId])
   @@index([providerAccountId, enabled])

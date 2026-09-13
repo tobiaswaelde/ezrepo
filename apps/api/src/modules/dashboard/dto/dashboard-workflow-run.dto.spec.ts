@@ -16,12 +16,12 @@ describe('DashboardWorkflowRunDto', () => {
       reviewUrl: 'https://github.com/ezrepo/ezrepo/pull/12',
       repository: {
         id: 'repository-id',
+        encryptedWebhookSecret: 'must-not-appear',
         name: 'ezrepo',
         owner: 'ezrepo',
         providerAccount: {
           displayName: 'ezRepo GitHub',
           encryptedAccessToken: 'must-not-appear',
-          encryptedWebhookSecret: 'must-not-appear',
           id: 'provider-id',
           providerType: 'GITHUB',
         } as ProviderAccount,
@@ -57,6 +57,6 @@ describe('DashboardWorkflowRunDto', () => {
       workflowName: 'Test',
     });
     expect(dto).not.toHaveProperty('provider.encryptedAccessToken');
-    expect(dto).not.toHaveProperty('provider.encryptedWebhookSecret');
+    expect(dto).not.toHaveProperty('repository.encryptedWebhookSecret');
   });
 });

@@ -2,14 +2,12 @@ model WebhookDelivery {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now())
 
-  deliveryId           String  @db.VarChar(255)
-  event                String  @db.VarChar(255)
-  providerRepositoryId String? @db.VarChar(255)
+  deliveryId   String     @db.VarChar(255)
+  event        String     @db.VarChar(255)
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
 
-  providerAccountId String          @db.Uuid
-  providerAccount   ProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
-
-  @@unique([providerAccountId, deliveryId])
-  @@index([providerAccountId, createdAt])
+  @@unique([repositoryId, deliveryId])
+  @@index([repositoryId, createdAt])
   @@map("webhook_deliveries")
 }

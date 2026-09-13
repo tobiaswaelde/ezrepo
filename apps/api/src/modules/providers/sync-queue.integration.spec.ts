@@ -14,11 +14,11 @@ describe('provider sync queue integration', () => {
   afterAll(async () => prisma.onModuleDestroy());
 
   it('coalesces webhook deliveries for one repository with a trailing debounce', async () => {
-    const { account, repository } = await createRepository(prisma);
+    const { repository } = await createRepository(prisma);
     const service = createService(prisma, { syncRepositoryById: jest.fn() });
 
-    await service.enqueueWebhookRepository(account.id, repository.providerRepositoryId);
-    await service.enqueueWebhookRepository(account.id, repository.providerRepositoryId);
+    await service.enqueueWebhookRepository(repository.id);
+    await service.enqueueWebhookRepository(repository.id);
 
     const request = await prisma.repositorySyncRequest.findUniqueOrThrow({ where: { repositoryId: repository.id } });
     expect(request.generation).toBe(2);
@@ -113,7 +113,7 @@ describe('provider sync queue integration', () => {
   });
 
   it('reactivates a permanently failed request when a new webhook arrives', async () => {
-    const { account, repository } = await createRepository(prisma);
+    const { repository } = await createRepository(prisma);
     const service = createService(prisma, {
       syncRepositoryById: jest.fn().mockRejectedValue(new ProviderRequestError('GitHub', 401, null)),
     });
@@ -128,7 +128,7 @@ describe('provider sync queue integration', () => {
       status: 'FAILED',
     });
 
-    await service.enqueueWebhookRepository(account.id, repository.providerRepositoryId);
+    await service.enqueueWebhookRepository(repository.id);
 
     await expect(
       prisma.repositorySyncRequest.findUnique({ where: { repositoryId: repository.id } }),

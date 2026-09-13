@@ -11,6 +11,7 @@ describe('RepositoriesController', () => {
       _count: { workflowRuns: 12 },
       createdAt: new Date('2026-09-09T08:00:00.000Z'),
       enabled: true,
+      encryptedWebhookSecret: null,
       id: 'repository-1',
       lastSyncAt: null,
       memberships: [

@@ -2,10 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import type { ProviderType } from '../../../generated/prisma/client.js';
 
-/** Safe provider webhook configuration metadata that never contains the signing secret. */
-export class ProviderWebhookConfigurationDto {
+/** Safe repository webhook configuration metadata that never contains the signing secret. */
+export class RepositoryWebhookConfigurationDto {
   @ApiProperty({ format: 'uuid' })
-  providerAccountId!: string;
+  repositoryId!: string;
 
   @ApiProperty({ enum: ['GITHUB', 'GITLAB', 'FORGEJO', 'GITEA'] })
   providerType!: ProviderType;

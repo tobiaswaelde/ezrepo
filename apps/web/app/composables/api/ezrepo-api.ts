@@ -24,13 +24,13 @@ import type {
   ProviderAuthenticationOptions,
   ProviderOAuthAuthorization,
   ProviderRepository,
-  ProviderWebhookConfiguration,
   PullRequest,
   PullRequestSummary,
   Repository,
   RepositoryHealth,
   RepositoryMembership,
   RepositorySyncJobSummary,
+  RepositoryWebhookConfiguration,
   StartProviderOAuth,
   UpdateApplicationSettings,
   UpdateNotificationChannel,
@@ -133,8 +133,6 @@ export function useEzRepoApi() {
         }),
       listRepositories: (id: string): Promise<AxiosResponse<ProviderRepository[]>> =>
         api.get(`${apiEndpoints.providerAccounts.base}/${id}/repositories`),
-      webhookConfigurations: (): Promise<AxiosResponse<ProviderWebhookConfiguration[]>> =>
-        api.get(apiEndpoints.providerAccounts.webhookConfigurations),
       addRepository: (id: string, providerRepositoryId: string): Promise<AxiosResponse<Repository>> =>
         api.post(`${apiEndpoints.providerAccounts.base}/${id}/repositories`, { providerRepositoryId }),
       update: (id: string, input: UpdateProviderAccount): Promise<AxiosResponse<ProviderAccount>> =>
@@ -147,6 +145,8 @@ export function useEzRepoApi() {
       summary: (): Promise<AxiosResponse<PullRequestSummary>> => api.get(`${apiEndpoints.pullRequests}/summary`),
     },
     repositories: {
+      clearWebhookConfiguration: (id: string): Promise<AxiosResponse<void>> =>
+        api.delete(`${apiEndpoints.repositories}/${id}/webhook-configuration`),
       createWorkflowFilter: (
         id: string,
         input: Pick<WorkflowFilter, 'mode' | 'pattern'>,
@@ -170,9 +170,13 @@ export function useEzRepoApi() {
         api.get(`${apiEndpoints.repositories}/${id}/memberships`),
       listWorkflowFilters: (id: string): Promise<AxiosResponse<WorkflowFilter[]>> =>
         api.get(`${apiEndpoints.repositories}/${id}/workflow-filters`),
+      webhookConfigurations: (): Promise<AxiosResponse<RepositoryWebhookConfiguration[]>> =>
+        api.get(`${apiEndpoints.repositories}/webhook-configurations`),
       refresh: (id: string): Promise<AxiosResponse<Repository>> =>
         api.post(`${apiEndpoints.repositories}/${id}/refresh`),
       sync: (id: string): Promise<AxiosResponse<void>> => api.post(`${apiEndpoints.repositories}/${id}/sync`),
+      setWebhookSecret: (id: string, webhookSecret: string): Promise<AxiosResponse<RepositoryWebhookConfiguration>> =>
+        api.put(`${apiEndpoints.repositories}/${id}/webhook-configuration`, { webhookSecret }),
       update: (
         id: string,
         input: { enabled: boolean; workflowRunRetentionDays: number | null },

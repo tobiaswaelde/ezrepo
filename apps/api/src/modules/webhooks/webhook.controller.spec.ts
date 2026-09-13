@@ -16,11 +16,11 @@ describe('WebhookController', () => {
       rawBody: Buffer.from('{"repository":{"id":42}}'),
     };
 
-    await expect(controller.github('account-id', request as never)).resolves.toEqual({
+    await expect(controller.github('repository-id', request as never)).resolves.toEqual({
       accepted: true,
       duplicate: false,
     });
-    expect(service.receive).toHaveBeenCalledWith('GITHUB', 'account-id', {
+    expect(service.receive).toHaveBeenCalledWith('GITHUB', 'repository-id', {
       headers: request.headers,
       payload: request.rawBody,
     });
@@ -42,9 +42,9 @@ describe('WebhookController', () => {
       rawBody: Buffer.from('{"repository":{"id":42}}'),
     };
 
-    await controller.gitea('account-id', request as never);
+    await controller.gitea('repository-id', request as never);
 
-    expect(service.receive).toHaveBeenCalledWith('GITEA', 'account-id', {
+    expect(service.receive).toHaveBeenCalledWith('GITEA', 'repository-id', {
       headers: request.headers,
       payload: request.rawBody,
     });
@@ -75,7 +75,7 @@ describe('WebhookController', () => {
     await app.listen(0, '127.0.0.1');
     try {
       const baseUrl = await app.getUrl();
-      for (const path of ['/api/webhooks/github/account-id', '/api/v1/webhooks/github/account-id']) {
+      for (const path of ['/api/webhooks/github/repository-id', '/api/v1/webhooks/github/repository-id']) {
         const response = await fetch(`${baseUrl}${path}`, {
           body: '{"repository":{"id":42}}',
           headers: { 'content-type': 'application/json', 'x-github-delivery': 'delivery-id' },

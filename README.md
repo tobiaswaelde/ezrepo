@@ -48,20 +48,20 @@ template deliberately contains no usable passwords, tokens, or encryption
 keys, so the API will reject it until you provide real deployment values. The
 API accepts the following variables:
 
-| Variable                          | Required | Default                 | Purpose and constraints                                                                     |
-| --------------------------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                        | No       | `development`           | One of `development`, `production`, or `test`.                                              |
-| `PORT`                            | No       | `3001`                  | HTTP port as a number.                                                                      |
-| `DATABASE_URL`                    | Yes      | —                       | PostgreSQL connection URL used by the API.                                                  |
-| `SHADOW_DATABASE_URL`             | Yes      | —                       | PostgreSQL shadow database URL used for Prisma migrations.                                  |
-| `CORS_ORIGIN`                     | No       | `http://localhost:3000` | One origin, comma-separated origins, or `*`.                                                |
-| `PUBLIC_URL`                      | No       | `http://localhost:3000` | Public ezRepo URL; must use HTTP or HTTPS.                                                  |
-| `AUTH_JWT_ISSUER`                 | No       | `ezrepo`                | JWT issuer identifier.                                                                      |
-| `AUTH_JWT_SECRET`                 | Yes      | —                       | Long, unique secret used to sign JWTs.                                                      |
-| `AUTH_JWT_EXPIRATION`             | No       | `7d`                    | JWT lifetime accepted by the Nest JWT module.                                               |
-| `TOKEN_ENCRYPTION_KEY`            | Yes      | —                       | Canonical Base64 value decoding to exactly 32 bytes; encrypts provider and webhook secrets. |
-| `SCHEDULER_ENABLED`               | No       | `true`                  | Enables scheduled polling and retention jobs. Set `false` for one-off commands.             |
-| `SCHEDULER_SYNC_INTERVAL_SECONDS` | No       | `1800`                  | Positive integer fallback polling interval in seconds.                                      |
+| Variable                          | Required | Default                 | Purpose and constraints                                                                                |
+| --------------------------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| `NODE_ENV`                        | No       | `development`           | One of `development`, `production`, or `test`.                                                         |
+| `PORT`                            | No       | `3001`                  | HTTP port as a number.                                                                                 |
+| `DATABASE_URL`                    | Yes      | —                       | PostgreSQL connection URL used by the API.                                                             |
+| `SHADOW_DATABASE_URL`             | Yes      | —                       | PostgreSQL shadow database URL used for Prisma migrations.                                             |
+| `CORS_ORIGIN`                     | No       | `http://localhost:3000` | One origin, comma-separated origins, or `*`.                                                           |
+| `PUBLIC_URL`                      | No       | `http://localhost:3000` | Public ezRepo URL; must use HTTP or HTTPS.                                                             |
+| `AUTH_JWT_ISSUER`                 | No       | `ezrepo`                | JWT issuer identifier.                                                                                 |
+| `AUTH_JWT_SECRET`                 | Yes      | —                       | Long, unique secret used to sign JWTs.                                                                 |
+| `AUTH_JWT_EXPIRATION`             | No       | `7d`                    | JWT lifetime accepted by the Nest JWT module.                                                          |
+| `TOKEN_ENCRYPTION_KEY`            | Yes      | —                       | Canonical Base64 value decoding to exactly 32 bytes; encrypts provider and repository webhook secrets. |
+| `SCHEDULER_ENABLED`               | No       | `true`                  | Enables scheduled polling and retention jobs. Set `false` for one-off commands.                        |
+| `SCHEDULER_SYNC_INTERVAL_SECONDS` | No       | `1800`                  | Positive integer fallback polling interval in seconds.                                                 |
 
 `EZREPO_ENV_FILE` is an optional local loader setting. When set, the API
 loads that file after the root `.env` file, allowing a local override without
@@ -77,7 +77,7 @@ by the Nest API's `envalid` configuration:
 | `POSTGRES_PASSWORD` | —        | PostgreSQL password; replace the example value.       |
 | `EZREPO_VERSION`    | `latest` | API and web image version selected by Docker Compose. |
 
-Provider access tokens, provider webhook secrets, and notification credentials
+Provider access tokens, repository webhook secrets, and notification credentials
 are not environment variables. ezRepo stores them encrypted in PostgreSQL
 through its application configuration. See [notification configuration](docs/notifications.md) for Apprise URL handling and migration guidance.
 

@@ -13,6 +13,9 @@ describe('resource DTO mappings', () => {
       enabled: true,
       lastSyncAt: null,
       lastSyncError: 'private detail',
+      rateLimitResetAt: null,
+      syncLeaseExpiresAt: null,
+      syncLeaseToken: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     } as ProviderAccount);
@@ -25,6 +28,7 @@ describe('resource DTO mappings', () => {
       enabled: true,
       lastSyncAt: null,
     });
+    expect(dto).not.toHaveProperty('encryptedAccessToken');
   });
 
   it('allows Query Kit to project every provider-table field', () => {
@@ -70,6 +74,7 @@ describe('resource DTO mappings', () => {
       name: 'ezrepo',
       url: 'https://example.test/ezrepo',
       enabled: true,
+      encryptedWebhookSecret: 'must-not-appear',
       lastSyncAt: null,
       retainedRunDurationMs: 0n,
       workflowRunRetentionDays: 30,

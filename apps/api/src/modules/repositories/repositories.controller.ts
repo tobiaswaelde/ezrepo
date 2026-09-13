@@ -12,6 +12,7 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
+import { ApiNoContentResponse, ApiOkResponse } from '@nestjs/swagger';
 import {
   ApiErrorResponses,
   ApiPaginatedResponse,
@@ -19,12 +20,14 @@ import {
   QueryTransformPipe,
   ResourceQuery,
 } from '@querry-kit/nest';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { Authenticated } from '../auth/authenticated.decorator.js';
 import type { AuthenticatedUser } from '../auth/types.js';
 import { RepositoryQueryDto } from './dto/repository-query.dto.js';
+import { RepositoryWebhookConfigurationDto } from './dto/repository-webhook-configuration.dto.js';
 import {
   RepositoryDto,
   RepositoryMembershipDto,
@@ -46,6 +49,14 @@ class CreateWorkflowFilterDto {
 
 class UpsertRepositoryMembershipDto {
   @IsEnum(['VIEWER', 'MANAGER']) role!: 'VIEWER' | 'MANAGER';
+}
+
+class SetRepositoryWebhookSecretDto {
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4096)
+  webhookSecret!: string;
 }
 
 const repositoryFieldSchema = {
@@ -98,6 +109,15 @@ export class RepositoriesController {
       schema: repositoryFieldSchema,
       service: this.repositories,
     });
+  }
+
+  /** Return safe webhook setup metadata for all tracked repositories. */
+  @Get('webhook-configurations')
+  @ApiOkResponse({ type: RepositoryWebhookConfigurationDto, isArray: true })
+  async webhookConfigurations(
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<RepositoryWebhookConfigurationDto[]> {
+    return this.configuration.listWebhookConfigurations(request.user);
   }
 
   /** Get one repository when it is visible to the authenticated user. */
@@ -191,6 +211,28 @@ export class RepositoriesController {
     @Param('userId') userId: string,
   ): Promise<void> {
     await this.configuration.deleteMembership(request.user, repositoryId, userId);
+  }
+
+  /** Store or rotate the selected repository's webhook signing secret. */
+  @Put(':id/webhook-configuration')
+  @ApiOkResponse({ type: RepositoryWebhookConfigurationDto })
+  async setWebhookSecret(
+    @Req() request: { user: AuthenticatedUser },
+    @Param('id') repositoryId: string,
+    @Body() body: SetRepositoryWebhookSecretDto,
+  ): Promise<RepositoryWebhookConfigurationDto> {
+    return this.configuration.setWebhookSecret(request.user, repositoryId, body.webhookSecret);
+  }
+
+  /** Remove the selected repository's webhook signing secret. */
+  @Delete(':id/webhook-configuration')
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async clearWebhookSecret(
+    @Req() request: { user: AuthenticatedUser },
+    @Param('id') repositoryId: string,
+  ): Promise<void> {
+    await this.configuration.clearWebhookSecret(request.user, repositoryId);
   }
 
   @Patch(':id') async update(
