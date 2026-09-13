@@ -19,14 +19,15 @@ async function mockViewerRepositories(page: Page): Promise<void> {
   await page.route('**/api/v1/auth/me', (route) =>
     route.fulfill({ json: { id: 'playwright-viewer', role: 'VIEWER', username: 'playwright' } }),
   );
-  await page.route(/\/api\/v1\/repositories(?:\?.*)?$/, (route) =>
-    route.fulfill({
+  await page.route(/\/api\/v1\/repositories(?:\?.*)?$/, (route) => {
+    expect(route.request().url()).not.toContain('webhook');
+    return route.fulfill({
       json: {
         items: [repository],
         meta: { hasNextPage: false, hasPrevPage: false, itemCount: 1, page: 1, pageCount: 1, perPage: 10 },
       },
-    }),
-  );
+    });
+  });
   await page.route('**/api/v1/repositories/repository-1', (route) => route.fulfill({ json: repository }));
   await page.route('**/api/v1/dashboard/awaiting-approval', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/workflow-runs/needs-attention**', (route) =>
@@ -177,14 +178,15 @@ test('administrator refreshes renamed repository metadata from the provider', as
     route.fulfill({ json: { items: [], meta: { itemCount: 0, pageCount: 0 } } }),
   );
   await page.route('**/api/v1/repositories/repository-1', (route) => route.fulfill({ json: repository }));
-  await page.route(/\/api\/v1\/repositories(?:\?.*)?$/, (route) =>
-    route.fulfill({
+  await page.route(/\/api\/v1\/repositories(?:\?.*)?$/, (route) => {
+    expect(new URL(route.request().url()).searchParams.get('fields')).not.toContain('webhook');
+    return route.fulfill({
       json: {
         items: [repository],
         meta: { hasNextPage: false, hasPrevPage: false, itemCount: 1, page: 1, pageCount: 1, perPage: 10 },
       },
-    }),
-  );
+    });
+  });
 
   await page.goto('/repositories?repository=repository-1');
 

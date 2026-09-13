@@ -52,7 +52,7 @@
           {{ row.original.enabled ? $t('repositories.enabled') : $t('repositories.disabled') }}
         </UBadge>
       </template>
-      <template #webhook-cell="{ row }">
+      <template #id-cell="{ row }">
         <USkeleton v-if="webhookConfigurationsLoading" class="h-5 w-24" />
         <UBadge
           v-else-if="!webhookConfigurationsError"
@@ -215,7 +215,8 @@ const columnDefinition = computed<RepositoryTableColumn[]>(() => {
     },
     { accessorKey: 'lastSyncAt', header: t('repositories.columns.lastSync'), id: 'lastSyncAt' },
   ];
-  if (isAdmin.value) columns.push({ header: t('repositories.columns.webhook'), id: 'webhook' });
+  // The status is loaded separately; reusing the already-required `id` field keeps it out of the resource projection.
+  if (isAdmin.value) columns.push({ header: t('repositories.columns.webhook'), id: 'id' });
   columns.push({ enableHiding: false, header: t('repositories.columns.actions'), id: 'actions' });
   return columns;
 });
