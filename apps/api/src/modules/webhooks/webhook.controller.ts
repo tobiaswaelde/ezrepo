@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, HttpCode, Param, Post, Req } from '@nestjs/common';
+import { BadRequestException, Controller, HttpCode, Param, Post, Req, VERSION_NEUTRAL, Version } from '@nestjs/common';
 import { ApiAcceptedResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
@@ -16,6 +16,7 @@ export class WebhookController {
   /** Accept a signed GitHub webhook delivery. */
   @Post('github/:providerAccountId')
   @HttpCode(202)
+  @Version(['1', VERSION_NEUTRAL])
   @ApiOperation({ summary: 'Accept a signed GitHub webhook delivery' })
   @ApiParam({ name: 'providerAccountId', format: 'uuid' })
   @ApiAcceptedResponse({ description: 'The delivery was accepted for asynchronous synchronization.' })
@@ -29,6 +30,7 @@ export class WebhookController {
   /** Accept a signed GitLab webhook delivery. */
   @Post('gitlab/:providerAccountId')
   @HttpCode(202)
+  @Version(['1', VERSION_NEUTRAL])
   @ApiOperation({ summary: 'Accept a signed GitLab webhook delivery' })
   @ApiParam({ name: 'providerAccountId', format: 'uuid' })
   @ApiAcceptedResponse({ description: 'The delivery was accepted for asynchronous synchronization.' })
@@ -42,6 +44,7 @@ export class WebhookController {
   /** Accept a signed Forgejo webhook delivery. */
   @Post('forgejo/:providerAccountId')
   @HttpCode(202)
+  @Version(['1', VERSION_NEUTRAL])
   @ApiOperation({ summary: 'Accept a signed Forgejo webhook delivery' })
   @ApiParam({ name: 'providerAccountId', format: 'uuid' })
   @ApiAcceptedResponse({ description: 'The delivery was accepted for asynchronous synchronization.' })
@@ -55,6 +58,7 @@ export class WebhookController {
   /** Accept a signed Gitea webhook delivery. */
   @Post('gitea/:providerAccountId')
   @HttpCode(202)
+  @Version(['1', VERSION_NEUTRAL])
   @ApiOperation({ summary: 'Accept a signed Gitea webhook delivery' })
   @ApiParam({ name: 'providerAccountId', format: 'uuid' })
   @ApiAcceptedResponse({ description: 'The delivery was accepted for asynchronous synchronization.' })

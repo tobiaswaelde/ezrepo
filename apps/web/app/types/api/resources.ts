@@ -86,6 +86,15 @@ export interface ProviderAccount {
   providerType: ProviderType;
 }
 
+/** Safe webhook setup metadata for a configured provider account. */
+export interface ProviderWebhookConfiguration {
+  callbackUrl: string;
+  configured: boolean;
+  lastDeliveryAt: ApiTimestamp | null;
+  providerAccountId: string;
+  providerType: ProviderType;
+}
+
 /** Repository discovered through a configured provider account. */
 export interface ProviderRepository {
   name: string;

@@ -108,11 +108,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { FilterFieldType, type FilterField, type Filtering, type SortingField } from '@querry-kit/nuxt-ui/types';
 import { refDebounced } from '@vueuse/core';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
+import { useSystemStatusState } from '~/composables/api/system-status';
 import { useTable } from '~/composables/api/table';
 import { useProviderType } from '~/composables/enums/provider-type';
 import { useDateTime } from '~/composables/use-date-time';
@@ -149,6 +150,7 @@ const { t } = useI18n();
 const { formatDateTime } = useDateTime();
 const api = useEzRepoApi();
 const toast = useToast();
+const { snapshot: systemStatus } = useSystemStatusState();
 const { getLabel: getProviderTypeLabel } = useProviderType();
 const search = ref('');
 const debouncedSearch = refDebounced(search, 250);
@@ -265,6 +267,8 @@ const columnPinning = computed({
     workflowRunTable.columnPinning.value = value;
   },
 });
+let observedProviderSync = false;
+let refreshAfterSyncTimer: ReturnType<typeof setTimeout> | undefined;
 
 watch(debouncedSearch, () => {
   page.value = 1;
@@ -275,6 +279,23 @@ watch(
     page.value = 1;
   },
   { deep: true },
+);
+watch(
+  () => systemStatus.value.activity,
+  (activity) => {
+    if (activity) {
+      observedProviderSync = true;
+      if (refreshAfterSyncTimer) clearTimeout(refreshAfterSyncTimer);
+      refreshAfterSyncTimer = undefined;
+      return;
+    }
+    if (!observedProviderSync) return;
+    observedProviderSync = false;
+    refreshAfterSyncTimer = setTimeout(() => {
+      refreshAfterSyncTimer = undefined;
+      void refresh();
+    }, 500);
+  },
 );
 
 /** Load all repositories visible to the current user for the repository filter. */
@@ -318,5 +339,8 @@ function statusColor(status: WorkflowRunStatus): 'error' | 'info' | 'neutral' | 
 onMounted(() => {
   void workflowRunTable.initialize();
   void loadRepositoryFilterOptions();
+});
+onBeforeUnmount(() => {
+  if (refreshAfterSyncTimer) clearTimeout(refreshAfterSyncTimer);
 });
 </script>

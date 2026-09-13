@@ -6,6 +6,14 @@ test('provider account table opens an add dialog with structured native controls
   const authenticationOptionsResponse = new Promise<void>((resolve) => {
     releaseAuthenticationOptions = resolve;
   });
+  let webhookConfigured = false;
+  let webhookUpdateFails = false;
+  let savedWebhookSecret = '';
+  let releaseWebhookUpdate: (() => void) | undefined;
+  const webhookUpdateResponse = new Promise<void>((resolve) => {
+    releaseWebhookUpdate = resolve;
+  });
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.addInitScript(() => window.localStorage.setItem('ezrepo.access-token', 'playwright-access-token'));
   await page.route(/\/api\/v1\/provider-accounts(?:\?.*)?$/, async (route) => {
     expect(route.request().url()).toContain('fields=');
@@ -30,6 +38,41 @@ test('provider account table opens an add dialog with structured native controls
     await authenticationOptionsResponse;
     await route.fulfill({ contentType: 'application/json', json: { oauthProviderTypes: [] } });
   });
+  await page.route('**/api/v1/provider-accounts/webhook-configurations', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      json: [
+        {
+          callbackUrl: 'https://ezrepo.example.test/api/webhooks/github/provider-1',
+          configured: webhookConfigured,
+          lastDeliveryAt: webhookConfigured ? '2026-09-13T12:00:00.000Z' : null,
+          providerAccountId: 'provider-1',
+          providerType: 'GITHUB',
+        },
+      ],
+    });
+  });
+  await page.route('**/api/v1/provider-accounts/provider-1', async (route) => {
+    const body = route.request().postDataJSON() as { webhookSecret: string };
+    savedWebhookSecret = body.webhookSecret;
+    await webhookUpdateResponse;
+    if (webhookUpdateFails) {
+      await route.fulfill({ contentType: 'application/json', json: { message: 'failed' }, status: 500 });
+      return;
+    }
+    webhookConfigured = true;
+    await route.fulfill({
+      contentType: 'application/json',
+      json: {
+        baseUrl: null,
+        displayName: 'Production GitHub',
+        enabled: true,
+        id: 'provider-1',
+        lastSyncAt: null,
+        providerType: 'GITHUB',
+      },
+    });
+  });
   await page.route('**/api/v1/auth/me', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
@@ -46,6 +89,7 @@ test('provider account table opens an add dialog with structured native controls
   await expect(breadcrumb.locator('[class~="i-lucide:layout-dashboard"]')).toBeVisible();
   await expect(breadcrumb.locator('[class~="i-lucide:plug-zap"]')).toBeVisible();
   await expect(page.getByText('Production GitHub')).toBeVisible();
+  await expect(page.getByText('Not configured', { exact: true })).toBeVisible();
   await expect(page.locator('#main-content [class~="i-tabler:brand-github"]')).toBeVisible();
   await expect(page.getByRole('button', { name: /add provider|anbieter hinzufügen/i })).toBeVisible();
   await page.getByRole('button', { name: 'Disable' }).hover();
@@ -54,6 +98,33 @@ test('provider account table opens an add dialog with structured native controls
   await page.getByRole('button', { name: 'Delete' }).hover();
   await expect(page.locator('[data-slot="content"][data-side]').filter({ hasText: 'Delete' })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Configure webhook' }).click();
+  const webhookDialog = page.getByRole('dialog', { name: 'Webhook for Production GitHub' });
+  await expect(webhookDialog.getByRole('heading', { name: 'Webhook for Production GitHub' })).toBeVisible();
+  await expect(page.locator('input[value="https://ezrepo.example.test/api/webhooks/github/provider-1"]')).toBeVisible();
+  await expect(page.getByText(/Workflow runs \(workflow_run\)/)).toBeVisible();
+  await expect(webhookDialog.getByText('Never', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('provider-webhook-dialog-dark.png'), fullPage: true });
+
+  await page.getByRole('button', { name: 'Generate secret' }).click();
+  const secretInput = page.getByRole('textbox', { name: 'Signing secret' });
+  await expect(secretInput).toHaveValue(/^[A-Za-z0-9+/]{43}=$/);
+  await page.getByRole('button', { name: 'Copy secret' }).click();
+  await expect(page.getByRole('button', { name: 'Copy secret' }).locator('[class~="i-lucide:check"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Save secret' }).click();
+  await expect(page.getByRole('button', { name: 'Save secret' })).toBeDisabled();
+  expect(savedWebhookSecret).toMatch(/^[A-Za-z0-9+/]{43}=$/);
+  releaseWebhookUpdate?.();
+  await expect(page.getByText('Webhook secret saved')).toBeVisible();
+  await expect(page.getByText('Configured', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Rotate secret' })).toBeDisabled();
+  await expect(page.getByText('Existing webhooks require an update')).toBeVisible();
+  await secretInput.fill('manually-provided-token');
+  await expect(secretInput).toHaveValue('manually-provided-token');
+  await page.getByText('I will update every provider webhook with the new secret.').click();
+  await expect(page.getByRole('button', { name: 'Rotate secret' })).toBeEnabled();
+  await page.keyboard.press('Escape');
+
   await page.getByRole('button', { name: 'playwright' }).click();
   await expect(page.getByText('Language', { exact: true })).toBeVisible();
   await expect(page.getByText('Theme', { exact: true })).toBeVisible();
@@ -61,8 +132,24 @@ test('provider account table opens an add dialog with structured native controls
   await expect(page.getByText('System', { exact: true })).toBeVisible();
   await expect(page.getByText('Light', { exact: true })).toBeVisible();
   await expect(page.getByText('Dark', { exact: true })).toBeVisible();
+  await page.getByText('Light', { exact: true }).click();
+  await page.setViewportSize({ height: 844, width: 390 });
+  await page.getByRole('button', { name: 'Configure webhook' }).click();
+  await expect(webhookDialog).toBeVisible();
+  await expect(webhookDialog.getByRole('heading', { name: 'Webhook for Production GitHub' })).toBeVisible();
+  await expect(webhookDialog.getByRole('textbox', { name: 'Signing secret' })).toHaveValue('');
+  await page.screenshot({
+    animations: 'disabled',
+    path: testInfo.outputPath('provider-webhook-dialog-light-mobile.png'),
+    fullPage: true,
+  });
+  await webhookDialog.getByRole('textbox', { name: 'Signing secret' }).fill('replacement-token');
+  await webhookDialog.getByText('I will update every provider webhook with the new secret.').click();
+  webhookUpdateFails = true;
+  await webhookDialog.getByRole('button', { name: 'Rotate secret' }).click();
+  await expect(webhookDialog.getByText('The webhook secret could not be saved.')).toBeVisible();
   await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  await page.setViewportSize({ height: 900, width: 1440 });
 
   await page.keyboard.press('Shift+O');
   await expect(page.getByText('Table options', { exact: true })).toBeVisible();

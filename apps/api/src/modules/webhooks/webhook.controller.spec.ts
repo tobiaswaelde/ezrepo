@@ -1,7 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, type INestApplication, VERSION_NEUTRAL, VersioningType } from '@nestjs/common';
+import { VERSION_METADATA } from '@nestjs/common/constants.js';
+import { Test } from '@nestjs/testing';
 
 import { WebhookController } from './webhook.controller.js';
-import type { WebhookService } from './webhook.service.js';
+import { WebhookService } from './webhook.service.js';
 
 describe('WebhookController', () => {
   it('passes the unmodified raw body to the provider-specific service', async () => {
@@ -46,5 +48,45 @@ describe('WebhookController', () => {
       headers: request.headers,
       payload: request.rawBody,
     });
+  });
+
+  it.each(['github', 'gitlab', 'forgejo', 'gitea'] as const)(
+    'exposes the %s endpoint through versioned and stable unversioned routes',
+    (method) => {
+      expect(Reflect.getMetadata(VERSION_METADATA, WebhookController.prototype[method])).toEqual([
+        '1',
+        VERSION_NEUTRAL,
+      ]);
+    },
+  );
+
+  it('accepts deliveries through both the stable and versioned webhook URLs', async () => {
+    const service = {
+      receive: jest.fn().mockResolvedValue({ accepted: true, duplicate: false }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [WebhookController],
+      providers: [{ provide: WebhookService, useValue: service }],
+    }).compile();
+    const app: INestApplication = moduleRef.createNestApplication({ rawBody: true });
+    app.enableVersioning({ defaultVersion: '1', type: VersioningType.URI });
+    app.setGlobalPrefix('api');
+
+    await app.listen(0, '127.0.0.1');
+    try {
+      const baseUrl = await app.getUrl();
+      for (const path of ['/api/webhooks/github/account-id', '/api/v1/webhooks/github/account-id']) {
+        const response = await fetch(`${baseUrl}${path}`, {
+          body: '{"repository":{"id":42}}',
+          headers: { 'content-type': 'application/json', 'x-github-delivery': 'delivery-id' },
+          method: 'POST',
+        });
+        expect(response.status).toBe(202);
+      }
+    } finally {
+      await app.close();
+    }
+
+    expect(service.receive).toHaveBeenCalledTimes(2);
   });
 });

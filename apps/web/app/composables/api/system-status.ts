@@ -1,5 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue';
 
 import {
   systemStatusEvent,
@@ -18,6 +18,18 @@ interface StatusProgress {
 
 interface ServerToClientEvents {
   [systemStatusEvent]: (snapshot: unknown) => void;
+}
+
+/** Access the shared status snapshot without creating another Socket.IO connection. */
+export function useSystemStatusState() {
+  const connection = useState<SystemStatusConnection>('system-status-connection', () => 'CONNECTING');
+  const snapshot = useState<SystemStatusSnapshot>('system-status-snapshot', () => ({
+    activity: null,
+    runningWorkflowCount: 0,
+    updatedAt: '',
+  }));
+  const progress = computed(() => getSystemStatusProgress(snapshot.value.activity));
+  return { connection, progress, snapshot };
 }
 
 /** Convert the configured HTTP API base URL to the Socket.IO status namespace URL. */
@@ -45,10 +57,8 @@ export function getSystemStatusProgress(activity: ProviderSyncActivity | null): 
 /** Connect the global layout to the authenticated, read-only API status channel. */
 export function useSystemStatus() {
   const config = useRuntimeConfig();
-  const connection = ref<SystemStatusConnection>('CONNECTING');
-  const snapshot = ref<SystemStatusSnapshot>({ activity: null, runningWorkflowCount: 0, updatedAt: '' });
+  const { connection, progress, snapshot } = useSystemStatusState();
   const socket = shallowRef<Socket<ServerToClientEvents> | null>(null);
-  const progress = computed(() => getSystemStatusProgress(snapshot.value.activity));
 
   onMounted(() => {
     const accessToken = window.localStorage.getItem(accessTokenStorageKey);

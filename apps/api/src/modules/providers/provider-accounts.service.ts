@@ -1,8 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { ENV } from '../../config/env.js';
 import type { ProviderAccount, Repository } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../auth/types.js';
+import type { ProviderWebhookConfigurationDto } from './dto/provider-webhook-configuration.dto.js';
 import type { ProviderRepository } from './provider-adapter.js';
 import { ProviderAdapterRegistry } from './provider-adapter.registry.js';
 import { ProviderCredentialService } from './provider-credential.service.js';
@@ -21,6 +23,40 @@ export class ProviderAccountsService {
   async list(user: AuthenticatedUser) {
     this.assertAdmin(user);
     return this.prisma.providerAccount.findMany({ orderBy: { displayName: 'asc' } });
+  }
+
+  /**
+   * Return safe webhook setup metadata for every configured provider account.
+   *
+   * @param user System administrator requesting webhook configuration metadata.
+   * @returns Provider callback URLs, configuration state, and last accepted deliveries without any secrets.
+   */
+  async listWebhookConfigurations(user: AuthenticatedUser): Promise<ProviderWebhookConfigurationDto[]> {
+    this.assertAdmin(user);
+    const accounts = await this.prisma.providerAccount.findMany({
+      orderBy: { displayName: 'asc' },
+      select: {
+        encryptedWebhookSecret: true,
+        id: true,
+        providerType: true,
+        webhookDeliveries: {
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+          take: 1,
+        },
+      },
+    });
+
+    return accounts.map((account) => ({
+      callbackUrl: new URL(
+        `/api/webhooks/${account.providerType.toLocaleLowerCase('en-US')}/${account.id}`,
+        ENV.PUBLIC_URL,
+      ).toString(),
+      configured: account.encryptedWebhookSecret !== null,
+      lastDeliveryAt: account.webhookDeliveries[0]?.createdAt ?? null,
+      providerAccountId: account.id,
+      providerType: account.providerType,
+    }));
   }
   /**
    * Persists a provider token received from a completed OAuth authorization.

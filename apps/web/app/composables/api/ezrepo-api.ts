@@ -23,6 +23,7 @@ import type {
   ProviderAuthenticationOptions,
   ProviderOAuthAuthorization,
   ProviderRepository,
+  ProviderWebhookConfiguration,
   PullRequest,
   PullRequestSummary,
   Repository,
@@ -117,6 +118,8 @@ export function useEzRepoApi() {
         }),
       listRepositories: (id: string): Promise<AxiosResponse<ProviderRepository[]>> =>
         api.get(`${apiEndpoints.providerAccounts.base}/${id}/repositories`),
+      webhookConfigurations: (): Promise<AxiosResponse<ProviderWebhookConfiguration[]>> =>
+        api.get(apiEndpoints.providerAccounts.webhookConfigurations),
       addRepository: (id: string, providerRepositoryId: string): Promise<AxiosResponse<Repository>> =>
         api.post(`${apiEndpoints.providerAccounts.base}/${id}/repositories`, { providerRepositoryId }),
       update: (id: string, input: UpdateProviderAccount): Promise<AxiosResponse<ProviderAccount>> =>

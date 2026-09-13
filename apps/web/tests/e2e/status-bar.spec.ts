@@ -107,3 +107,94 @@ test('shows live workflow counts and provider synchronization progress globally'
   await runningLink.click();
   await expect(page).toHaveURL(/\/jobs$/);
 });
+
+test('refreshes an open workflow-run table once after provider synchronization becomes idle', async ({ page }) => {
+  await mockDashboardShell(page);
+  let socket: WebSocketRoute | undefined;
+  let workflowRunRequests = 0;
+  await page.route('**/api/v1/repositories**', (route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        meta: { hasNextPage: false, hasPrevPage: false, itemCount: 0, page: 1, pageCount: 0, perPage: 100 },
+      },
+    }),
+  );
+  await page.route(/\/api\/v1\/workflow-runs(?:\?.*)?$/, (route) => {
+    workflowRunRequests += 1;
+    return route.fulfill({
+      json: {
+        items:
+          workflowRunRequests > 1
+            ? [
+                {
+                  completedAt: null,
+                  displayTitle: 'Webhook-triggered run',
+                  durationMs: null,
+                  id: 'run-1',
+                  providerCreatedAt: '2026-09-13T12:00:00.000Z',
+                  providerType: 'GITHUB',
+                  repositoryName: 'ezrepo',
+                  repositoryOwner: 'tobiaswaelde',
+                  startedAt: '2026-09-13T12:00:00.000Z',
+                  status: 'RUNNING',
+                  url: 'https://github.com/tobiaswaelde/ezrepo/actions/runs/1',
+                  workflowName: 'Test',
+                },
+              ]
+            : [],
+        meta: { hasNextPage: false, hasPrevPage: false, itemCount: 1, page: 1, pageCount: 1, perPage: 25 },
+      },
+    });
+  });
+  await page.routeWebSocket(/\/socket\.io\//, (route) => {
+    socket = route;
+    route.send(
+      `0${JSON.stringify({ maxPayload: 1_000_000, pingInterval: 25_000, pingTimeout: 20_000, sid: 'refresh-test', upgrades: [] })}`,
+    );
+    route.onMessage((message) => {
+      const packet = message.toString();
+      if (packet === '2') route.send('3');
+      if (!packet.startsWith('40/status,')) return;
+      route.send('40/status,{"sid":"status-client"}');
+      route.send(statusEvent({ activity: null, runningWorkflowCount: 0, updatedAt: '2026-09-13T12:00:00.000Z' }));
+    });
+  });
+
+  await page.goto('/workflow-runs');
+  await expect.poll(() => workflowRunRequests).toBe(1);
+
+  socket?.send(
+    statusEvent({
+      activity: {
+        kind: 'PROVIDER_SYNC',
+        phase: 'FETCHING_WORKFLOWS',
+        repositoriesCompleted: 0,
+        repositoriesTotal: 1,
+        workflowRunsCompleted: null,
+        workflowRunsTotal: null,
+      },
+      runningWorkflowCount: 1,
+      updatedAt: '2026-09-13T12:00:01.000Z',
+    }),
+  );
+  socket?.send(statusEvent({ activity: null, runningWorkflowCount: 1, updatedAt: '2026-09-13T12:00:02.000Z' }));
+  socket?.send(
+    statusEvent({
+      activity: {
+        kind: 'PROVIDER_SYNC',
+        phase: 'PROCESSING_WORKFLOWS',
+        repositoriesCompleted: 0,
+        repositoriesTotal: 1,
+        workflowRunsCompleted: 1,
+        workflowRunsTotal: 1,
+      },
+      runningWorkflowCount: 1,
+      updatedAt: '2026-09-13T12:00:03.000Z',
+    }),
+  );
+  socket?.send(statusEvent({ activity: null, runningWorkflowCount: 1, updatedAt: '2026-09-13T12:00:04.000Z' }));
+
+  await expect(page.getByText('Webhook-triggered run')).toBeVisible();
+  await expect.poll(() => workflowRunRequests).toBe(2);
+});

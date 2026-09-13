@@ -96,6 +96,50 @@ describe('ProviderAccountsService', () => {
     expect(prisma.providerAccount.findMany).not.toHaveBeenCalled();
   });
 
+  it('returns webhook configuration metadata without exposing encrypted secrets', async () => {
+    prisma.providerAccount.findMany.mockResolvedValue([
+      {
+        encryptedWebhookSecret: 'encrypted-secret',
+        id: 'provider-id',
+        providerType: 'GITHUB',
+        webhookDeliveries: [{ createdAt: new Date('2026-09-13T12:00:00.000Z') }],
+      },
+      {
+        encryptedWebhookSecret: null,
+        id: 'forgejo-id',
+        providerType: 'FORGEJO',
+        webhookDeliveries: [],
+      },
+    ]);
+
+    const configurations = await service.listWebhookConfigurations(admin);
+
+    expect(configurations).toEqual([
+      {
+        callbackUrl: 'http://localhost:3000/api/webhooks/github/provider-id',
+        configured: true,
+        lastDeliveryAt: new Date('2026-09-13T12:00:00.000Z'),
+        providerAccountId: 'provider-id',
+        providerType: 'GITHUB',
+      },
+      {
+        callbackUrl: 'http://localhost:3000/api/webhooks/forgejo/forgejo-id',
+        configured: false,
+        lastDeliveryAt: null,
+        providerAccountId: 'forgejo-id',
+        providerType: 'FORGEJO',
+      },
+    ]);
+    expect(JSON.stringify(configurations)).not.toContain('encrypted-secret');
+  });
+
+  it('rejects non-administrators before loading webhook configuration metadata', async () => {
+    await expect(
+      service.listWebhookConfigurations({ id: 'viewer', role: 'VIEWER', username: 'viewer' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.providerAccount.findMany).not.toHaveBeenCalled();
+  });
+
   it('does not persist a provider account when its credentials cannot be validated', async () => {
     adapters.get.mockReturnValueOnce({
       validateAccount: jest.fn().mockRejectedValue(new Error('Unauthorized')),

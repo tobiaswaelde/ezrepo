@@ -43,6 +43,7 @@ export const apiEndpoints = {
     authenticationOptions: '/provider-accounts/authentication-options',
     authorize: '/provider-accounts/oauth/authorize',
     base: '/provider-accounts',
+    webhookConfigurations: '/provider-accounts/webhook-configurations',
   },
   repositories: '/repositories',
   repositorySyncJobs: '/jobs/repository-sync',

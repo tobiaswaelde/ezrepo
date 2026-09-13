@@ -10,6 +10,11 @@ than its normal polling interval. It never creates, updates, deletes, or tests
 webhooks through GitHub, GitLab, Forgejo, or Gitea APIs. An administrator configures
 each provider webhook manually in the provider UI.
 
+System administrators can open **Administration → Provider accounts** in ezRepo
+and choose **Configure webhook** for an account. The dialog shows the callback
+URL, generates or accepts a signing secret, and reports the last accepted
+delivery. ezRepo never sends that configuration to the provider.
+
 Webhooks are an optimization, not the source of truth. ezRepo uses the
 verified payload only to select a tracked repository, then reads workflow runs
 through the configured read-only provider adapter. Accepted deliveries enqueue
@@ -18,15 +23,14 @@ are combined, and the default fallback polling interval is 30 minutes.
 
 ## Before creating a provider webhook
 
-1. Create a ezRepo provider account and record its UUID as
-   `<provider-account-id>`.
-2. Generate a unique, high-entropy signing secret for that account. Do not
-   reuse a provider access token or a secret from another account.
-3. Store the exact secret with the provider account as an AES-256-GCM encrypted
-   `encryptedWebhookSecret` value. Encryption must happen on the ezRepo
-   server through `ProviderCredentialService`; never write a plaintext secret
-   to PostgreSQL or commit it to a configuration file.
-4. Expose ezRepo through a public HTTPS URL. The URL must reach the API,
+1. Create a ezRepo provider account and open its **Configure webhook** dialog.
+2. Copy the generated callback URL.
+3. Generate a unique, high-entropy signing secret in the dialog or paste the
+   exact signing token supplied by the provider. Do not reuse an access token
+   or a secret from another account.
+4. Save the secret. ezRepo encrypts it with AES-256-GCM and never returns it
+   through the API after the dialog is closed.
+5. Expose ezRepo through a public HTTPS URL. The URL must reach the API,
    including its `/api` prefix, without a proxy rewriting the request body.
 
 The provider-account management UI and API encrypt webhook secrets on the
@@ -42,6 +46,9 @@ Queued synchronization survives API restarts. Multiple API instances claim work
 through expiring database leases and never synchronize the same provider account
 in parallel. Provider rate-limit headers delay all queued work for that account;
 bounded retries handle transient failures without tight retry loops.
+
+The stable callback routes use `/api/webhooks/...`. Versioned
+`/api/v1/webhooks/...` routes remain available for compatibility.
 
 ## GitHub Actions
 
