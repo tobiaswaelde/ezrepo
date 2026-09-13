@@ -24,15 +24,8 @@ export interface PullRequestAbilitySubject extends ForcedSubject<CaslSubject.Pul
   repositoryId: string;
 }
 
-/** Repository-scoped notification channel properties used by CASL conditions. */
-export interface NotificationChannelAbilitySubject extends ForcedSubject<CaslSubject.NotificationChannel> {
-  repositoryId: string;
-}
-
-/** Repository-scoped notification rule properties used by CASL conditions. */
-export interface NotificationRuleAbilitySubject extends ForcedSubject<CaslSubject.NotificationRule> {
-  repositoryId: string;
-}
+/** Global notification channel protected by system-level permissions. */
+export type NotificationChannelAbilitySubject = ForcedSubject<CaslSubject.NotificationChannel>;
 
 /** Delivery history protected through its workflow rule or direct test channel. */
 export type NotificationDeliveryAbilitySubject = ForcedSubject<CaslSubject.NotificationDelivery>;
@@ -48,7 +41,6 @@ export type AppAbility = Ability<
       | IssueAbilitySubject
       | PullRequestAbilitySubject
       | NotificationChannelAbilitySubject
-      | NotificationRuleAbilitySubject
       | NotificationDeliveryAbilitySubject
     ),
   ],

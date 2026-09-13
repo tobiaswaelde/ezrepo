@@ -1,14 +1,13 @@
-import type { NotificationChannel, ProviderType, WorkflowRunStatus } from '../../generated/prisma/client.js';
+import type { NotificationChannel, NotificationEventType, ProviderType } from '../../generated/prisma/client.js';
 
 /** Provider and workflow context included in every outbound notification. */
 export interface NotificationPayload {
-  completedAt: Date | null;
-  durationMs: number | null;
+  eventType: NotificationEventType | 'TEST';
+  occurredAt: Date;
   provider: ProviderType;
   repository: string;
-  runUrl: string;
-  status: WorkflowRunStatus;
-  workflowName: string;
+  subject: string;
+  subjectUrl: string;
 }
 
 /** A read-only configured Apprise notification destination. */
@@ -19,15 +18,12 @@ export interface NotificationChannelAdapter {
 
 /** Render the stable human-readable body shared by every notification transport. */
 export function formatNotificationMessage(payload: NotificationPayload): string {
-  const duration = payload.durationMs === null ? 'unknown' : `${Math.round(payload.durationMs / 1000)} seconds`;
-  const completedAt = payload.completedAt?.toISOString() ?? 'not completed';
   return [
     `Provider: ${payload.provider}`,
     `Repository: ${payload.repository}`,
-    `Workflow: ${payload.workflowName}`,
-    `Status: ${payload.status}`,
-    `Duration: ${duration}`,
-    `Completed: ${completedAt}`,
-    `Run: ${payload.runUrl}`,
+    `Event: ${payload.eventType}`,
+    `Subject: ${payload.subject}`,
+    `Occurred: ${payload.occurredAt.toISOString()}`,
+    `Link: ${payload.subjectUrl}`,
   ].join('\n');
 }

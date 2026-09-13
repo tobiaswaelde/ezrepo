@@ -13,20 +13,19 @@ import { AppriseNotificationAdapter } from './apprise-notification.adapter.js';
 import { BrowserPushService } from './browser-push.service.js';
 import type { NotificationPayload } from './notification-channel-adapter.js';
 
-const channelInclude = { browserRecipient: { select: { id: true, username: true } } } as const;
 const deliveryInclude = {
-  notificationRule: {
-    include: { channelLinks: { include: { notificationChannel: { include: channelInclude } } } },
-  },
-  testChannel: {
-    include: { ...channelInclude, repository: { include: { providerAccount: true } } },
-  },
-  workflowRun: { include: { repository: { include: { providerAccount: true } } } },
   attempts: { orderBy: { createdAt: 'desc' } },
+  issue: true,
+  notificationChannel: {
+    include: { recipients: { include: { user: { select: { id: true, username: true } } } } },
+  },
+  pullRequest: true,
+  repository: { include: { providerAccount: true } },
+  workflowRun: true,
 } as const;
 
 type NotificationDeliveryModel = Prisma.NotificationDeliveryGetPayload<{ include: typeof deliveryInclude }>;
-type DeliveryChannel = NonNullable<NotificationDeliveryModel['testChannel']>;
+type DeliveryChannel = NotificationDeliveryModel['notificationChannel'];
 
 const maximumAttempts = 3;
 
@@ -68,39 +67,29 @@ export class NotificationDeliveryService {
   }
 
   private async deliver(delivery: NotificationDeliveryModel): Promise<void> {
-    const enabledChannels = this.channelsFor(delivery).filter((channel) => channel.enabled);
-    if (enabledChannels.length === 0) {
-      await this.finish(delivery, false, 1, 'No enabled notification channels are configured.');
+    const channel = delivery.notificationChannel;
+    if (!channel.enabled) {
+      await this.finish(delivery, false, 1, 'The notification channel is disabled.');
       return;
     }
 
     const payload = this.createPayload(delivery);
     const attemptNumber = Math.max(0, ...delivery.attempts.map((attempt) => attempt.attempt)) + 1;
-    const failedChannelIds = new Set<string>();
-    for (const channel of enabledChannels) {
-      const deliveredSubscriptionIds = new Set(
-        delivery.attempts
-          .filter((attempt) => attempt.notificationChannelId === channel.id && attempt.deliveredAt)
-          .flatMap((attempt) => (attempt.browserPushSubscriptionId ? [attempt.browserPushSubscriptionId] : [])),
-      );
-      const channelAlreadyDelivered = delivery.attempts.some(
-        (attempt) =>
-          attempt.notificationChannelId === channel.id && attempt.deliveredAt && !attempt.browserPushSubscriptionId,
-      );
-      if (channel.type !== NotificationChannelType.BROWSER_PUSH && channelAlreadyDelivered) continue;
-
-      const delivered = await this.deliverChannel(delivery, channel, payload, attemptNumber, deliveredSubscriptionIds);
-      if (!delivered) failedChannelIds.add(channel.id);
-    }
-
-    await this.finish(
-      delivery,
-      failedChannelIds.size === 0,
-      attemptNumber,
-      failedChannelIds.size > 0 ? 'One or more notification channels failed.' : null,
+    const deliveredSubscriptionIds = new Set(
+      delivery.attempts.flatMap((attempt) =>
+        attempt.deliveredAt && attempt.browserPushSubscriptionId ? [attempt.browserPushSubscriptionId] : [],
+      ),
     );
-    if (failedChannelIds.size > 0)
-      this.logger.warn(`Notification delivery ${delivery.id} failed for ${failedChannelIds.size} channel(s).`);
+    const channelAlreadyDelivered = delivery.attempts.some(
+      (attempt) => attempt.deliveredAt && !attempt.browserPushSubscriptionId,
+    );
+    const delivered =
+      channel.type !== NotificationChannelType.BROWSER_PUSH && channelAlreadyDelivered
+        ? true
+        : await this.deliverChannel(delivery, channel, payload, attemptNumber, deliveredSubscriptionIds);
+
+    await this.finish(delivery, delivered, attemptNumber, delivered ? null : 'The notification channel failed.');
+    if (!delivered) this.logger.warn(`Notification delivery ${delivery.id} failed.`);
   }
 
   private async deliverChannel(
@@ -121,29 +110,35 @@ export class NotificationDeliveryService {
       }
     }
 
-    try {
-      if (!channel.browserRecipientUserId) throw new Error('Browser push recipient is missing.');
-      const results = await this.browserPush.sendToUser(
-        channel.browserRecipientUserId,
-        payload,
-        deliveredSubscriptionIds,
-      );
-      for (const result of results) {
-        if (!result.recordAttempt) continue;
-        await this.createAttempt(
-          delivery.id,
-          channel.id,
-          attempt,
-          result.delivered,
-          result.error,
-          result.subscriptionId,
-        );
-      }
-      return results.every((result) => result.delivered);
-    } catch {
-      await this.createAttempt(delivery.id, channel.id, attempt, false, 'Browser push delivery failed.');
+    if (channel.recipients.length === 0) {
+      await this.createAttempt(delivery.id, channel.id, attempt, false, 'Browser push recipients are missing.');
       return false;
     }
+    let delivered = true;
+    let recipientFailure = false;
+    for (const { user } of channel.recipients) {
+      try {
+        const results = await this.browserPush.sendToUser(user.id, payload, deliveredSubscriptionIds);
+        for (const result of results) {
+          if (!result.recordAttempt) continue;
+          await this.createAttempt(
+            delivery.id,
+            channel.id,
+            attempt,
+            result.delivered,
+            result.error,
+            result.subscriptionId,
+          );
+          if (!result.delivered) delivered = false;
+        }
+      } catch {
+        recipientFailure = true;
+        delivered = false;
+      }
+    }
+    if (recipientFailure)
+      await this.createAttempt(delivery.id, channel.id, attempt, false, 'Browser push delivery failed.');
+    return delivered;
   }
 
   private async createAttempt(
@@ -187,34 +182,30 @@ export class NotificationDeliveryService {
     });
   }
 
-  private channelsFor(delivery: NotificationDeliveryModel): DeliveryChannel[] {
-    if (delivery.kind === NotificationDeliveryKind.TEST) return delivery.testChannel ? [delivery.testChannel] : [];
-    return (delivery.notificationRule?.channelLinks.map((link) => link.notificationChannel) ?? []) as DeliveryChannel[];
-  }
-
   private createPayload(delivery: NotificationDeliveryModel): NotificationPayload {
     if (delivery.kind === NotificationDeliveryKind.TEST) {
-      if (!delivery.testChannel) throw new Error('Test notification channel is missing.');
       return {
-        completedAt: new Date(),
-        durationMs: 0,
-        provider: delivery.testChannel.repository.providerAccount.providerType,
-        repository: `${delivery.testChannel.repository.owner}/${delivery.testChannel.repository.name}`,
-        runUrl: '',
-        status: 'SUCCESS',
-        workflowName: 'ezRepo test notification',
+        eventType: 'TEST',
+        occurredAt: delivery.createdAt,
+        provider: 'GITHUB',
+        repository: 'ezRepo',
+        subject: 'ezRepo test notification',
+        subjectUrl: '',
       };
     }
-    const workflowRun = delivery.workflowRun;
-    if (!workflowRun) throw new Error('Workflow notification run is missing.');
+    if (!delivery.eventType || !delivery.repository) throw new Error('Notification event context is missing.');
+    const subject = delivery.workflowRun ?? delivery.pullRequest ?? delivery.issue;
+    if (!subject) throw new Error('Notification event subject is missing.');
     return {
-      completedAt: workflowRun.completedAt,
-      durationMs: workflowRun.durationMs,
-      provider: workflowRun.repository.providerAccount.providerType,
-      repository: `${workflowRun.repository.owner}/${workflowRun.repository.name}`,
-      runUrl: workflowRun.url,
-      status: workflowRun.status,
-      workflowName: workflowRun.workflowName,
+      eventType: delivery.eventType,
+      occurredAt: delivery.workflowRun?.completedAt ?? delivery.createdAt,
+      provider: delivery.repository.providerAccount.providerType,
+      repository: `${delivery.repository.owner}/${delivery.repository.name}`,
+      subject:
+        delivery.workflowRun?.workflowName ??
+        (delivery.pullRequest ? `#${delivery.pullRequest.number} ${delivery.pullRequest.title}` : undefined) ??
+        (delivery.issue ? `#${delivery.issue.number} ${delivery.issue.title}` : 'Notification event'),
+      subjectUrl: delivery.workflowRun?.url ?? delivery.pullRequest?.url ?? delivery.issue?.url ?? '',
     };
   }
 

@@ -35,20 +35,26 @@
       <template #kind-cell="{ row }">
         <UBadge color="neutral" variant="outline">{{ $t(`notifications.deliveryKinds.${row.original.kind}`) }}</UBadge>
       </template>
-      <template #repositoryName-cell="{ row }">
-        <span class="font-medium">{{ row.original.repositoryOwner }}/{{ row.original.repositoryName }}</span>
+      <template #eventType-cell="{ row }">
+        <span>{{ row.original.eventType ? $t(`notifications.events.${row.original.eventType}`) : '—' }}</span>
       </template>
-      <template #workflowName-cell="{ row }">
+      <template #repositoryName-cell="{ row }">
+        <span v-if="row.original.repositoryName" class="font-medium">
+          {{ row.original.repositoryOwner }}/{{ row.original.repositoryName }}
+        </span>
+        <span v-else>—</span>
+      </template>
+      <template #subjectTitle-cell="{ row }">
         <UButton
-          v-if="row.original.workflowUrl"
+          v-if="row.original.subjectUrl"
           color="neutral"
           trailing-icon="i-lucide-external-link"
           variant="link"
           target="_blank"
-          :label="row.original.workflowName ?? '—'"
-          :to="row.original.workflowUrl"
+          :label="row.original.subjectTitle ?? '—'"
+          :to="row.original.subjectUrl"
         />
-        <span v-else>{{ row.original.testChannelName ?? '—' }}</span>
+        <span v-else>{{ row.original.subjectTitle ?? '—' }}</span>
       </template>
       <template #status-cell="{ row }">
         <UBadge variant="subtle" :color="statusColor(row.original.status)">
@@ -100,6 +106,8 @@ import { useDateTime } from '~/composables/use-date-time';
 import type { NotificationDelivery, NotificationDeliveryStatus } from '~/types/api/resources';
 import type { ColumnDefinition } from '~/types/table';
 
+definePageMeta({ middleware: 'admin' });
+
 type DeliveryRow = NotificationDelivery & Record<string, unknown>;
 type DeliveryColumn = ColumnDefinition<DeliveryRow> & { header: string; id: string };
 const { t } = useI18n();
@@ -109,8 +117,10 @@ const selectedDelivery = ref<NotificationDelivery | null>(null);
 const columnDefinition = computed<DeliveryColumn[]>(() => [
   { accessorKey: 'createdAt', header: t('notifications.columns.createdAt'), id: 'createdAt' },
   { accessorKey: 'kind', header: t('notifications.columns.kind'), id: 'kind' },
+  { accessorKey: 'eventType', header: t('notifications.columns.event'), id: 'eventType' },
   { accessorKey: 'repositoryName', header: t('notifications.columns.repository'), id: 'repositoryName' },
-  { accessorKey: 'workflowName', header: t('notifications.columns.workflow'), id: 'workflowName' },
+  { accessorKey: 'subjectTitle', header: t('notifications.columns.subject'), id: 'subjectTitle' },
+  { accessorKey: 'notificationChannelName', header: t('notifications.columns.channel'), id: 'notificationChannelName' },
   { accessorKey: 'status', header: t('notifications.columns.status'), id: 'status' },
   { header: t('notifications.columns.attempts'), id: 'attempts' },
   { accessorKey: 'nextAttemptAt', header: t('notifications.columns.nextAttempt'), id: 'nextAttemptAt' },
@@ -128,7 +138,7 @@ const filterFields = computed<FilterField[]>(() => [
     label: t('notifications.columns.kind'),
     type: FilterFieldType.Enum,
     value: 'kind',
-    values: ['WORKFLOW_RUN', 'TEST'].map((value) => ({ label: t(`notifications.deliveryKinds.${value}`), value })),
+    values: ['EVENT', 'TEST'].map((value) => ({ label: t(`notifications.deliveryKinds.${value}`), value })),
   },
   {
     label: t('notifications.columns.status'),
@@ -148,12 +158,16 @@ const deliveryTable = useTable({
   staticFields: [
     'id',
     'kind',
+    'eventType',
+    'notificationChannelId',
+    'notificationChannelName',
+    'notificationChannelType',
     'repositoryId',
     'repositoryOwner',
     'repositoryName',
-    'workflowName',
-    'workflowUrl',
-    'testChannelName',
+    'subjectKind',
+    'subjectTitle',
+    'subjectUrl',
     'attempts',
     'status',
     'finalError',

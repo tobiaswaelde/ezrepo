@@ -19,27 +19,25 @@ describe('NotificationDeliveryService', () => {
           {
             attempts: [],
             id: 'delivery-a',
-            kind: 'WORKFLOW_RUN',
-            notificationRule: {
-              channelLinks: [
-                {
-                  notificationChannel: {
-                    encryptedUrl: 'encrypted-url',
-                    enabled: true,
-                    id: 'channel-a',
-                    type: 'CUSTOM_APPRISE',
-                  },
-                },
-              ],
+            eventType: 'WORKFLOW_RUN_FAILED',
+            issue: null,
+            kind: 'EVENT',
+            notificationChannel: {
+              encryptedUrl: 'encrypted-url',
+              enabled: true,
+              id: 'channel-a',
+              recipients: [],
+              type: 'CUSTOM_APPRISE',
+            },
+            pullRequest: null,
+            repository: {
+              name: 'ezrepo',
+              owner: 'ezrepo',
+              providerAccount: { providerType: 'GITHUB' },
             },
             workflowRun: {
               completedAt: new Date('2026-08-26T12:00:00.000Z'),
               durationMs: 60_000,
-              repository: {
-                name: 'ezrepo',
-                owner: 'ezrepo',
-                providerAccount: { providerType: 'GITHUB' },
-              },
               status: 'FAILED',
               url: 'https://github.com/ezrepo/ezrepo/actions/runs/1',
               workflowName: 'Test',
@@ -94,27 +92,24 @@ describe('NotificationDeliveryService', () => {
               },
             ],
             id: 'delivery-push',
-            kind: 'WORKFLOW_RUN',
-            notificationRule: {
-              channelLinks: [
-                {
-                  notificationChannel: {
-                    browserRecipientUserId: 'user-a',
-                    enabled: true,
-                    id: 'channel-push',
-                    type: 'BROWSER_PUSH',
-                  },
-                },
-              ],
+            eventType: 'WORKFLOW_RUN_FAILED',
+            issue: null,
+            kind: 'EVENT',
+            notificationChannel: {
+              enabled: true,
+              id: 'channel-push',
+              recipients: [{ user: { id: 'user-a', username: 'user' } }],
+              type: 'BROWSER_PUSH',
+            },
+            pullRequest: null,
+            repository: {
+              name: 'ezrepo',
+              owner: 'ezrepo',
+              providerAccount: { providerType: 'GITHUB' },
             },
             workflowRun: {
               completedAt: new Date('2026-09-13T10:00:00.000Z'),
               durationMs: 60_000,
-              repository: {
-                name: 'ezrepo',
-                owner: 'ezrepo',
-                providerAccount: { providerType: 'GITHUB' },
-              },
               status: 'FAILED',
               url: 'https://github.com/ezrepo/ezrepo/actions/runs/1',
               workflowName: 'Test',

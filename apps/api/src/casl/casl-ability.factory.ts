@@ -26,19 +26,12 @@ export class CaslAbilityFactory {
     }
 
     const repositoryIds = memberships.map(({ repositoryId }) => repositoryId);
+    can(CaslAction.Read, CaslSubject.NotificationChannel);
     if (repositoryIds.length === 0) {
       can(CaslAction.Read, CaslSubject.Repository, { id: { in: [] } });
       can(CaslAction.Read, CaslSubject.WorkflowRun, { repositoryId: { in: [] } });
       can(CaslAction.Read, CaslSubject.Issue, { repositoryId: { in: [] } });
       can(CaslAction.Read, CaslSubject.PullRequest, { repositoryId: { in: [] } });
-      can(CaslAction.Read, CaslSubject.NotificationChannel, { repositoryId: { in: [] } });
-      can(CaslAction.Read, CaslSubject.NotificationRule, { repositoryId: { in: [] } });
-      can(CaslAction.Read, CaslSubject.NotificationDelivery, {
-        OR: [
-          { notificationRule: { is: { repositoryId: { in: [] } } } },
-          { testChannel: { is: { repositoryId: { in: [] } } } },
-        ],
-      });
       return build();
     }
 
@@ -46,8 +39,6 @@ export class CaslAbilityFactory {
     can(CaslAction.Read, CaslSubject.WorkflowRun, { repositoryId: { in: repositoryIds } });
     can(CaslAction.Read, CaslSubject.Issue, { repositoryId: { in: repositoryIds } });
     can(CaslAction.Read, CaslSubject.PullRequest, { repositoryId: { in: repositoryIds } });
-    can(CaslAction.Read, CaslSubject.NotificationChannel, { repositoryId: { in: repositoryIds } });
-    can(CaslAction.Read, CaslSubject.NotificationRule, { repositoryId: { in: repositoryIds } });
 
     if (user.role === 'MANAGER') {
       const managedRepositoryIds = memberships
@@ -56,14 +47,6 @@ export class CaslAbilityFactory {
 
       if (managedRepositoryIds.length > 0) {
         can(CaslAction.Update, CaslSubject.Repository, { id: { in: managedRepositoryIds } });
-        can(CaslAction.Manage, CaslSubject.NotificationChannel, { repositoryId: { in: managedRepositoryIds } });
-        can(CaslAction.Manage, CaslSubject.NotificationRule, { repositoryId: { in: managedRepositoryIds } });
-        can(CaslAction.Read, CaslSubject.NotificationDelivery, {
-          OR: [
-            { notificationRule: { is: { repositoryId: { in: managedRepositoryIds } } } },
-            { testChannel: { is: { repositoryId: { in: managedRepositoryIds } } } },
-          ],
-        });
       }
     }
 

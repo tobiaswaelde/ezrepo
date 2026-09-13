@@ -5,24 +5,37 @@
         <dl class="grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <dt class="text-muted">{{ $t('notifications.columns.repository') }}</dt>
-            <dd>{{ delivery.repositoryOwner }}/{{ delivery.repositoryName }}</dd>
+            <dd>{{ delivery.repositoryName ? `${delivery.repositoryOwner}/${delivery.repositoryName}` : '—' }}</dd>
           </div>
           <div>
             <dt class="text-muted">{{ $t('notifications.columns.kind') }}</dt>
             <dd>{{ $t(`notifications.deliveryKinds.${delivery.kind}`) }}</dd>
           </div>
           <div>
-            <dt class="text-muted">{{ $t('notifications.columns.workflow') }}</dt>
-            <dd>{{ delivery.workflowName ?? delivery.testChannelName ?? '—' }}</dd>
+            <dt class="text-muted">{{ $t('notifications.columns.event') }}</dt>
+            <dd>{{ delivery.eventType ? $t(`notifications.events.${delivery.eventType}`) : '—' }}</dd>
           </div>
           <div>
             <dt class="text-muted">{{ $t('notifications.columns.status') }}</dt>
             <dd>{{ $t(`notificationDeliveryStatus.${delivery.status}`) }}</dd>
           </div>
-          <div v-if="delivery.workflowPattern">
-            <dt class="text-muted">{{ $t('notifications.fields.workflowPattern') }}</dt>
+          <div>
+            <dt class="text-muted">{{ $t('notifications.columns.channel') }}</dt>
+            <dd>{{ delivery.notificationChannelName }}</dd>
+          </div>
+          <div>
+            <dt class="text-muted">{{ $t('notifications.columns.subject') }}</dt>
             <dd>
-              <code>{{ delivery.workflowPattern }}</code>
+              <UButton
+                v-if="delivery.subjectUrl"
+                color="neutral"
+                trailing-icon="i-lucide-external-link"
+                variant="link"
+                target="_blank"
+                :label="delivery.subjectTitle ?? '—'"
+                :to="delivery.subjectUrl"
+              />
+              <span v-else>{{ delivery.subjectTitle ?? '—' }}</span>
             </dd>
           </div>
           <div v-if="delivery.requestedByUsername">

@@ -8,7 +8,6 @@ export enum CaslSubject {
   Issue = 'Issue',
   PullRequest = 'PullRequest',
   NotificationChannel = 'NotificationChannel',
-  NotificationRule = 'NotificationRule',
   NotificationDelivery = 'NotificationDelivery',
   Settings = 'Settings',
 }

@@ -16,14 +16,6 @@
       />
       <UForm class="space-y-5" :state="form" @submit="save">
         <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField :label="$t('notifications.fields.repository')" required>
-            <USelect
-              v-model="form.repositoryId"
-              class="w-full"
-              :disabled="Boolean(channel)"
-              :items="repositoryOptions"
-            />
-          </UFormField>
           <UFormField :label="$t('notifications.fields.name')" required>
             <UInput v-model="form.name" class="w-full" />
           </UFormField>
@@ -135,9 +127,50 @@
           variant="subtle"
           :description="$t('notifications.channels.browserOwnerHint')"
         />
+        <UFormField v-if="form.type === 'BROWSER_PUSH'" :label="$t('notifications.fields.browserRecipients')" required>
+          <USelectMenu
+            v-model="form.browserRecipientUserIds"
+            multiple
+            class="w-full"
+            value-key="value"
+            :items="userOptions"
+          />
+        </UFormField>
+
+        <div class="space-y-3 rounded-lg border border-default p-4">
+          <div>
+            <h3 class="font-semibold">{{ $t('notifications.fields.events') }}</h3>
+            <p class="text-sm text-muted">{{ $t('notifications.channels.eventsDescription') }}</p>
+          </div>
+          <div v-for="eventType in eventTypes" :key="eventType" class="space-y-3 rounded-md bg-elevated p-3">
+            <UCheckbox v-model="eventStates[eventType].selected" :label="$t(`notifications.events.${eventType}`)" />
+            <div v-if="eventStates[eventType].selected" class="grid gap-3 pl-7 sm:grid-cols-2">
+              <UFormField :label="$t('notifications.fields.repositoryFilters')">
+                <USelectMenu
+                  v-model="eventStates[eventType].repositoryIds"
+                  multiple
+                  class="w-full"
+                  value-key="value"
+                  :items="repositoryOptions"
+                  :placeholder="$t('notifications.fields.allRepositories')"
+                />
+              </UFormField>
+              <UFormField
+                v-if="eventType.startsWith('WORKFLOW_RUN_')"
+                :label="$t('notifications.fields.workflowPatterns')"
+              >
+                <UInput
+                  v-model="eventStates[eventType].workflowPatterns"
+                  class="w-full"
+                  placeholder="ci-*, release-*"
+                />
+              </UFormField>
+            </div>
+          </div>
+        </div>
 
         <div class="flex justify-end border-t border-default pt-4">
-          <UButton type="submit" :label="$t('common.save')" :loading="submitting" />
+          <UButton type="submit" :disabled="!canSave" :label="$t('common.save')" :loading="submitting" />
         </div>
       </UForm>
     </template>
@@ -152,12 +185,15 @@ import type {
   NotificationChannel,
   NotificationChannelConfiguration,
   NotificationChannelType,
+  NotificationEventSubscription,
+  NotificationEventType,
 } from '~/types/api/resources';
 
 const props = defineProps<{
   browserPushAvailable: boolean;
   channel: NotificationChannel | null;
   repositories: Array<{ id: string; name: string; owner: string }>;
+  users: Array<{ id: string; username: string }>;
 }>();
 const open = defineModel<boolean>('open', { required: true });
 const emit = defineEmits<{ saved: [] }>();
@@ -166,8 +202,29 @@ const api = useEzRepoApi();
 const submitting = ref(false);
 const saveError = ref(false);
 const replaceConfiguration = ref(false);
+const eventTypes: NotificationEventType[] = [
+  'WORKFLOW_RUN_SUCCEEDED',
+  'WORKFLOW_RUN_FAILED',
+  'WORKFLOW_RUN_RECOVERED',
+  'PULL_REQUEST_OPENED',
+  'PULL_REQUEST_CLOSED',
+  'PULL_REQUEST_REOPENED',
+  'PULL_REQUEST_MERGED',
+  'ISSUE_OPENED',
+  'ISSUE_CLOSED',
+  'ISSUE_REOPENED',
+];
+const eventStates = reactive(
+  Object.fromEntries(
+    eventTypes.map((eventType) => [
+      eventType,
+      { repositoryIds: [] as string[], selected: false, workflowPatterns: '' },
+    ]),
+  ) as Record<NotificationEventType, { repositoryIds: string[]; selected: boolean; workflowPatterns: string }>,
+);
 const form = reactive({
   appriseUrl: '',
+  browserRecipientUserIds: [] as string[],
   enabled: true,
   from: '',
   name: '',
@@ -176,7 +233,6 @@ const form = reactive({
   port: 587,
   priority: 'normal' as 'low' | 'moderate' | 'normal' | 'high',
   recipients: '',
-  repositoryId: '',
   security: 'STARTTLS' as 'NONE' | 'STARTTLS' | 'TLS',
   serverUrl: '',
   smtpHost: '',
@@ -189,6 +245,7 @@ const form = reactive({
 const repositoryOptions = computed(() =>
   props.repositories.map((repository) => ({ label: `${repository.owner}/${repository.name}`, value: repository.id })),
 );
+const userOptions = computed(() => props.users.map((user) => ({ label: `@${user.username}`, value: user.id })));
 const typeOptions = computed(() =>
   (['EMAIL', 'GOTIFY', 'NTFY', 'DISCORD', 'BROWSER_PUSH', 'CUSTOM_APPRISE'] as NotificationChannelType[]).map(
     (value) => ({
@@ -206,11 +263,18 @@ const ntfyPriorityOptions = ['min', 'low', 'default', 'high', 'max'];
 const showConfiguration = computed(
   () => form.type !== 'BROWSER_PUSH' && (!props.channel || replaceConfiguration.value),
 );
+const canSave = computed(
+  () =>
+    form.name.trim().length > 0 &&
+    eventTypes.some((eventType) => eventStates[eventType].selected) &&
+    (form.type !== 'BROWSER_PUSH' || form.browserRecipientUserIds.length > 0),
+);
 
 watch(open, (isOpen) => {
   if (!isOpen) return;
   Object.assign(form, {
     appriseUrl: '',
+    browserRecipientUserIds: props.channel?.browserRecipients.map(({ id }) => id) ?? [],
     enabled: props.channel?.enabled ?? true,
     from: '',
     name: props.channel?.name ?? '',
@@ -219,7 +283,6 @@ watch(open, (isOpen) => {
     port: 587,
     priority: 'normal',
     recipients: '',
-    repositoryId: props.channel?.repositoryId ?? props.repositories[0]?.id ?? '',
     security: 'STARTTLS',
     serverUrl: '',
     smtpHost: '',
@@ -229,6 +292,14 @@ watch(open, (isOpen) => {
     username: '',
     webhookUrl: '',
   });
+  for (const eventType of eventTypes) {
+    const subscription = props.channel?.eventSubscriptions.find((item) => item.eventType === eventType);
+    Object.assign(eventStates[eventType], {
+      repositoryIds: subscription?.repositoryIds ?? [],
+      selected: Boolean(subscription),
+      workflowPatterns: subscription?.workflowPatterns.join(', ') ?? '',
+    });
+  }
   replaceConfiguration.value = false;
   saveError.value = false;
 });
@@ -269,18 +340,33 @@ async function save(): Promise<void> {
   submitting.value = true;
   saveError.value = false;
   try {
+    const eventSubscriptions: NotificationEventSubscription[] = eventTypes
+      .filter((eventType) => eventStates[eventType].selected)
+      .map((eventType) => ({
+        eventType,
+        repositoryIds: eventStates[eventType].repositoryIds,
+        workflowPatterns: eventType.startsWith('WORKFLOW_RUN_')
+          ? eventStates[eventType].workflowPatterns
+              .split(',')
+              .map((value) => value.trim())
+              .filter(Boolean)
+          : [],
+      }));
     if (props.channel) {
       await api.notificationChannels.update(props.channel.id, {
+        browserRecipientUserIds: form.type === 'BROWSER_PUSH' ? form.browserRecipientUserIds : [],
         configuration: configuration(),
         enabled: form.enabled,
+        eventSubscriptions,
         name: form.name.trim(),
       });
     } else {
       await api.notificationChannels.create({
+        browserRecipientUserIds: form.type === 'BROWSER_PUSH' ? form.browserRecipientUserIds : [],
         configuration: configuration(),
         enabled: form.enabled,
+        eventSubscriptions,
         name: form.name.trim(),
-        repositoryId: form.repositoryId,
         type: form.type,
       });
     }

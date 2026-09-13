@@ -1,0 +1,11 @@
+model NotificationChannelRecipient {
+  notificationChannelId String              @db.Uuid
+  notificationChannel   NotificationChannel @relation(fields: [notificationChannelId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([notificationChannelId, userId])
+  @@index([userId])
+  @@map("notification_channel_recipients")
+}

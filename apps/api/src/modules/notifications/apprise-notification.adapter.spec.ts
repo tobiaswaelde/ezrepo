@@ -7,13 +7,12 @@ describe('AppriseNotificationAdapter', () => {
 
     await expect(
       adapter.send({ encryptedUrl: null } as never, {
-        completedAt: null,
-        durationMs: null,
+        eventType: 'WORKFLOW_RUN_FAILED',
+        occurredAt: new Date('2026-09-14T10:00:00.000Z'),
         provider: 'GITHUB',
         repository: 'ezrepo/ezrepo',
-        runUrl: 'https://example.test/run/1',
-        status: 'FAILED',
-        workflowName: 'CI',
+        subject: 'CI',
+        subjectUrl: 'https://example.test/run/1',
       }),
     ).rejects.toThrow('Apprise notification delivery failed.');
     expect(credentials.decrypt).not.toHaveBeenCalled();

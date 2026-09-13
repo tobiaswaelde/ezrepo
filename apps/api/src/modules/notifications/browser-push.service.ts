@@ -103,9 +103,9 @@ export class BrowserPushService {
           },
         },
         JSON.stringify({
-          body: `${payload.repository}\n${payload.workflowName}: ${payload.status}`,
-          title: `${payload.status}: ${payload.workflowName}`,
-          url: payload.runUrl,
+          body: `${payload.repository}\n${payload.subject}`,
+          title: payload.eventType,
+          url: payload.subjectUrl,
         }),
         {
           TTL: 60 * 60,

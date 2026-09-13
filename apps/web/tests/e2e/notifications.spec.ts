@@ -30,52 +30,36 @@ async function mockShell(page: Page): Promise<void> {
   await page.route('**/api/v1/notification-channels/manageable-repositories', (route) =>
     route.fulfill({ json: [{ id: 'repository-1', name: 'ezrepo', owner: 'tobiaswaelde' }] }),
   );
+  await page.route('**/api/v1/users**', (route) =>
+    route.fulfill({
+      json: {
+        items: [{ id: 'user-1', username: 'admin' }],
+        meta: pageMeta,
+      },
+    }),
+  );
 }
 
-test('navigates channel, rule and delivery-history tables', async ({ page }) => {
+test('shows global channel events and system-wide delivery history', async ({ page }) => {
   await mockShell(page);
   await page.route('**/api/v1/notification-channels/query**', (route) =>
     route.fulfill({
       json: {
         items: [
           {
-            browserRecipientUserId: null,
-            browserRecipientUsername: null,
+            browserRecipients: [],
             canManage: true,
-            createdAt: '2026-09-13T10:00:00Z',
+            createdAt: '2026-09-14T10:00:00Z',
             enabled: true,
+            eventSubscriptions: [
+              { eventType: 'WORKFLOW_RUN_FAILED', repositoryIds: [], workflowPatterns: ['deploy-*'] },
+            ],
             id: 'channel-1',
             name: 'Operations',
-            repositoryId: 'repository-1',
-            repositoryName: 'ezrepo',
-            repositoryOwner: 'tobiaswaelde',
             requiresReconfiguration: false,
             type: 'GOTIFY',
-            updatedAt: '2026-09-13T10:00:00Z',
+            updatedAt: '2026-09-14T10:00:00Z',
             urlScheme: 'gotifys',
-          },
-        ],
-        meta: pageMeta,
-      },
-    }),
-  );
-  await page.route('**/api/v1/notification-rules/query**', (route) =>
-    route.fulfill({
-      json: {
-        items: [
-          {
-            canManage: true,
-            channelIds: ['channel-1'],
-            channels: [{ id: 'channel-1', name: 'Operations', type: 'GOTIFY' }],
-            createdAt: '2026-09-13T10:00:00Z',
-            enabled: true,
-            id: 'rule-1',
-            outcome: 'FAILED',
-            repositoryId: 'repository-1',
-            repositoryName: 'ezrepo',
-            repositoryOwner: 'tobiaswaelde',
-            updatedAt: '2026-09-13T10:00:00Z',
-            workflowPattern: 'deploy-*',
           },
         ],
         meta: pageMeta,
@@ -91,7 +75,7 @@ test('navigates channel, rule and delivery-history tables', async ({ page }) => 
               {
                 attempt: 1,
                 browserPushSubscriptionId: null,
-                createdAt: '2026-09-13T10:00:00Z',
+                createdAt: '2026-09-14T10:00:00Z',
                 deliveredAt: null,
                 deviceLabel: null,
                 error: 'Apprise notification delivery failed.',
@@ -101,24 +85,24 @@ test('navigates channel, rule and delivery-history tables', async ({ page }) => 
                 notificationChannelType: 'GOTIFY',
               },
             ],
-            createdAt: '2026-09-13T10:00:00Z',
-            finalError: 'One or more notification channels failed.',
+            createdAt: '2026-09-14T10:00:00Z',
+            eventType: 'WORKFLOW_RUN_FAILED',
+            finalError: 'The notification channel failed.',
             id: 'delivery-1',
-            kind: 'WORKFLOW_RUN',
+            kind: 'EVENT',
             nextAttemptAt: null,
-            notificationRuleId: 'rule-1',
-            outcome: 'FAILED',
+            notificationChannelId: 'channel-1',
+            notificationChannelName: 'Operations',
+            notificationChannelType: 'GOTIFY',
             repositoryId: 'repository-1',
             repositoryName: 'ezrepo',
             repositoryOwner: 'tobiaswaelde',
             requestedByUsername: null,
             status: 'FAILED',
-            testChannelName: null,
-            updatedAt: '2026-09-13T10:00:00Z',
-            workflowName: 'deploy-production',
-            workflowPattern: 'deploy-*',
-            workflowRunId: 'run-1',
-            workflowUrl: 'https://example.com/run/1',
+            subjectKind: 'WORKFLOW_RUN',
+            subjectTitle: 'deploy-production',
+            subjectUrl: 'https://example.com/run/1',
+            updatedAt: '2026-09-14T10:00:00Z',
           },
         ],
         meta: pageMeta,
@@ -128,11 +112,17 @@ test('navigates channel, rule and delivery-history tables', async ({ page }) => 
 
   await page.goto('/notifications');
   await expect(page.getByRole('link', { name: 'Channels', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Rules', exact: true })).toHaveCount(0);
   await expect(page.getByRole('cell', { name: 'Operations' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'Gotify', exact: true })).toBeVisible();
+  await expect(page.getByText('Workflow failed', { exact: true })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Rules', exact: true }).click();
-  await expect(page.getByText('deploy-*')).toBeVisible();
+  await page.getByRole('button', { name: 'Add channel' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add notification channel' });
+  await expect(dialog.getByText('Events', { exact: true })).toBeVisible();
+  await dialog.getByRole('checkbox', { name: 'Workflow failed' }).check();
+  await expect(dialog.getByText('Repository filters')).toBeVisible();
+  await expect(dialog.getByText('Workflow patterns')).toBeVisible();
+  await page.keyboard.press('Escape');
 
   await page.getByRole('link', { name: 'Delivery history', exact: true }).click();
   await expect(page.getByText('deploy-production')).toBeVisible();
@@ -142,4 +132,15 @@ test('navigates channel, rule and delivery-history tables', async ({ page }) => 
   );
   await page.setViewportSize({ height: 844, width: 390 });
   await expect(page.getByRole('dialog', { name: 'Delivery details' })).toBeVisible();
+});
+
+test('redirects the removed rules route to global channels', async ({ page }) => {
+  await mockShell(page);
+  await page.route('**/api/v1/notification-channels/query**', (route) =>
+    route.fulfill({ json: { items: [], meta: { ...pageMeta, itemCount: 0, pageCount: 0 } } }),
+  );
+
+  await page.goto('/notifications/rules');
+
+  await expect(page).toHaveURL(/\/notifications$/);
 });

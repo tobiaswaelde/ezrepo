@@ -19,6 +19,7 @@ describe('ProviderSyncService', () => {
         },
         workflowRun: {
           findMany: jest.fn().mockResolvedValue([]),
+          findUnique: jest.fn().mockResolvedValue(null),
           updateMany: jest.fn().mockResolvedValue({ count: 0 }),
           upsert: jest.fn(({ create }) => Promise.resolve({ id: 'run-id', ...create })),
         },
@@ -34,7 +35,7 @@ describe('ProviderSyncService', () => {
       },
       credentials: { decrypt: jest.fn().mockReturnValue('access-token') },
       filters: { shouldTrack: jest.fn().mockReturnValue(true) },
-      notifications: { evaluateRulesForRun: jest.fn().mockResolvedValue([]) },
+      notifications: { evaluateWorkflowRun: jest.fn().mockResolvedValue(undefined) },
       status: {
         beginProviderSync: jest.fn().mockReturnValue('sync-id'),
         finishProviderSync: jest.fn(),
@@ -103,7 +104,7 @@ describe('ProviderSyncService', () => {
         },
       },
     });
-    expect(mocks.notifications.evaluateRulesForRun).toHaveBeenCalledTimes(4);
+    expect(mocks.notifications.evaluateWorkflowRun).toHaveBeenCalledTimes(4);
     expect(mocks.status.refreshRunningWorkflowCount).toHaveBeenCalledTimes(4);
     expect(mocks.status.updateProviderSync).toHaveBeenCalledWith('sync-id', {
       phase: 'PROCESSING_WORKFLOWS',
@@ -131,6 +132,7 @@ describe('ProviderSyncService', () => {
       },
       workflowRun: {
         findMany: jest.fn().mockResolvedValue([]),
+        findUnique: jest.fn().mockResolvedValue(null),
         updateMany: jest.fn().mockResolvedValue({ count: 3 }),
         upsert: jest.fn(({ create }) => Promise.resolve({ id: 'run-id', ...create })),
       },
@@ -152,7 +154,7 @@ describe('ProviderSyncService', () => {
       { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
       { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
       { shouldTrack: jest.fn().mockReturnValue(true) } as unknown as WorkflowFilterService,
-      { evaluateRulesForRun: jest.fn().mockResolvedValue([]) } as unknown as NotificationsService,
+      { evaluateWorkflowRun: jest.fn().mockResolvedValue(undefined) } as unknown as NotificationsService,
       status as unknown as SystemStatusService,
     );
 
@@ -194,6 +196,7 @@ describe('ProviderSyncService', () => {
           { awaitingApproval: true, providerRunId: 'current-approval', status: 'QUEUED' },
           { awaitingApproval: false, providerRunId: 'current-failure', status: 'FAILED' },
         ]),
+        findUnique: jest.fn().mockResolvedValue(null),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         upsert: jest.fn(({ create }) => Promise.resolve({ id: 'run-id', ...create })),
       },
@@ -210,7 +213,7 @@ describe('ProviderSyncService', () => {
       { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
       { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
       { shouldTrack: jest.fn().mockReturnValue(true) } as unknown as WorkflowFilterService,
-      { evaluateRulesForRun: jest.fn().mockResolvedValue([]) } as unknown as NotificationsService,
+      { evaluateWorkflowRun: jest.fn().mockResolvedValue(undefined) } as unknown as NotificationsService,
       {
         beginProviderSync: jest.fn().mockReturnValue('sync-id'),
         finishProviderSync: jest.fn(),
@@ -270,6 +273,7 @@ describe('ProviderSyncService', () => {
             },
           ])
           .mockResolvedValueOnce([]),
+        findUnique: jest.fn().mockResolvedValue(null),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         upsert: jest.fn(({ create }) => Promise.resolve({ id: 'run-id', ...create })),
       },
@@ -284,7 +288,7 @@ describe('ProviderSyncService', () => {
       { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
       { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
       { shouldTrack: jest.fn().mockReturnValue(true) } as unknown as WorkflowFilterService,
-      { evaluateRulesForRun: jest.fn().mockResolvedValue([]) } as unknown as NotificationsService,
+      { evaluateWorkflowRun: jest.fn().mockResolvedValue(undefined) } as unknown as NotificationsService,
       {
         beginProviderSync: jest.fn().mockReturnValue('sync-id'),
         finishProviderSync: jest.fn(),
@@ -347,7 +351,7 @@ describe('ProviderSyncService', () => {
       { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
       { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
       { shouldTrack: jest.fn() } as unknown as WorkflowFilterService,
-      { evaluateRulesForRun: jest.fn() } as unknown as NotificationsService,
+      { evaluateWorkflowRun: jest.fn() } as unknown as NotificationsService,
       {
         beginProviderSync: jest.fn().mockReturnValue('sync-id'),
         finishProviderSync: jest.fn(),
@@ -405,7 +409,7 @@ describe('ProviderSyncService', () => {
       { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
       { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
       { shouldTrack: jest.fn() } as unknown as WorkflowFilterService,
-      { evaluateRulesForRun: jest.fn() } as unknown as NotificationsService,
+      { evaluateWorkflowRun: jest.fn() } as unknown as NotificationsService,
       {
         beginProviderSync: jest.fn().mockReturnValue('sync-id'),
         finishProviderSync: jest.fn(),
@@ -453,7 +457,7 @@ describe('ProviderSyncService', () => {
       { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
       metadata as never,
       { shouldTrack: jest.fn() } as unknown as WorkflowFilterService,
-      { evaluateRulesForRun: jest.fn() } as unknown as NotificationsService,
+      { evaluateWorkflowRun: jest.fn() } as unknown as NotificationsService,
       {
         beginProviderSync: jest.fn().mockReturnValue('sync-id'),
         finishProviderSync: jest.fn(),
@@ -499,7 +503,7 @@ describe('ProviderSyncService', () => {
       { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
       { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
       { shouldTrack: jest.fn() } as unknown as WorkflowFilterService,
-      { evaluateRulesForRun: jest.fn() } as unknown as NotificationsService,
+      { evaluateWorkflowRun: jest.fn() } as unknown as NotificationsService,
       {
         beginProviderSync: jest.fn().mockReturnValue('sync-id'),
         finishProviderSync: jest.fn(),
@@ -540,7 +544,7 @@ describe('ProviderSyncService', () => {
       { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
       { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
       { shouldTrack: jest.fn() } as unknown as WorkflowFilterService,
-      { evaluateRulesForRun: jest.fn() } as unknown as NotificationsService,
+      { evaluateWorkflowRun: jest.fn() } as unknown as NotificationsService,
       {
         beginProviderSync: jest.fn().mockReturnValue('sync-id'),
         finishProviderSync: jest.fn(),

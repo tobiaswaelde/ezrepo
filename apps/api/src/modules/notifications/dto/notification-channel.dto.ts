@@ -1,7 +1,24 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsObject, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
 
-import { NotificationChannelType, type NotificationChannel } from '../../../generated/prisma/client.js';
+import {
+  NotificationChannelType,
+  NotificationEventType,
+  type NotificationChannel,
+} from '../../../generated/prisma/client.js';
 
 export interface EmailNotificationConfigurationInput {
   from: string;
@@ -43,21 +60,41 @@ export type NotificationConfigurationInput =
   | DiscordNotificationConfigurationInput
   | CustomAppriseNotificationConfigurationInput;
 
-type NotificationChannelWithRecipient = NotificationChannel & {
-  browserRecipient?: { id: string; username: string } | null;
-  repository?: { name: string; owner: string };
-};
+/** One global event subscription with optional repository and workflow filters. */
+export class NotificationEventSubscriptionInputDto {
+  @ApiProperty({ enum: NotificationEventType })
+  @IsEnum(NotificationEventType)
+  eventType!: NotificationEventType;
 
-/** Safe response representation of a repository-scoped notification channel. */
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  repositoryIds?: string[];
+
+  @ApiPropertyOptional({ type: [String], example: ['ci-*'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MaxLength(1024, { each: true })
+  workflowPatterns?: string[];
+}
+
+export interface NotificationChannelWithRelations extends NotificationChannel {
+  eventSubscriptions: Array<{
+    eventType: NotificationEventType;
+    workflowPatterns: string[];
+    repositories: Array<{ repositoryId: string }>;
+  }>;
+  recipients: Array<{ user: { id: string; username: string } }>;
+}
+
+/** Safe response representation of a global notification channel. */
 export class NotificationChannelDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
-  @ApiProperty({ format: 'uuid' })
-  repositoryId!: string;
-  @ApiPropertyOptional()
-  repositoryOwner!: string | null;
-  @ApiPropertyOptional()
-  repositoryName!: string | null;
   @ApiProperty()
   name!: string;
   @ApiProperty({ enum: NotificationChannelType })
@@ -66,10 +103,14 @@ export class NotificationChannelDto {
   enabled!: boolean;
   @ApiPropertyOptional({ example: 'discord' })
   urlScheme!: string | null;
-  @ApiPropertyOptional({ format: 'uuid' })
-  browserRecipientUserId!: string | null;
-  @ApiPropertyOptional()
-  browserRecipientUsername!: string | null;
+  @ApiProperty({ type: [Object] })
+  eventSubscriptions!: Array<{
+    eventType: NotificationEventType;
+    repositoryIds: string[];
+    workflowPatterns: string[];
+  }>;
+  @ApiProperty({ type: [Object] })
+  browserRecipients!: Array<{ id: string; username: string }>;
   @ApiProperty()
   canManage!: boolean;
   @ApiProperty()
@@ -80,18 +121,19 @@ export class NotificationChannelDto {
   updatedAt!: Date;
 
   /** Convert a database model without exposing encrypted credentials. */
-  static fromModel(model: NotificationChannelWithRecipient, canManage = false): NotificationChannelDto {
+  static fromModel(model: NotificationChannelWithRelations, canManage = false): NotificationChannelDto {
     return {
       id: model.id,
-      repositoryId: model.repositoryId,
-      repositoryOwner: model.repository?.owner ?? null,
-      repositoryName: model.repository?.name ?? null,
       name: model.name,
       type: model.type,
       enabled: model.enabled,
       urlScheme: model.urlScheme,
-      browserRecipientUserId: model.browserRecipientUserId,
-      browserRecipientUsername: model.browserRecipient?.username ?? null,
+      eventSubscriptions: model.eventSubscriptions.map((subscription) => ({
+        eventType: subscription.eventType,
+        repositoryIds: subscription.repositories.map(({ repositoryId }) => repositoryId),
+        workflowPatterns: subscription.workflowPatterns,
+      })),
+      browserRecipients: model.recipients.map(({ user }) => user),
       canManage,
       requiresReconfiguration: model.requiresReconfiguration,
       createdAt: model.createdAt,
@@ -100,54 +142,87 @@ export class NotificationChannelDto {
   }
 }
 
-/** Input accepted when creating a notification channel. */
+/** Input accepted when creating a global notification channel. */
 export class CreateNotificationChannelDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  repositoryId!: string;
   @ApiProperty({ maxLength: 255 })
   @IsString()
   @MaxLength(255)
   name!: string;
+
   @ApiPropertyOptional({ enum: NotificationChannelType, default: NotificationChannelType.CUSTOM_APPRISE })
   @IsOptional()
   @IsEnum(NotificationChannelType)
   type?: NotificationChannelType;
+
+  @ApiProperty({ type: [NotificationEventSubscriptionInputDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => NotificationEventSubscriptionInputDto)
+  eventSubscriptions!: NotificationEventSubscriptionInputDto[];
+
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  browserRecipientUserIds?: string[];
+
   /** Write-only structured destination configuration. */
   @ApiPropertyOptional({ writeOnly: true, type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   configuration?: NotificationConfigurationInput;
+
   /** Legacy write-only custom Apprise URL accepted for API compatibility. */
   @ApiPropertyOptional({ deprecated: true, writeOnly: true, maxLength: 4096 })
   @IsOptional()
   @IsString()
   @MaxLength(4096)
   url?: string;
+
   @ApiPropertyOptional({ default: true })
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 }
 
-/** Input accepted when updating a notification channel. */
+/** Input accepted when updating a global notification channel. */
 export class UpdateNotificationChannelDto {
   @ApiPropertyOptional({ maxLength: 255 })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   name?: string;
+
+  @ApiPropertyOptional({ type: [NotificationEventSubscriptionInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => NotificationEventSubscriptionInputDto)
+  eventSubscriptions?: NotificationEventSubscriptionInputDto[];
+
+  @ApiPropertyOptional({ type: [String], format: 'uuid' })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  browserRecipientUserIds?: string[];
+
   /** Complete write-only replacement destination configuration. */
   @ApiPropertyOptional({ writeOnly: true, type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   configuration?: NotificationConfigurationInput;
+
   /** Legacy write-only custom Apprise URL accepted for API compatibility. */
   @ApiPropertyOptional({ deprecated: true, writeOnly: true, maxLength: 4096 })
   @IsOptional()
   @IsString()
   @MaxLength(4096)
   url?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()

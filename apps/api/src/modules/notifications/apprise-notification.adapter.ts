@@ -35,11 +35,11 @@ export class AppriseNotificationAdapter implements NotificationChannelAdapter {
           '--config',
           configurationPath,
           '--title',
-          `${payload.status}: ${payload.workflowName}`,
+          `${payload.eventType}: ${payload.subject}`,
           '--body',
           formatNotificationMessage(payload),
           '--notification-type',
-          payload.status === 'FAILED' ? 'failure' : 'success',
+          payload.eventType.endsWith('FAILED') ? 'failure' : 'success',
         ],
         { timeout: 30_000 },
       );

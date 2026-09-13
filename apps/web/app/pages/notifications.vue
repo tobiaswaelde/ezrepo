@@ -34,8 +34,7 @@ const navigation = computed<NavigationMenuItem[][]>(() => [
       label: t('notifications.tabs.channels'),
       to: '/notifications',
     },
-    { icon: 'i-lucide-list-filter', label: t('notifications.tabs.rules'), to: '/notifications/rules' },
-    ...(auth.user?.role === 'VIEWER'
+    ...(auth.user?.role !== 'SYSTEM_ADMIN'
       ? []
       : [{ icon: 'i-lucide-history', label: t('notifications.tabs.history'), to: '/notifications/history' }]),
   ],

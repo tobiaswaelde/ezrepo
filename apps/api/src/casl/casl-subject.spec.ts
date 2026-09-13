@@ -12,7 +12,6 @@ describe('CASL authorization contract', () => {
       'Issue',
       'PullRequest',
       'NotificationChannel',
-      'NotificationRule',
       'NotificationDelivery',
       'Settings',
     ]);

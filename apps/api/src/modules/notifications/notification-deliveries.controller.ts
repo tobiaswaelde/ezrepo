@@ -13,7 +13,7 @@ interface AuthenticatedRequest {
   user: AuthenticatedUser;
 }
 
-/** Exposes delivery history only within the caller's repository management scope. */
+/** Exposes system-wide delivery history only to system administrators. */
 @ApiTags('notifications')
 @Authenticated()
 @Controller('notification-deliveries')
@@ -42,15 +42,11 @@ export class NotificationDeliveriesController {
           },
           orderBy: { createdAt: 'desc' },
         },
-        notificationRule: {
-          select: {
-            outcome: true,
-            repository: { select: { id: true, name: true, owner: true } },
-            workflowPattern: true,
-          },
-        },
+        issue: { select: { id: true, number: true, title: true, url: true } },
+        notificationChannel: { select: { id: true, name: true, type: true } },
+        pullRequest: { select: { id: true, number: true, title: true, url: true } },
+        repository: { select: { id: true, name: true, owner: true } },
         requestedBy: { select: { username: true } },
-        testChannel: { select: { name: true, repository: { select: { id: true, name: true, owner: true } } } },
         workflowRun: { select: { id: true, url: true, workflowName: true } },
       },
       map: (delivery: unknown) => NotificationDeliveryDto.fromModel(delivery as never),
@@ -58,29 +54,29 @@ export class NotificationDeliveriesController {
       schema: {
         attempts: true,
         createdAt: true,
+        eventType: true,
         finalError: true,
         id: true,
         kind: true,
         nextAttemptAt: true,
-        notificationRuleId: true,
-        outcome: true,
+        notificationChannelId: true,
+        notificationChannelName: true,
+        notificationChannelType: true,
         repositoryId: true,
         repositoryName: true,
         repositoryOwner: true,
         requestedByUsername: true,
         status: true,
-        testChannelName: true,
+        subjectKind: true,
+        subjectTitle: true,
+        subjectUrl: true,
         updatedAt: true,
-        workflowName: true,
-        workflowPattern: true,
-        workflowRunId: true,
-        workflowUrl: true,
       },
       service: this.deliveryQueries,
     });
   }
 
-  /** List delivery history visible to a system administrator or repository manager. */
+  /** List delivery history visible to a system administrator. */
   @Get()
   @ApiOperation({ summary: 'List visible notification delivery history' })
   @ApiOkResponse({ type: NotificationDeliveryDto, isArray: true })

@@ -2,11 +2,7 @@ import { QueryDTO, type BaseDelegateTypeMap } from '@querry-kit/nest';
 import { Transform } from 'class-transformer';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
-import type {
-  NotificationChannelTypeMap,
-  NotificationDeliveryTypeMap,
-  NotificationRuleTypeMap,
-} from '../notification-query.service.js';
+import type { NotificationChannelTypeMap, NotificationDeliveryTypeMap } from '../notification-query.service.js';
 
 class NotificationSearchQueryDto<TTypeMap extends BaseDelegateTypeMap> extends QueryDTO<TTypeMap> {
   @IsOptional()
@@ -17,5 +13,4 @@ class NotificationSearchQueryDto<TTypeMap extends BaseDelegateTypeMap> extends Q
 }
 
 export class NotificationChannelQueryDto extends NotificationSearchQueryDto<NotificationChannelTypeMap> {}
-export class NotificationRuleQueryDto extends NotificationSearchQueryDto<NotificationRuleTypeMap> {}
 export class NotificationDeliveryQueryDto extends NotificationSearchQueryDto<NotificationDeliveryTypeMap> {}

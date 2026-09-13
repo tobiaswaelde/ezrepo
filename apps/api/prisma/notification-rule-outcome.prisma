@@ -1,4 +1,0 @@
-enum NotificationRuleOutcome {
-  SUCCESS
-  FAILED
-}

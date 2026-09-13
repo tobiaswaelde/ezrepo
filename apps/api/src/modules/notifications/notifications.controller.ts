@@ -21,7 +21,7 @@ interface AuthenticatedRequest {
   user: AuthenticatedUser;
 }
 
-/** Provides configuration endpoints for repository-scoped notification channels. */
+/** Provides configuration endpoints for global notification channels. */
 @ApiTags('notifications')
 @Authenticated()
 @Controller('notification-channels')
@@ -31,11 +31,11 @@ export class NotificationsController {
     private readonly channelQueries: NotificationChannelsQueryService,
   ) {}
 
-  /** List repositories where the caller can manage notification configuration. */
+  /** List repositories available as optional event filters. */
   @Get('manageable-repositories')
   @ApiOkResponse({ isArray: true })
   async manageableRepositories(@Req() request: AuthenticatedRequest) {
-    return this.notifications.listManageableRepositories(request.user);
+    return this.notifications.listFilterRepositories(request.user);
   }
 
   /** Query channels with server-side filtering, sorting and pagination. */
@@ -50,36 +50,31 @@ export class NotificationsController {
     return ResourceQuery.query({
       ability,
       include: {
-        browserRecipient: { select: { id: true, username: true } },
-        repository: { select: { name: true, owner: true } },
+        eventSubscriptions: {
+          include: { repositories: { select: { repositoryId: true } } },
+          orderBy: { eventType: 'asc' },
+        },
+        recipients: { include: { user: { select: { id: true, username: true } } } },
       },
       map: (
         channel: Prisma.NotificationChannelGetPayload<{
           include: {
-            browserRecipient: { select: { id: true; username: true } };
-            repository: { select: { name: true; owner: true } };
+            eventSubscriptions: {
+              include: { repositories: { select: { repositoryId: true } } };
+            };
+            recipients: { include: { user: { select: { id: true; username: true } } } };
           };
         }>,
-      ) =>
-        NotificationChannelDto.fromModel(
-          channel,
-          ability.can(CaslAction.Manage, {
-            __caslSubjectType__: CaslSubject.NotificationChannel,
-            repositoryId: channel.repositoryId,
-          } as never),
-        ),
+      ) => NotificationChannelDto.fromModel(channel, ability.can(CaslAction.Manage, CaslSubject.NotificationChannel)),
       query: this.channelQueries.toQueryOptions(query),
       schema: {
-        browserRecipientUserId: true,
-        browserRecipientUsername: true,
+        browserRecipients: true,
         canManage: true,
         createdAt: true,
         enabled: true,
         id: true,
         name: true,
-        repositoryId: true,
-        repositoryName: true,
-        repositoryOwner: true,
+        eventSubscriptions: true,
         requiresReconfiguration: true,
         type: true,
         updatedAt: true,
@@ -89,20 +84,17 @@ export class NotificationsController {
     });
   }
 
-  /** List only channels that belong to repositories visible to the caller. */
+  /** List global channels visible to every authenticated caller. */
   @Get()
   @ApiOperation({ summary: 'List visible notification channels' })
   @ApiOkResponse({ type: NotificationChannelDto, isArray: true })
-  async list(
-    @Req() request: AuthenticatedRequest,
-    @Query('repositoryId') repositoryId?: string,
-  ): Promise<NotificationChannelDto[]> {
-    return (await this.notifications.listChannels(request.user, repositoryId)).map((channel) =>
-      NotificationChannelDto.fromModel(channel),
+  async list(@Req() request: AuthenticatedRequest): Promise<NotificationChannelDto[]> {
+    return (await this.notifications.listChannels()).map((channel) =>
+      NotificationChannelDto.fromModel(channel, request.user.role === 'SYSTEM_ADMIN'),
     );
   }
 
-  /** Create a channel for a repository the caller manages. */
+  /** Create a global channel as a system administrator. */
   @Post()
   @ApiOperation({ summary: 'Create a notification channel' })
   @ApiOkResponse({ type: NotificationChannelDto })
@@ -121,7 +113,7 @@ export class NotificationsController {
     return NotificationDeliveryDto.fromModel(await this.notifications.testChannel(request.user, id));
   }
 
-  /** Update a channel after repository-level management authorization. */
+  /** Update a global channel as a system administrator. */
   @Patch(':id')
   @ApiOperation({ summary: 'Update a notification channel' })
   @ApiOkResponse({ type: NotificationChannelDto })
@@ -133,7 +125,7 @@ export class NotificationsController {
     return NotificationChannelDto.fromModel(await this.notifications.updateChannel(request.user, id, input));
   }
 
-  /** Delete a channel after repository-level management authorization. */
+  /** Delete a global channel as a system administrator. */
   @Delete(':id')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete a notification channel' })

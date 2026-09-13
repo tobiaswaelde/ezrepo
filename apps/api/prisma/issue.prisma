@@ -3,23 +3,24 @@ model Issue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  providerIssueId String     @db.VarChar(255)
-  number          String     @db.VarChar(255)
-  title           String     @db.VarChar(1024)
-  body            String?    @db.Text
-  state           IssueState
-  url             String     @db.VarChar(2048)
+  providerIssueId   String     @db.VarChar(255)
+  number            String     @db.VarChar(255)
+  title             String     @db.VarChar(1024)
+  body              String?    @db.Text
+  state             IssueState
+  url               String     @db.VarChar(2048)
   providerCreatedAt DateTime
   providerUpdatedAt DateTime
-  closedAt        DateTime?
-  milestone       String?    @db.VarChar(512)
+  closedAt          DateTime?
+  milestone         String?    @db.VarChar(512)
 
-  repositoryId String     @db.Uuid
-  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
-  authorId     String?       @db.Uuid
-  author       ProviderActor? @relation("IssueAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-  assignees    IssueAssignee[]
-  labels       IssueLabel[]
+  repositoryId           String                 @db.Uuid
+  repository             Repository             @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  authorId               String?                @db.Uuid
+  author                 ProviderActor?         @relation("IssueAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  assignees              IssueAssignee[]
+  labels                 IssueLabel[]
+  notificationDeliveries NotificationDelivery[]
 
   @@unique([repositoryId, providerIssueId])
   @@unique([repositoryId, number])

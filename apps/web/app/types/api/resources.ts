@@ -451,75 +451,57 @@ export type NotificationChannelConfiguration =
   | { webhookUrl: string }
   | { url: string };
 
-/** Safe repository-scoped notification channel. Secrets are never returned by the API. */
+export type NotificationEventType =
+  | 'WORKFLOW_RUN_SUCCEEDED'
+  | 'WORKFLOW_RUN_FAILED'
+  | 'WORKFLOW_RUN_RECOVERED'
+  | 'PULL_REQUEST_OPENED'
+  | 'PULL_REQUEST_CLOSED'
+  | 'PULL_REQUEST_REOPENED'
+  | 'PULL_REQUEST_MERGED'
+  | 'ISSUE_OPENED'
+  | 'ISSUE_CLOSED'
+  | 'ISSUE_REOPENED';
+
+export interface NotificationEventSubscription {
+  eventType: NotificationEventType;
+  repositoryIds: string[];
+  workflowPatterns: string[];
+}
+
+/** Safe global notification channel. Secrets are never returned by the API. */
 export interface NotificationChannel {
-  browserRecipientUserId: string | null;
-  browserRecipientUsername: string | null;
+  browserRecipients: Array<{ id: string; username: string }>;
   canManage: boolean;
   createdAt: ApiTimestamp;
   enabled: boolean;
   id: string;
   name: string;
-  repositoryId: string;
-  repositoryName: string | null;
-  repositoryOwner: string | null;
+  eventSubscriptions: NotificationEventSubscription[];
   requiresReconfiguration: boolean;
   updatedAt: ApiTimestamp;
   urlScheme: string | null;
   type: NotificationChannelType;
 }
 
-/** Input for creating a repository notification channel. */
+/** Input for creating a global notification channel. */
 export interface CreateNotificationChannel {
+  browserRecipientUserIds?: string[];
   configuration?: NotificationChannelConfiguration;
   enabled?: boolean;
+  eventSubscriptions: NotificationEventSubscription[];
   name: string;
-  repositoryId: string;
   type: NotificationChannelType;
 }
 
-/** Input for updating a repository notification channel. */
+/** Input for updating a global notification channel. */
 export interface UpdateNotificationChannel {
+  browserRecipientUserIds?: string[];
   configuration?: NotificationChannelConfiguration;
   enabled?: boolean;
+  eventSubscriptions?: NotificationEventSubscription[];
   name?: string;
   url?: string;
-}
-
-/** Terminal workflow outcome that can match a notification rule. */
-export type NotificationRuleOutcome = 'SUCCESS' | 'FAILED';
-
-/** Repository-scoped workflow notification rule. */
-export interface NotificationRule {
-  canManage: boolean;
-  channels: Array<{ id: string; name: string; type: NotificationChannelType }>;
-  channelIds: string[];
-  createdAt: ApiTimestamp;
-  enabled: boolean;
-  id: string;
-  outcome: NotificationRuleOutcome;
-  repositoryId: string;
-  repositoryName: string | null;
-  repositoryOwner: string | null;
-  updatedAt: ApiTimestamp;
-  workflowPattern: string;
-}
-
-/** Input for creating a repository workflow notification rule. */
-export interface CreateNotificationRule {
-  channelIds: string[];
-  enabled?: boolean;
-  outcome: NotificationRuleOutcome;
-  repositoryId: string;
-  workflowPattern: string;
-}
-
-/** Input for updating a repository workflow notification rule. */
-export interface UpdateNotificationRule {
-  channelIds?: string[];
-  enabled?: boolean;
-  outcome?: NotificationRuleOutcome;
-  workflowPattern?: string;
 }
 
 /** Current state of an idempotent notification delivery. */
@@ -545,21 +527,21 @@ export interface NotificationDelivery {
   createdAt: ApiTimestamp;
   finalError: string | null;
   id: string;
-  kind: 'WORKFLOW_RUN' | 'TEST';
+  eventType: NotificationEventType | null;
+  kind: 'EVENT' | 'TEST';
   nextAttemptAt: ApiTimestamp | null;
-  notificationRuleId: string | null;
-  outcome: NotificationRuleOutcome | null;
-  repositoryId: string;
-  repositoryName: string;
-  repositoryOwner: string;
+  notificationChannelId: string;
+  notificationChannelName: string;
+  notificationChannelType: NotificationChannelType;
+  repositoryId: string | null;
+  repositoryName: string | null;
+  repositoryOwner: string | null;
   requestedByUsername: string | null;
   status: NotificationDeliveryStatus;
-  testChannelName: string | null;
+  subjectKind: 'WORKFLOW_RUN' | 'PULL_REQUEST' | 'ISSUE' | null;
+  subjectTitle: string | null;
+  subjectUrl: string | null;
   updatedAt: ApiTimestamp;
-  workflowName: string | null;
-  workflowPattern: string | null;
-  workflowRunId: string | null;
-  workflowUrl: string | null;
 }
 
 /** Browser-push feature availability and enrollment summary for the current user. */

@@ -160,7 +160,7 @@ export class ProviderSyncService {
       });
       for (const [index, run] of runs.entries()) {
         if (this.filters.shouldTrack(run.workflowName, repository.workflowFilters))
-          await this.persistRunAndEvaluateRules(repository.id, run);
+          await this.persistRunAndEvaluateEvents(repository.id, run, !repository.lastSyncAt);
         await reportProgress?.({ current: index + 1, phase: 'PROCESSING_WORKFLOWS', total: runs.length });
         this.status.updateProviderSync(progress.id, {
           phase: 'PROCESSING_WORKFLOWS',
@@ -263,7 +263,11 @@ export class ProviderSyncService {
     return now.getTime() - candidate.changeRequestCheckedAt.getTime() >= refreshInterval;
   }
 
-  private async persistRunAndEvaluateRules(repositoryId: string, run: ProviderWorkflowRun): Promise<void> {
+  private async persistRunAndEvaluateEvents(
+    repositoryId: string,
+    run: ProviderWorkflowRun,
+    baseline: boolean,
+  ): Promise<void> {
     const { providerWorkflowId, workflowKind, workflowPath, ...runData } = run;
     const lastSeenAt = new Date();
     const workflow = await this.prisma.workflow.upsert({
@@ -291,6 +295,10 @@ export class ProviderSyncService {
             where: { repositoryId_number: { number: run.changeRequestNumber, repositoryId } },
           })
         : null;
+    const previous = await this.prisma.workflowRun.findUnique({
+      select: { status: true },
+      where: { repositoryId_providerRunId: { repositoryId, providerRunId: run.providerRunId } },
+    });
     const workflowRun = await this.prisma.workflowRun.upsert({
       where: { repositoryId_providerRunId: { repositoryId, providerRunId: run.providerRunId } },
       create: {
@@ -305,7 +313,7 @@ export class ProviderSyncService {
         workflowId: workflow.id,
       },
     });
-    await this.notifications.evaluateRulesForRun(workflowRun);
+    await this.notifications.evaluateWorkflowRun(workflowRun, previous?.status ?? null, baseline);
     if (workflowRun.pullRequestId) await this.workItems?.refreshPullRequestWorkflowStatus(workflowRun.pullRequestId);
   }
 

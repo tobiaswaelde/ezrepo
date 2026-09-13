@@ -7,7 +7,6 @@ import type {
   CreatedMcpAccessToken,
   CreateMcpAccessToken,
   CreateNotificationChannel,
-  CreateNotificationRule,
   CreateProviderAccount,
   DashboardPeriodQuery,
   DashboardSummary,
@@ -18,7 +17,6 @@ import type {
   McpAccessToken,
   NotificationChannel,
   NotificationDelivery,
-  NotificationRule,
   PaginatedResource,
   ProviderAccount,
   ProviderAuthenticationOptions,
@@ -34,7 +32,6 @@ import type {
   StartProviderOAuth,
   UpdateApplicationSettings,
   UpdateNotificationChannel,
-  UpdateNotificationRule,
   UpdateProviderAccount,
   User,
   WorkflowFilter,
@@ -87,8 +84,7 @@ export function useEzRepoApi() {
       create: (input: CreateNotificationChannel): Promise<AxiosResponse<NotificationChannel>> =>
         api.post(apiEndpoints.notificationChannels, input),
       delete: (id: string): Promise<AxiosResponse<void>> => api.delete(`${apiEndpoints.notificationChannels}/${id}`),
-      list: (repositoryId?: string): Promise<AxiosResponse<NotificationChannel[]>> =>
-        api.get(apiEndpoints.notificationChannels, { params: { repositoryId } }),
+      list: (): Promise<AxiosResponse<NotificationChannel[]>> => api.get(apiEndpoints.notificationChannels),
       manageableRepositories: (): Promise<AxiosResponse<Array<{ id: string; name: string; owner: string }>>> =>
         api.get(`${apiEndpoints.notificationChannels}/manageable-repositories`),
       test: (id: string): Promise<AxiosResponse<NotificationDelivery>> =>
@@ -109,15 +105,6 @@ export function useEzRepoApi() {
     notificationDeliveries: {
       list: (repositoryId?: string): Promise<AxiosResponse<NotificationDelivery[]>> =>
         api.get(apiEndpoints.notificationDeliveries, { params: { repositoryId } }),
-    },
-    notificationRules: {
-      create: (input: CreateNotificationRule): Promise<AxiosResponse<NotificationRule>> =>
-        api.post(apiEndpoints.notificationRules, input),
-      delete: (id: string): Promise<AxiosResponse<void>> => api.delete(`${apiEndpoints.notificationRules}/${id}`),
-      list: (repositoryId?: string): Promise<AxiosResponse<NotificationRule[]>> =>
-        api.get(apiEndpoints.notificationRules, { params: { repositoryId } }),
-      update: (id: string, input: UpdateNotificationRule): Promise<AxiosResponse<NotificationRule>> =>
-        api.patch(`${apiEndpoints.notificationRules}/${id}`, input),
     },
     providerAccounts: {
       authorize: (input: StartProviderOAuth): Promise<AxiosResponse<ProviderOAuthAuthorization>> =>

@@ -23,36 +23,18 @@ describe('CaslAbilityFactory', () => {
 
     expect(ability.can(CaslAction.Read, subject(CaslSubject.Repository, { id: 'repository-a' }))).toBe(true);
     expect(ability.can(CaslAction.Read, subject(CaslSubject.WorkflowRun, { repositoryId: 'repository-b' }))).toBe(true);
-    expect(
-      ability.can(CaslAction.Read, subject(CaslSubject.NotificationChannel, { repositoryId: 'repository-a' })),
-    ).toBe(true);
-    expect(
-      ability.can(
-        CaslAction.Read,
-        subject(CaslSubject.NotificationDelivery, {
-          notificationRule: { repositoryId: 'repository-b' },
-        }),
-      ),
-    ).toBe(false);
+    expect(ability.can(CaslAction.Read, CaslSubject.NotificationChannel)).toBe(true);
+    expect(ability.can(CaslAction.Read, CaslSubject.NotificationDelivery)).toBe(false);
     expect(ability.can(CaslAction.Read, subject(CaslSubject.Repository, { id: 'repository-c' }))).toBe(false);
     expect(ability.can(CaslAction.Update, subject(CaslSubject.Repository, { id: 'repository-b' }))).toBe(false);
   });
 
-  it('lets managers update configuration only for manager-assigned repositories', () => {
+  it('does not grant repository managers global notification administration', () => {
     const ability = factory.createForUser({ id: 'manager', role: 'MANAGER', username: 'manager' }, memberships);
 
     expect(ability.can(CaslAction.Update, subject(CaslSubject.Repository, { id: 'repository-b' }))).toBe(true);
-    expect(
-      ability.can(CaslAction.Update, subject(CaslSubject.NotificationChannel, { repositoryId: 'repository-b' })),
-    ).toBe(true);
-    expect(
-      ability.can(
-        CaslAction.Read,
-        subject(CaslSubject.NotificationDelivery, {
-          testChannel: { repositoryId: 'repository-b' },
-        }),
-      ),
-    ).toBe(true);
+    expect(ability.can(CaslAction.Update, CaslSubject.NotificationChannel)).toBe(false);
+    expect(ability.can(CaslAction.Read, CaslSubject.NotificationDelivery)).toBe(false);
     expect(ability.can(CaslAction.Update, subject(CaslSubject.Repository, { id: 'repository-a' }))).toBe(false);
     expect(ability.can(CaslAction.Update, subject(CaslSubject.Repository, { id: 'repository-c' }))).toBe(false);
   });

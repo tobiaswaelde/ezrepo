@@ -3,30 +3,30 @@ model Repository {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  providerRepositoryId String   @db.VarChar(255)
-  owner                String   @db.VarChar(255)
-  name                 String   @db.VarChar(255)
-  url                  String   @db.VarChar(2048)
-  enabled              Boolean  @default(true)
-  encryptedWebhookSecret String? @db.Text
-  lastSyncAt           DateTime?
+  providerRepositoryId     String    @db.VarChar(255)
+  owner                    String    @db.VarChar(255)
+  name                     String    @db.VarChar(255)
+  url                      String    @db.VarChar(2048)
+  enabled                  Boolean   @default(true)
+  encryptedWebhookSecret   String?   @db.Text
+  lastSyncAt               DateTime?
   workflowRunRetentionDays Int?
-  retainedRunDurationMs BigInt @default(0)
+  retainedRunDurationMs    BigInt    @default(0)
 
-  providerAccountId String          @db.Uuid
-  providerAccount   ProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
-  memberships       RepositoryMembership[]
-  notificationChannels NotificationChannel[]
-  notificationRules    NotificationRule[]
-  syncRequest          RepositorySyncRequest?
-  workItemSyncCursors  WorkItemSyncCursor[]
-  workItemLabels       WorkItemLabel[]
-  issues               Issue[]
-  pullRequests         PullRequest[]
-  workflowFilters      WorkflowFilter[]
-  workflows            Workflow[]
-  workflowRuns      WorkflowRun[]
-  webhookDeliveries WebhookDelivery[]
+  providerAccountId        String                                    @db.Uuid
+  providerAccount          ProviderAccount                           @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
+  memberships              RepositoryMembership[]
+  notificationEventFilters NotificationEventSubscriptionRepository[]
+  notificationDeliveries   NotificationDelivery[]
+  syncRequest              RepositorySyncRequest?
+  workItemSyncCursors      WorkItemSyncCursor[]
+  workItemLabels           WorkItemLabel[]
+  issues                   Issue[]
+  pullRequests             PullRequest[]
+  workflowFilters          WorkflowFilter[]
+  workflows                Workflow[]
+  workflowRuns             WorkflowRun[]
+  webhookDeliveries        WebhookDelivery[]
 
   @@unique([providerAccountId, providerRepositoryId])
   @@index([providerAccountId, enabled])

@@ -3,21 +3,21 @@ model WorkflowRun {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  providerRunId     String            @db.VarChar(255)
-  workflowName      String            @db.VarChar(1024)
-  displayTitle      String            @db.VarChar(1024)
-  url               String            @db.VarChar(2048)
-  providerCreatedAt DateTime
-  startedAt         DateTime?
-  completedAt       DateTime?
-  durationMs        Int?
-  status            WorkflowRunStatus
-  rawStatus         String?           @db.VarChar(255)
-  awaitingApproval  Boolean           @default(false)
-  reviewUrl         String?           @db.VarChar(2048)
-  event             String?           @db.VarChar(255)
-  headBranch        String?           @db.VarChar(1024)
-  headSha           String?           @db.VarChar(255)
+  providerRunId             String             @db.VarChar(255)
+  workflowName              String             @db.VarChar(1024)
+  displayTitle              String             @db.VarChar(1024)
+  url                       String             @db.VarChar(2048)
+  providerCreatedAt         DateTime
+  startedAt                 DateTime?
+  completedAt               DateTime?
+  durationMs                Int?
+  status                    WorkflowRunStatus
+  rawStatus                 String?            @db.VarChar(255)
+  awaitingApproval          Boolean            @default(false)
+  reviewUrl                 String?            @db.VarChar(2048)
+  event                     String?            @db.VarChar(255)
+  headBranch                String?            @db.VarChar(1024)
+  headSha                   String?            @db.VarChar(255)
   changeRequestNumber       String?            @db.VarChar(255)
   changeRequestState        ChangeRequestState @default(UNKNOWN)
   changeRequestTargetBranch String?            @db.VarChar(1024)
@@ -28,10 +28,10 @@ model WorkflowRun {
   workflowId String   @db.Uuid
   workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
-  repositoryId String     @db.Uuid
-  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
-  pullRequestId String?      @db.Uuid
-  pullRequest   PullRequest? @relation(fields: [pullRequestId], references: [id], onDelete: SetNull)
+  repositoryId           String                 @db.Uuid
+  repository             Repository             @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  pullRequestId          String?                @db.Uuid
+  pullRequest            PullRequest?           @relation(fields: [pullRequestId], references: [id], onDelete: SetNull)
   notificationDeliveries NotificationDelivery[]
 
   @@unique([repositoryId, providerRunId])

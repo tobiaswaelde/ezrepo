@@ -1,8 +1,9 @@
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { ProviderAdapter } from './provider-adapter.js';
-import { WorkItemSyncService } from './work-item-sync.service.js';
+import { issueLifecycleEvents, pullRequestLifecycleEvents, WorkItemSyncService } from './work-item-sync.service.js';
 
 describe('WorkItemSyncService', () => {
+  const notifications = { emitIssueEvent: jest.fn(), emitPullRequestEvent: jest.fn() };
   it('advances each cursor only after its complete provider page sequence succeeds', async () => {
     const prisma = {
       workItemSyncCursor: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn().mockResolvedValue({}) },
@@ -11,7 +12,7 @@ describe('WorkItemSyncService', () => {
       listIssues: jest.fn().mockResolvedValue([]),
       listPullRequests: jest.fn().mockResolvedValue([]),
     } as unknown as ProviderAdapter;
-    const service = new WorkItemSyncService(prisma as unknown as PrismaService);
+    const service = new WorkItemSyncService(prisma as unknown as PrismaService, notifications as never);
     await service.synchronize(
       { accessToken: 'token', baseUrl: null, providerAccountId: 'account' },
       { id: 'repository', name: 'ezrepo', owner: 'ezrepo', providerAccountId: 'account', providerRepositoryId: '1' },
@@ -33,7 +34,7 @@ describe('WorkItemSyncService', () => {
       listIssues: jest.fn().mockRejectedValue(new Error('partial pagination failure')),
       listPullRequests: jest.fn(),
     } as unknown as ProviderAdapter;
-    const service = new WorkItemSyncService(prisma as unknown as PrismaService);
+    const service = new WorkItemSyncService(prisma as unknown as PrismaService, notifications as never);
     await expect(
       service.synchronize(
         { accessToken: 'token', baseUrl: null, providerAccountId: 'account' },
@@ -54,7 +55,7 @@ describe('WorkItemSyncService', () => {
       listPullRequests: jest.fn().mockResolvedValue([]),
     } as unknown as ProviderAdapter;
     const reportProgress = jest.fn().mockResolvedValue(undefined);
-    const service = new WorkItemSyncService(prisma as unknown as PrismaService);
+    const service = new WorkItemSyncService(prisma as unknown as PrismaService, notifications as never);
 
     await service.synchronize(
       { accessToken: 'token', baseUrl: null, providerAccountId: 'account' },
@@ -93,11 +94,32 @@ describe('WorkItemSyncService', () => {
         ),
       },
     };
-    const service = new WorkItemSyncService(prisma as unknown as PrismaService);
+    const service = new WorkItemSyncService(prisma as unknown as PrismaService, notifications as never);
     await service.refreshPullRequestWorkflowStatus('pull-request-id');
     expect(prisma.pullRequest.update).toHaveBeenCalledWith({
       data: { workflowApprovalRequired: String(statuses[0]) === 'QUEUED', workflowStatus: expected },
       where: { id: 'pull-request-id' },
     });
   });
+});
+it.each([
+  [null, 'OPEN', true, ['ISSUE_OPENED']],
+  [null, 'CLOSED', true, ['ISSUE_OPENED', 'ISSUE_CLOSED']],
+  ['OPEN', 'CLOSED', false, ['ISSUE_CLOSED']],
+  ['CLOSED', 'OPEN', false, ['ISSUE_REOPENED']],
+  ['OPEN', 'OPEN', false, []],
+] as const)('classifies issue lifecycle %s -> %s', (previous, state, createdAfterCursor, expected) => {
+  expect(issueLifecycleEvents(previous, state, createdAfterCursor)).toEqual(expected);
+});
+
+it.each([
+  [null, 'OPEN', true, ['PULL_REQUEST_OPENED']],
+  [null, 'CLOSED', true, ['PULL_REQUEST_OPENED', 'PULL_REQUEST_CLOSED']],
+  [null, 'MERGED', true, ['PULL_REQUEST_OPENED', 'PULL_REQUEST_MERGED']],
+  ['OPEN', 'CLOSED', false, ['PULL_REQUEST_CLOSED']],
+  ['OPEN', 'MERGED', false, ['PULL_REQUEST_MERGED']],
+  ['CLOSED', 'OPEN', false, ['PULL_REQUEST_REOPENED']],
+  ['OPEN', 'OPEN', false, []],
+] as const)('classifies pull-request lifecycle %s -> %s', (previous, state, createdAfterCursor, expected) => {
+  expect(pullRequestLifecycleEvents(previous, state, createdAfterCursor)).toEqual(expected);
 });

@@ -73,8 +73,6 @@ async function mockApplication(page: Page): Promise<void> {
   await page.route('**/api/v1/notification-channels', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/notification-channels/query**', (route) => route.fulfill({ json: emptyPage }));
   await page.route('**/api/v1/notification-channels/manageable-repositories', (route) => route.fulfill({ json: [] }));
-  await page.route('**/api/v1/notification-rules', (route) => route.fulfill({ json: [] }));
-  await page.route('**/api/v1/notification-rules/query**', (route) => route.fulfill({ json: emptyPage }));
   await page.route('**/api/v1/notification-deliveries', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/notification-deliveries/query**', (route) => route.fulfill({ json: emptyPage }));
   await page.route('**/api/v1/browser-push', (route) =>

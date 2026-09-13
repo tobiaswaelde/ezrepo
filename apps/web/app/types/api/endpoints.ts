@@ -2,17 +2,14 @@ import type { EndpointDefinition } from '@querry-kit/nuxt/types';
 
 import type {
   CreateNotificationChannel,
-  CreateNotificationRule,
   Issue,
   NotificationChannel,
   NotificationDelivery,
-  NotificationRule,
   ProviderAccount,
   PullRequest,
   Repository,
   RepositorySyncJob,
   UpdateNotificationChannel,
-  UpdateNotificationRule,
   User,
   WorkflowRun,
 } from './resources';
@@ -40,7 +37,6 @@ export const apiEndpoints = {
   notificationChannels: '/notification-channels',
   browserPush: '/browser-push',
   notificationDeliveries: '/notification-deliveries',
-  notificationRules: '/notification-rules',
   providerAccounts: {
     authenticationOptions: '/provider-accounts/authentication-options',
     authorize: '/provider-accounts/oauth/authorize',
@@ -59,7 +55,6 @@ export const apiEndpoints = {
 /** Resource endpoints that use the shared Query Kit pagination contract. */
 export interface Endpoints {
   'notification-channels/query': { create: never; dto: NotificationChannel; update: never };
-  'notification-rules/query': { create: never; dto: NotificationRule; update: never };
   'notification-deliveries/query': { create: never; dto: NotificationDelivery; update: never };
   'provider-accounts': {
     create: never;
@@ -117,10 +112,5 @@ export interface NotificationEndpointContracts {
     create: CreateNotificationChannel;
     item: NotificationChannel;
     update: UpdateNotificationChannel;
-  };
-  notificationRules: {
-    create: CreateNotificationRule;
-    item: NotificationRule;
-    update: UpdateNotificationRule;
   };
 }

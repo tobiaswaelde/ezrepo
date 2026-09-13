@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
-import type { PullRequestWorkflowStatus } from '../../generated/prisma/client.js';
+import { NotificationEventType, type PullRequestWorkflowStatus } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type {
   ProviderAccountContext,
   ProviderActor,
@@ -19,10 +20,55 @@ const cursorOverlapMs = 5 * 60 * 1_000;
 
 type SyncRepository = ProviderRepositoryReference & { id: string; providerAccountId: string };
 
+/** Classify persisted issue state changes into global notification events. */
+export function issueLifecycleEvents(
+  previousState: 'OPEN' | 'CLOSED' | null,
+  state: 'OPEN' | 'CLOSED',
+  createdAfterCursor: boolean,
+): NotificationEventType[] {
+  if (previousState === state) return [];
+  if (previousState === null) {
+    return [
+      ...(createdAfterCursor ? [NotificationEventType.ISSUE_OPENED] : []),
+      ...(state === 'CLOSED' ? [NotificationEventType.ISSUE_CLOSED] : []),
+    ];
+  }
+  return [state === 'OPEN' ? NotificationEventType.ISSUE_REOPENED : NotificationEventType.ISSUE_CLOSED];
+}
+
+/** Classify persisted pull-request state changes into global notification events. */
+export function pullRequestLifecycleEvents(
+  previousState: 'OPEN' | 'CLOSED' | 'MERGED' | null,
+  state: 'OPEN' | 'CLOSED' | 'MERGED',
+  createdAfterCursor: boolean,
+): NotificationEventType[] {
+  if (previousState === state) return [];
+  if (previousState === null) {
+    return [
+      ...(createdAfterCursor ? [NotificationEventType.PULL_REQUEST_OPENED] : []),
+      ...(state === 'MERGED'
+        ? [NotificationEventType.PULL_REQUEST_MERGED]
+        : state === 'CLOSED'
+          ? [NotificationEventType.PULL_REQUEST_CLOSED]
+          : []),
+    ];
+  }
+  return [
+    state === 'OPEN'
+      ? NotificationEventType.PULL_REQUEST_REOPENED
+      : state === 'MERGED'
+        ? NotificationEventType.PULL_REQUEST_MERGED
+        : NotificationEventType.PULL_REQUEST_CLOSED,
+  ];
+}
+
 /** Synchronizes normalized issue and pull-request data for one tracked repository. */
 @Injectable()
 export class WorkItemSyncService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Synchronize issue and pull-request domains with independent durable cursors. */
   async synchronize(
@@ -44,11 +90,14 @@ export class WorkItemSyncService {
     reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
     await reportProgress?.({ current: null, phase: 'SYNCING_ISSUES', total: null });
-    const { query, synchronizedThrough } = await this.syncWindow(repository.id, 'ISSUE');
+    const { baseline, previousSynchronizedThrough, query, synchronizedThrough } = await this.syncWindow(
+      repository.id,
+      'ISSUE',
+    );
     const issues = await adapter.listIssues(context, repository, query);
     await reportProgress?.({ current: 0, phase: 'SYNCING_ISSUES', total: issues.length });
     for (const [index, issue] of issues.entries()) {
-      await this.persistIssue(repository, issue);
+      await this.persistIssue(repository, issue, baseline, previousSynchronizedThrough);
       await reportProgress?.({ current: index + 1, phase: 'SYNCING_ISSUES', total: issues.length });
     }
     await this.advanceCursor(repository.id, 'ISSUE', synchronizedThrough);
@@ -61,11 +110,14 @@ export class WorkItemSyncService {
     reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
     await reportProgress?.({ current: null, phase: 'SYNCING_PULL_REQUESTS', total: null });
-    const { query, synchronizedThrough } = await this.syncWindow(repository.id, 'PULL_REQUEST');
+    const { baseline, previousSynchronizedThrough, query, synchronizedThrough } = await this.syncWindow(
+      repository.id,
+      'PULL_REQUEST',
+    );
     const pullRequests = await adapter.listPullRequests(context, repository, query);
     await reportProgress?.({ current: 0, phase: 'SYNCING_PULL_REQUESTS', total: pullRequests.length });
     for (const [index, pullRequest] of pullRequests.entries()) {
-      await this.persistPullRequest(repository, pullRequest);
+      await this.persistPullRequest(repository, pullRequest, baseline, previousSynchronizedThrough);
       await reportProgress?.({ current: index + 1, phase: 'SYNCING_PULL_REQUESTS', total: pullRequests.length });
     }
     await this.advanceCursor(repository.id, 'PULL_REQUEST', synchronizedThrough);
@@ -77,6 +129,8 @@ export class WorkItemSyncService {
       where: { repositoryId_kind: { kind, repositoryId } },
     });
     return {
+      baseline: !cursor,
+      previousSynchronizedThrough: cursor?.synchronizedThrough ?? null,
       query: {
         includeAllOpen: !cursor?.synchronizedThrough,
         updatedAfter: new Date(
@@ -101,8 +155,17 @@ export class WorkItemSyncService {
     });
   }
 
-  private async persistIssue(repository: SyncRepository, issue: ProviderIssue): Promise<void> {
-    await this.prisma.transaction(async (transaction) => {
+  private async persistIssue(
+    repository: SyncRepository,
+    issue: ProviderIssue,
+    baseline: boolean,
+    previousSynchronizedThrough: Date | null,
+  ): Promise<void> {
+    const previous = await this.prisma.issue.findUnique({
+      select: { state: true },
+      where: { repositoryId_providerIssueId: { providerIssueId: issue.providerIssueId, repositoryId: repository.id } },
+    });
+    const record = await this.prisma.transaction(async (transaction) => {
       const authorId = issue.author
         ? await this.upsertActor(repository.providerAccountId, issue.author, transaction)
         : null;
@@ -127,7 +190,15 @@ export class WorkItemSyncService {
         });
       if (labelIds.length > 0)
         await transaction.issueLabel.createMany({ data: labelIds.map((labelId) => ({ issueId: record.id, labelId })) });
+      return record;
     });
+    if (baseline) return;
+    const events = issueLifecycleEvents(
+      previous?.state ?? null,
+      record.state,
+      Boolean(previousSynchronizedThrough && issue.providerCreatedAt > previousSynchronizedThrough),
+    );
+    for (const eventType of events) await this.notifications.emitIssueEvent(eventType, record);
   }
 
   private issueData(issue: ProviderIssue) {
@@ -145,7 +216,21 @@ export class WorkItemSyncService {
     };
   }
 
-  private async persistPullRequest(repository: SyncRepository, pullRequest: ProviderPullRequest): Promise<void> {
+  private async persistPullRequest(
+    repository: SyncRepository,
+    pullRequest: ProviderPullRequest,
+    baseline: boolean,
+    previousSynchronizedThrough: Date | null,
+  ): Promise<void> {
+    const previous = await this.prisma.pullRequest.findUnique({
+      select: { state: true },
+      where: {
+        repositoryId_providerPullRequestId: {
+          providerPullRequestId: pullRequest.providerPullRequestId,
+          repositoryId: repository.id,
+        },
+      },
+    });
     const record = await this.prisma.transaction(async (transaction) => {
       const authorId = pullRequest.author
         ? await this.upsertActor(repository.providerAccountId, pullRequest.author, transaction)
@@ -183,6 +268,13 @@ export class WorkItemSyncService {
       return persisted;
     });
     await this.refreshPullRequestWorkflowStatus(record.id);
+    if (baseline) return;
+    const events = pullRequestLifecycleEvents(
+      previous?.state ?? null,
+      record.state,
+      Boolean(previousSynchronizedThrough && pullRequest.providerCreatedAt > previousSynchronizedThrough),
+    );
+    for (const eventType of events) await this.notifications.emitPullRequestEvent(eventType, record);
   }
 
   private pullRequestData(pullRequest: ProviderPullRequest) {

@@ -3,18 +3,18 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  username                String                 @unique @db.VarChar(255)
-  firstName               String?                @db.VarChar(255)
-  lastName                String?                @db.VarChar(255)
-  passwordHash            String                 @db.VarChar(255)
-  authVersion             Int                    @default(0)
-  role                    UserRole               @default(VIEWER)
-  avatar                  UserAvatar?
-  mcpAccessTokens         McpAccessToken[]
-  repositoryMemberships   RepositoryMembership[]
-  browserNotificationChannels NotificationChannel[] @relation("BrowserNotificationChannelRecipient")
-  browserPushSubscriptions BrowserPushSubscription[]
-  requestedNotificationDeliveries NotificationDelivery[] @relation("NotificationDeliveryRequester")
+  username                        String                         @unique @db.VarChar(255)
+  firstName                       String?                        @db.VarChar(255)
+  lastName                        String?                        @db.VarChar(255)
+  passwordHash                    String                         @db.VarChar(255)
+  authVersion                     Int                            @default(0)
+  role                            UserRole                       @default(VIEWER)
+  avatar                          UserAvatar?
+  mcpAccessTokens                 McpAccessToken[]
+  repositoryMemberships           RepositoryMembership[]
+  notificationChannelRecipients   NotificationChannelRecipient[]
+  browserPushSubscriptions        BrowserPushSubscription[]
+  requestedNotificationDeliveries NotificationDelivery[]         @relation("NotificationDeliveryRequester")
 
   @@map("users")
 }

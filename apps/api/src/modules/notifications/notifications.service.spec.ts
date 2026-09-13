@@ -1,6 +1,5 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
-import { CaslAbilityFactory } from '../../casl/casl-ability.factory.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { CredentialEncryptionService } from '../../security/credential-encryption.service.js';
 import { WorkflowFilterService } from '../repositories/workflow-filter.service.js';
@@ -10,21 +9,25 @@ import type { NotificationDeliveryService } from './notification-delivery.servic
 import { NotificationsService } from './notifications.service.js';
 
 describe('NotificationsService', () => {
-  const user = { id: 'user-a', role: 'VIEWER' as const, username: 'viewer' };
+  const viewer = { id: 'user-a', role: 'VIEWER' as const, username: 'viewer' };
+  const admin = { id: 'admin-a', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
+  const failedRun = {
+    id: 'run-a',
+    providerCreatedAt: new Date('2026-09-14T10:00:00.000Z'),
+    repositoryId: 'repository-a',
+    scopeKey: 'refs/heads/main',
+    status: 'SUCCESS' as const,
+    workflowId: 'workflow-a',
+    workflowName: 'Deploy production',
+  };
 
   function createService() {
     const prisma = {
       notificationChannel: {
+        count: jest.fn(),
         create: jest.fn(),
         delete: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
-        findUnique: jest.fn(),
-        update: jest.fn(),
-      },
-      notificationRule: {
-        create: jest.fn(),
-        delete: jest.fn(),
-        findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
       },
@@ -34,197 +37,149 @@ describe('NotificationsService', () => {
         findMany: jest.fn().mockResolvedValue([]),
         findUniqueOrThrow: jest.fn(),
       },
-      repositoryMembership: {
-        findMany: jest.fn().mockResolvedValue([{ repositoryId: 'repository-a', role: 'VIEWER' }]),
-        findUnique: jest.fn(),
-      },
+      repository: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn() },
+      user: { count: jest.fn().mockResolvedValue(0) },
+      workflowRun: { findFirst: jest.fn() },
     };
+    const delivery = { deliverPending: jest.fn() };
     return {
+      delivery,
       prisma,
       service: new NotificationsService(
         prisma as unknown as PrismaService,
-        new CaslAbilityFactory(),
         {
           decrypt: jest.fn(),
           encrypt: jest.fn((secret: string) => `encrypted:${secret}`),
         } as unknown as CredentialEncryptionService,
         new WorkflowFilterService(),
-        { deliverPending: jest.fn() } as unknown as NotificationDeliveryService,
+        delivery as unknown as NotificationDeliveryService,
         new NotificationChannelUrlService(),
         { available: true } as BrowserPushService,
       ),
     };
   }
 
-  it('limits channel lists to repositories visible through persisted memberships', async () => {
+  it('lists global channels without applying repository membership filters', async () => {
     const { prisma, service } = createService();
 
-    await service.listChannels(user);
+    await service.listChannels();
 
     expect(prisma.notificationChannel.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [{ OR: [{ repositoryId: { in: ['repository-a'] } }] }],
-        },
-      }),
+      expect.objectContaining({ orderBy: [{ name: 'asc' }, { id: 'asc' }] }),
     );
   });
 
-  it('requires a manager membership before creating a channel', async () => {
-    const { prisma, service } = createService();
-    prisma.repositoryMembership.findUnique.mockResolvedValue({ role: 'VIEWER' });
+  it('allows only system administrators to mutate global channels or read history', async () => {
+    const { service } = createService();
+    const eventSubscriptions = [{ eventType: 'ISSUE_OPENED' as const }];
 
-    await expect(
-      service.createChannel(
-        { ...user, role: 'MANAGER' },
-        {
-          repositoryId: 'repository-a',
-          name: 'On-call',
-          url: 'discord://webhook-id/webhook-token',
-        },
-      ),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.createChannel(viewer, { eventSubscriptions, name: 'On-call' })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await expect(service.listDeliveryHistory(viewer)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('encrypts an Apprise URL and retains only its safe scheme metadata', async () => {
+  it('encrypts destination configuration and persists normalized global event filters', async () => {
     const { prisma, service } = createService();
-    prisma.repositoryMembership.findUnique.mockResolvedValue({ role: 'MANAGER' });
+    prisma.repository.count.mockResolvedValue(1);
     prisma.notificationChannel.create.mockResolvedValue({});
 
-    await service.createChannel(
-      { ...user, role: 'MANAGER' },
-      {
-        repositoryId: 'repository-a',
-        name: 'On-call',
-        url: 'discord://webhook-id/webhook-token',
-      },
-    );
+    await service.createChannel(admin, {
+      eventSubscriptions: [
+        {
+          eventType: 'WORKFLOW_RUN_FAILED',
+          repositoryIds: ['11111111-1111-4111-8111-111111111111'],
+          workflowPatterns: [' Deploy* ', 'Deploy*'],
+        },
+      ],
+      name: 'On-call',
+      type: 'CUSTOM_APPRISE',
+      url: 'discord://webhook-id/webhook-token',
+    });
 
     expect(prisma.notificationChannel.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           encryptedUrl: 'encrypted:discord://webhook-id/webhook-token',
-          requiresReconfiguration: false,
+          eventSubscriptions: {
+            create: [
+              expect.objectContaining({
+                eventType: 'WORKFLOW_RUN_FAILED',
+                workflowPatterns: ['Deploy*'],
+              }),
+            ],
+          },
           urlScheme: 'discord',
         }),
       }),
     );
   });
 
-  it('rejects unsafe local-file URLs and legacy channels re-enabled without replacement URLs', async () => {
+  it('requires recipients only for browser-push channels', async () => {
     const { prisma, service } = createService();
-    prisma.repositoryMembership.findUnique.mockResolvedValue({ role: 'MANAGER' });
+    prisma.user.count.mockResolvedValue(1);
+    prisma.notificationChannel.create.mockResolvedValue({});
+    const eventSubscriptions = [{ eventType: 'ISSUE_OPENED' as const }];
 
     await expect(
-      service.createChannel(
-        { ...user, role: 'MANAGER' },
-        { name: 'Unsafe', repositoryId: 'repository-a', url: 'file:///tmp/x' },
-      ),
+      service.createChannel(admin, { eventSubscriptions, name: 'Push', type: 'BROWSER_PUSH' }),
     ).rejects.toBeInstanceOf(BadRequestException);
-
-    prisma.notificationChannel.findUnique.mockResolvedValue({
-      id: 'channel-a',
-      repositoryId: 'repository-a',
-      requiresReconfiguration: true,
-    });
     await expect(
-      service.updateChannel({ ...user, role: 'MANAGER' }, 'channel-a', { enabled: true }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it('creates a workflow glob rule linked only to channels from its repository', async () => {
-    const { prisma, service } = createService();
-    prisma.repositoryMembership.findUnique.mockResolvedValue({ role: 'MANAGER' });
-    prisma.notificationChannel.findMany.mockResolvedValue([{ id: '11111111-1111-4111-8111-111111111111' }]);
-    prisma.notificationRule.create.mockResolvedValue({});
-
-    await service.createRule(
-      { ...user, role: 'MANAGER' },
-      {
-        repositoryId: 'repository-a',
-        workflowPattern: 'Deploy*',
-        outcome: 'FAILED',
-        channelIds: ['11111111-1111-4111-8111-111111111111'],
-      },
-    );
-
-    expect(prisma.notificationRule.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          channelLinks: {
-            createMany: { data: [{ notificationChannelId: '11111111-1111-4111-8111-111111111111' }] },
-          },
-          outcome: 'FAILED',
-          workflowPattern: 'Deploy*',
-        }),
+      service.createChannel(admin, {
+        browserRecipientUserIds: ['11111111-1111-4111-8111-111111111111'],
+        eventSubscriptions,
+        name: 'Email',
+        type: 'EMAIL',
       }),
-    );
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('evaluates only enabled rules matching a terminal run outcome and workflow glob', async () => {
+  it('does not emit workflow notifications while establishing a baseline', async () => {
     const { prisma, service } = createService();
-    prisma.notificationRule.findMany.mockResolvedValue([
-      { channelLinks: [], id: 'rule-a', workflowPattern: 'Deploy*' },
-      { channelLinks: [], id: 'rule-b', workflowPattern: 'Test*' },
+
+    await service.evaluateWorkflowRun(failedRun, null, true);
+
+    expect(prisma.notificationChannel.findMany).not.toHaveBeenCalled();
+    expect(prisma.notificationDelivery.createMany).not.toHaveBeenCalled();
+  });
+
+  it('emits one recovered delivery when either success or recovery matches', async () => {
+    const { delivery, prisma, service } = createService();
+    prisma.workflowRun.findFirst.mockResolvedValue({ status: 'FAILED' });
+    prisma.notificationChannel.findMany.mockResolvedValue([
+      {
+        eventSubscriptions: [{ eventType: 'WORKFLOW_RUN_SUCCEEDED', repositories: [], workflowPatterns: ['Deploy*'] }],
+        id: 'channel-a',
+      },
     ]);
+    prisma.notificationDelivery.findMany.mockResolvedValue([{ id: 'delivery-a' }]);
 
-    const rules = await service.evaluateRulesForRun({
-      id: 'run-a',
-      repositoryId: 'repository-a',
-      status: 'FAILED',
-      workflowName: 'Deploy production',
-    });
+    await service.evaluateWorkflowRun(failedRun, 'RUNNING', false);
 
-    expect(rules).toEqual([{ channelLinks: [], id: 'rule-a', workflowPattern: 'Deploy*' }]);
-    expect(prisma.notificationRule.findMany).toHaveBeenCalledWith({
-      include: expect.any(Object),
-      where: { enabled: true, outcome: 'FAILED', repositoryId: 'repository-a' },
-    });
     expect(prisma.notificationDelivery.createMany).toHaveBeenCalledWith({
-      data: [{ notificationRuleId: 'rule-a', workflowRunId: 'run-a' }],
+      data: [
+        expect.objectContaining({
+          eventType: 'WORKFLOW_RUN_RECOVERED',
+          notificationChannelId: 'channel-a',
+          workflowRunId: 'run-a',
+        }),
+      ],
       skipDuplicates: true,
     });
+    expect(delivery.deliverPending).toHaveBeenCalledWith(['delivery-a']);
   });
 
-  it('limits delivery history to repository-manager memberships', async () => {
+  it('does not emit an event when a workflow glob does not match', async () => {
     const { prisma, service } = createService();
-    prisma.repositoryMembership.findMany.mockResolvedValue([{ repositoryId: 'repository-managed', role: 'MANAGER' }]);
-
-    await service.listDeliveryHistory({ ...user, role: 'MANAGER' });
-
-    expect(prisma.notificationDelivery.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          OR: [
-            { notificationRule: { repositoryId: { in: ['repository-managed'] } } },
-            { testChannel: { repositoryId: { in: ['repository-managed'] } } },
-          ],
-        },
-      }),
-    );
-  });
-
-  it('creates a non-retrying test delivery for a managed channel', async () => {
-    const { prisma, service } = createService();
-    prisma.repositoryMembership.findUnique.mockResolvedValue({ role: 'MANAGER' });
-    prisma.notificationChannel.findUnique.mockResolvedValue({
-      browserRecipientUserId: null,
-      id: 'channel-a',
-      repositoryId: 'repository-a',
-      type: 'CUSTOM_APPRISE',
-    });
-    prisma.notificationDelivery.create.mockResolvedValue({ id: 'delivery-a' });
-    prisma.notificationDelivery.findUniqueOrThrow.mockResolvedValue({ id: 'delivery-a' });
-
-    await service.testChannel({ ...user, role: 'MANAGER' }, 'channel-a');
-
-    expect(prisma.notificationDelivery.create).toHaveBeenCalledWith({
-      data: {
-        kind: 'TEST',
-        requestedByUserId: 'user-a',
-        testChannelId: 'channel-a',
+    prisma.notificationChannel.findMany.mockResolvedValue([
+      {
+        eventSubscriptions: [{ eventType: 'WORKFLOW_RUN_FAILED', repositories: [], workflowPatterns: ['Test*'] }],
+        id: 'channel-a',
       },
-      select: { id: true },
-    });
+    ]);
+
+    await service.evaluateWorkflowRun({ ...failedRun, status: 'FAILED' }, 'RUNNING', false);
+
+    expect(prisma.notificationDelivery.createMany).not.toHaveBeenCalled();
   });
 });

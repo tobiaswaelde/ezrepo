@@ -1,0 +1,28 @@
+model NotificationEventSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  eventType        NotificationEventType
+  workflowPatterns String[]
+
+  notificationChannelId String                                    @db.Uuid
+  notificationChannel   NotificationChannel                       @relation(fields: [notificationChannelId], references: [id], onDelete: Cascade)
+  repositories          NotificationEventSubscriptionRepository[]
+
+  @@unique([notificationChannelId, eventType])
+  @@index([eventType, notificationChannelId])
+  @@map("notification_event_subscriptions")
+}
+
+model NotificationEventSubscriptionRepository {
+  notificationEventSubscriptionId String                        @db.Uuid
+  notificationEventSubscription   NotificationEventSubscription @relation(fields: [notificationEventSubscriptionId], references: [id], onDelete: Cascade)
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@id([notificationEventSubscriptionId, repositoryId])
+  @@index([repositoryId])
+  @@map("notification_event_subscription_repositories")
+}

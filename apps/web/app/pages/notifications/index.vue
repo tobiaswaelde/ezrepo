@@ -51,7 +51,7 @@
         shortcuts
       />
       <UButton
-        v-if="manageableRepositories.length > 0"
+        v-if="auth.user?.role === 'SYSTEM_ADMIN'"
         icon="i-lucide-plus"
         :label="$t('notifications.channels.add')"
         @click="openCreate"
@@ -74,20 +74,34 @@
       :data="items"
       :empty="$t('notifications.channels.empty')"
       :loading="loading"
-      :ui="{ th: 'first:pl-8 bg-neutral-100 dark:bg-neutral-950/20', td: 'first:pl-8' }"
+      :ui="{
+        th: 'first:pl-8 bg-neutral-100 data-[pinned=right]:bg-neutral-100 dark:bg-neutral-950/20 dark:data-[pinned=right]:bg-neutral-950',
+        td: 'first:pl-8 data-[pinned=right]:bg-default',
+      }"
     >
-      <template #repositoryName-cell="{ row }">
-        <span class="font-medium">{{ row.original.repositoryOwner }}/{{ row.original.repositoryName }}</span>
-      </template>
       <template #type-cell="{ row }">
         <UBadge color="neutral" variant="subtle">{{ typeLabel(row.original.type) }}</UBadge>
       </template>
       <template #target-cell="{ row }">
         <span class="text-sm text-muted">
           {{
-            row.original.browserRecipientUsername ? `@${row.original.browserRecipientUsername}` : row.original.urlScheme
+            row.original.browserRecipients.length > 0
+              ? row.original.browserRecipients.map(({ username }) => `@${username}`).join(', ')
+              : row.original.urlScheme
           }}
         </span>
+      </template>
+      <template #events-cell="{ row }">
+        <div class="flex max-w-96 flex-wrap gap-1">
+          <UBadge
+            v-for="event in row.original.eventSubscriptions"
+            :key="event.eventType"
+            color="neutral"
+            variant="outline"
+          >
+            {{ $t(`notifications.events.${event.eventType}`) }}
+          </UBadge>
+        </div>
       </template>
       <template #enabled-cell="{ row }">
         <UBadge variant="subtle" :color="row.original.enabled ? 'success' : 'neutral'">
@@ -107,7 +121,7 @@
             icon="i-lucide-send"
             variant="ghost"
             :aria-label="$t('notifications.channels.test')"
-            :disabled="isPending(row.original.id) || !canTest(row.original)"
+            :disabled="isPending(row.original.id) || !canTest()"
             :loading="isPending(`test:${row.original.id}`)"
             @click="testChannel(row.original)"
           />
@@ -153,6 +167,7 @@
       :channel="selectedChannel"
       :browser-push-available="push.available.value"
       :repositories="manageableRepositories"
+      :users="users"
       @saved="handleSaved"
     />
   </div>
@@ -184,6 +199,7 @@ const { isPending, run: runPendingAction } = usePendingActions();
 const dialogOpen = ref(false);
 const selectedChannel = ref<NotificationChannel | null>(null);
 const manageableRepositories = ref<Array<{ id: string; name: string; owner: string }>>([]);
+const users = ref<Array<{ id: string; username: string }>>([]);
 const channelTypes: NotificationChannelType[] = [
   'EMAIL',
   'GOTIFY',
@@ -193,10 +209,10 @@ const channelTypes: NotificationChannelType[] = [
   'BROWSER_PUSH',
 ];
 const columnDefinition = computed<ChannelColumn[]>(() => [
-  { accessorKey: 'repositoryName', header: t('notifications.columns.repository'), id: 'repositoryName' },
   { accessorKey: 'name', header: t('notifications.columns.name'), id: 'name' },
   { accessorKey: 'type', header: t('notifications.columns.type'), id: 'type' },
   { header: t('notifications.columns.target'), id: 'target' },
+  { header: t('notifications.columns.events'), id: 'events' },
   { accessorKey: 'enabled', header: t('notifications.columns.status'), id: 'enabled' },
   { accessorKey: 'updatedAt', header: t('notifications.columns.updatedAt'), id: 'updatedAt' },
   { enableHiding: false, header: t('notifications.columns.actions'), id: 'actions' },
@@ -221,18 +237,7 @@ const channelTable = useTable({
   defaultItemsPerPage: 10,
   endpoint: 'notification-channels/query',
   name: 'notification-channels',
-  staticFields: [
-    'id',
-    'repositoryId',
-    'repositoryOwner',
-    'repositoryName',
-    'type',
-    'urlScheme',
-    'browserRecipientUserId',
-    'browserRecipientUsername',
-    'enabled',
-    'canManage',
-  ],
+  staticFields: ['id', 'type', 'urlScheme', 'browserRecipients', 'eventSubscriptions', 'enabled', 'canManage'],
 });
 const {
   columnOrder,
@@ -258,8 +263,8 @@ function typeLabel(type: NotificationChannelType): string {
   return t(`notifications.channelTypes.${type}`);
 }
 
-function canTest(channel: NotificationChannel): boolean {
-  return channel.type !== 'BROWSER_PUSH' || channel.browserRecipientUserId === auth.user?.id;
+function canTest(): boolean {
+  return auth.user?.role === 'SYSTEM_ADMIN';
 }
 
 function openCreate(): void {
@@ -303,12 +308,17 @@ async function testChannel(channel: NotificationChannel): Promise<void> {
 }
 
 onMounted(async () => {
-  await Promise.all([
-    channelTable.initialize(),
-    push.refresh(),
-    api.notificationChannels.manageableRepositories().then(({ data }) => {
-      manageableRepositories.value = data;
-    }),
-  ]);
+  const requests: Promise<unknown>[] = [channelTable.initialize(), push.refresh()];
+  if (auth.user?.role === 'SYSTEM_ADMIN') {
+    requests.push(
+      api.notificationChannels.manageableRepositories().then(({ data }) => {
+        manageableRepositories.value = data;
+      }),
+      api.users.list().then(({ data }) => {
+        users.value = data.items.map(({ id, username }) => ({ id, username }));
+      }),
+    );
+  }
+  await Promise.all(requests);
 });
 </script>

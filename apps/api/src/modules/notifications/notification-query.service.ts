@@ -13,11 +13,7 @@ import type { AppAbility } from '../../casl/types.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../auth/types.js';
-import type {
-  NotificationChannelQueryDto,
-  NotificationDeliveryQueryDto,
-  NotificationRuleQueryDto,
-} from './dto/notification-query.dto.js';
+import type { NotificationChannelQueryDto, NotificationDeliveryQueryDto } from './dto/notification-query.dto.js';
 
 interface NotificationTypeMapBase extends BaseDelegateTypeMap {
   createInput: never;
@@ -36,16 +32,6 @@ export interface NotificationChannelTypeMap extends NotificationTypeMapBase {
   whereUniqueInput: Prisma.NotificationChannelWhereUniqueInput;
   scalarFieldEnum: Prisma.NotificationChannelScalarFieldEnum;
   aggregateInputType: Prisma.NotificationChannelAggregateArgs;
-}
-
-export interface NotificationRuleTypeMap extends NotificationTypeMapBase {
-  select: Prisma.NotificationRuleSelect;
-  include: Prisma.NotificationRuleInclude;
-  whereInput: Prisma.NotificationRuleWhereInput;
-  orderByWithRelationInput: Prisma.NotificationRuleOrderByWithRelationInput;
-  whereUniqueInput: Prisma.NotificationRuleWhereUniqueInput;
-  scalarFieldEnum: Prisma.NotificationRuleScalarFieldEnum;
-  aggregateInputType: Prisma.NotificationRuleAggregateArgs;
 }
 
 export interface NotificationDeliveryTypeMap extends NotificationTypeMapBase {
@@ -70,7 +56,7 @@ async function buildAbility(
   return abilityFactory.createForUser(user, memberships);
 }
 
-/** Query Kit adapter for repository-scoped notification channels. */
+/** Query Kit adapter for global notification channels. */
 @Injectable()
 export class NotificationChannelsQueryService extends QueryService<
   typeof PrismaService.prototype.notificationChannel,
@@ -99,12 +85,7 @@ export class NotificationChannelsQueryService extends QueryService<
   toQueryOptions(query: NotificationChannelQueryDto): QueryOptionsMap<NotificationChannelTypeMap>['query'] {
     const { search, where, ...options } = query;
     const searchWhere: Prisma.NotificationChannelWhereInput | undefined = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { repository: { name: { contains: search, mode: 'insensitive' } } },
-          ],
-        }
+      ? { name: { contains: search, mode: 'insensitive' } }
       : undefined;
     return {
       ...options,
@@ -114,51 +95,7 @@ export class NotificationChannelsQueryService extends QueryService<
   }
 }
 
-/** Query Kit adapter for repository-scoped notification rules. */
-@Injectable()
-export class NotificationRulesQueryService extends QueryService<
-  typeof PrismaService.prototype.notificationRule,
-  NotificationRuleTypeMap,
-  typeof PrismaService.prototype.notificationRule,
-  QueryOptionsMap<NotificationRuleTypeMap>,
-  AppAbility,
-  CaslSubject.NotificationRule
-> {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly abilityFactory: CaslAbilityFactory,
-  ) {
-    super(prisma.notificationRule, {
-      subject: CaslSubject.NotificationRule,
-      accessibleWhere: createCaslAccessibleWhere<AppAbility, CaslSubject.NotificationRule, CaslAction>({
-        action: CaslAction.Read,
-      }),
-    });
-  }
-
-  getReadAbility(user: AuthenticatedUser): Promise<AppAbility> {
-    return buildAbility(this.prisma, this.abilityFactory, user);
-  }
-
-  toQueryOptions(query: NotificationRuleQueryDto): QueryOptionsMap<NotificationRuleTypeMap>['query'] {
-    const { search, where, ...options } = query;
-    const searchWhere: Prisma.NotificationRuleWhereInput | undefined = search
-      ? {
-          OR: [
-            { workflowPattern: { contains: search, mode: 'insensitive' } },
-            { repository: { name: { contains: search, mode: 'insensitive' } } },
-          ],
-        }
-      : undefined;
-    return {
-      ...options,
-      where: searchWhere ? { AND: [where ?? {}, searchWhere] } : where,
-      orderBy: query.orderBy ?? [{ workflowPattern: 'asc' }, { id: 'asc' }],
-    };
-  }
-}
-
-/** Query Kit adapter for authorized workflow and test delivery history. */
+/** Query Kit adapter for system-administrator notification delivery history. */
 @Injectable()
 export class NotificationDeliveriesQueryService extends QueryService<
   typeof PrismaService.prototype.notificationDelivery,
@@ -190,8 +127,10 @@ export class NotificationDeliveriesQueryService extends QueryService<
       ? {
           OR: [
             { workflowRun: { workflowName: { contains: search, mode: 'insensitive' } } },
-            { notificationRule: { repository: { name: { contains: search, mode: 'insensitive' } } } },
-            { testChannel: { name: { contains: search, mode: 'insensitive' } } },
+            { pullRequest: { title: { contains: search, mode: 'insensitive' } } },
+            { issue: { title: { contains: search, mode: 'insensitive' } } },
+            { repository: { name: { contains: search, mode: 'insensitive' } } },
+            { notificationChannel: { name: { contains: search, mode: 'insensitive' } } },
           ],
         }
       : undefined;

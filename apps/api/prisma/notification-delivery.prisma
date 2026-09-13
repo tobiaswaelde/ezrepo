@@ -3,29 +3,35 @@ model NotificationDelivery {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  kind       NotificationDeliveryKind   @default(WORKFLOW_RUN)
-  status     NotificationDeliveryStatus @default(PENDING)
-  finalError String?                    @db.Text
-  nextAttemptAt DateTime?
+  kind             NotificationDeliveryKind   @default(EVENT)
+  eventType        NotificationEventType?
+  deduplicationKey String                     @db.VarChar(1024)
+  status           NotificationDeliveryStatus @default(PENDING)
+  finalError       String?                    @db.Text
+  nextAttemptAt    DateTime?
 
-  notificationRuleId String?           @db.Uuid
-  notificationRule   NotificationRule? @relation(fields: [notificationRuleId], references: [id], onDelete: Cascade)
+  notificationChannelId String              @db.Uuid
+  notificationChannel   NotificationChannel @relation(fields: [notificationChannelId], references: [id], onDelete: Cascade)
 
+  repositoryId  String?      @db.Uuid
+  repository    Repository?  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   workflowRunId String?      @db.Uuid
   workflowRun   WorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
-
-  testChannelId String?              @db.Uuid
-  testChannel   NotificationChannel? @relation("TestNotificationChannel", fields: [testChannelId], references: [id], onDelete: Cascade)
+  issueId       String?      @db.Uuid
+  issue         Issue?       @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  pullRequestId String?      @db.Uuid
+  pullRequest   PullRequest? @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
 
   requestedByUserId String? @db.Uuid
   requestedBy       User?   @relation("NotificationDeliveryRequester", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   attempts NotificationDeliveryAttempt[]
 
-  @@unique([notificationRuleId, workflowRunId])
+  @@unique([notificationChannelId, deduplicationKey])
   @@index([status, createdAt])
   @@index([status, nextAttemptAt])
-  @@index([testChannelId, createdAt])
+  @@index([repositoryId, createdAt])
+  @@index([eventType, createdAt])
   @@index([requestedByUserId, createdAt])
   @@map("notification_deliveries")
 }
