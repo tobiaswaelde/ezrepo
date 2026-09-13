@@ -652,6 +652,13 @@
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar"
   },
+  "pwa": {
+    "later": "Plus tard",
+    "update": "Mettre à jour",
+    "updateDescription": "Une nouvelle version d’ezRepo est disponible. Rechargez la page pour l’utiliser.",
+    "updateError": "La mise à jour n’a pas pu être activée. Vous pouvez réessayer sans quitter cette version.",
+    "updateTitle": "Mise à jour disponible"
+  },
   "changelog": {
     "title": "Changelog",
     "open": "Open changelog",

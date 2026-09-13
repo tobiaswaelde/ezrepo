@@ -652,6 +652,13 @@
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar"
   },
+  "pwa": {
+    "later": "Later",
+    "update": "Update",
+    "updateDescription": "A new version of ezRepo is ready. Reload to use it.",
+    "updateError": "The update could not be activated. You can retry without leaving this version.",
+    "updateTitle": "Update available"
+  },
   "changelog": {
     "title": "Changelog",
     "open": "Open changelog",

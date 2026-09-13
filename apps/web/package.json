@@ -7,13 +7,16 @@
     "dev": "nuxt dev --port 3000",
     "docker:build": "docker build -f Dockerfile -t ezrepo-web:local ../..",
     "e2e": "playwright test",
+    "e2e:pwa": "pnpm build && playwright test --config playwright.pwa.config.ts",
     "e2e:providers": "playwright test tests/e2e/providers.spec.ts",
+    "generate:pwa-assets": "pwa-assets-generator",
     "lint": "eslint app nuxt.config.ts --max-warnings=0",
     "test": "nuxt prepare && vitest run",
     "typecheck": "nuxt typecheck"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@vite-pwa/assets-generator": "^1.0.4",
     "typescript": "6.0.3",
     "vitest": "^5.0.0",
     "vue-tsc": "^3.3.11"
@@ -31,6 +34,7 @@
     "@querry-kit/nuxt": "^0.2.4",
     "@querry-kit/nuxt-ui": "^3.3.2",
     "@tanstack/table-core": "^8.21.3",
+    "@vite-pwa/nuxt": "^1.1.1",
     "@vueuse/core": "^14.4.0",
     "@vueuse/router": "^14.4.0",
     "axios": "1.20.0",

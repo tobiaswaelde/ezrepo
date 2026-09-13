@@ -652,6 +652,13 @@
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar"
   },
+  "pwa": {
+    "later": "Later",
+    "update": "Bijwerken",
+    "updateDescription": "Er staat een nieuwe versie van ezRepo klaar. Laad opnieuw om deze te gebruiken.",
+    "updateError": "De update kon niet worden geactiveerd. Je kunt het opnieuw proberen zonder deze versie te verlaten.",
+    "updateTitle": "Update beschikbaar"
+  },
   "changelog": {
     "title": "Changelog",
     "open": "Open changelog",

@@ -652,6 +652,13 @@
     "collapse": "Seitenleiste einklappen",
     "expand": "Seitenleiste ausklappen"
   },
+  "pwa": {
+    "later": "Später",
+    "update": "Aktualisieren",
+    "updateDescription": "Eine neue Version von ezRepo ist bereit. Neu laden, um sie zu verwenden.",
+    "updateError": "Das Update konnte nicht aktiviert werden. Du kannst es erneut versuchen, ohne diese Version zu verlassen.",
+    "updateTitle": "Update verfügbar"
+  },
   "changelog": {
     "title": "Änderungsprotokoll",
     "open": "Änderungsprotokoll öffnen",
