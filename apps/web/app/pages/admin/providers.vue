@@ -70,7 +70,7 @@
           {{ row.original.enabled ? $t('providers.enabled') : $t('providers.disabled') }}
         </UBadge>
       </template>
-      <template #webhook-cell="{ row }">
+      <template #id-cell="{ row }">
         <USkeleton v-if="webhookConfigurationsLoading" class="h-5 w-24" />
         <UBadge
           v-else-if="webhookConfiguration(row.original.id)"
@@ -195,7 +195,7 @@ const columnDefinition = computed<ProviderTableColumn[]>(() => [
   { accessorKey: 'providerType', header: t('providers.columns.type'), id: 'providerType' },
   { accessorKey: 'baseUrl', header: t('providers.columns.baseUrl'), id: 'baseUrl' },
   { accessorKey: 'enabled', header: t('providers.columns.status'), id: 'enabled' },
-  { header: t('providers.columns.webhook'), id: 'webhook' },
+  { accessorKey: 'id', header: t('providers.columns.webhook'), id: 'id' },
   { accessorKey: 'lastSyncAt', header: t('providers.columns.lastSync'), id: 'lastSyncAt' },
   { enableHiding: false, header: t('providers.columns.actions'), id: 'actions' },
 ]);

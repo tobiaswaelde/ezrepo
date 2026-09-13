@@ -17,6 +17,7 @@ test('provider account table opens an add dialog with structured native controls
   await page.addInitScript(() => window.localStorage.setItem('ezrepo.access-token', 'playwright-access-token'));
   await page.route(/\/api\/v1\/provider-accounts(?:\?.*)?$/, async (route) => {
     expect(route.request().url()).toContain('fields=');
+    expect(new URL(route.request().url()).searchParams.get('fields')).not.toContain('webhook');
     await route.fulfill({
       contentType: 'application/json',
       json: {
