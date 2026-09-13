@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.7
+
+### Patch Changes
+
+- 652b7ac: Refresh failed workflow runs, preserve synchronization cursors, and fully paginate provider results so resolved
+  failures leave Needs attention reliably.
+- 90d79c4: Expand the VitePress user guide and add ezRepo branding to the documentation landing page.
+
 ## 0.2.6
 
 ### Patch Changes
