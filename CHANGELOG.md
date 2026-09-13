@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.9
+
+### Patch Changes
+
+- e46a414: Keep the provider webhook status column from being requested as a persisted provider-account field.
+
 ## 0.2.8
 
 ### Patch Changes
