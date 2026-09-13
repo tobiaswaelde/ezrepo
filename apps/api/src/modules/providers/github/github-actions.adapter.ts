@@ -146,13 +146,18 @@ export class GitHubActionsAdapter implements ProviderAdapter {
     repository: ProviderRepositoryReference,
     updatedAfter?: Date,
   ): Promise<ProviderWorkflowRun[]> {
-    const query = new URLSearchParams({ per_page: '100' });
-    if (updatedAfter) query.set('created', `>=${updatedAfter.toISOString()}`);
-    const response = await this.request<{ workflow_runs: GitHubWorkflowRunResponse[] }>(
-      context,
-      `/repos/${repository.owner}/${repository.name}/actions/runs?${query}`,
-    );
-    return Promise.all(response.workflow_runs.map((run) => this.resolveWorkflowRun(context, repository, run)));
+    const runs: GitHubWorkflowRunResponse[] = [];
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({ page: String(page), per_page: '100' });
+      if (updatedAfter) query.set('created', `>=${updatedAfter.toISOString()}`);
+      const response = await this.request<{ workflow_runs: GitHubWorkflowRunResponse[] }>(
+        context,
+        `/repos/${repository.owner}/${repository.name}/actions/runs?${query}`,
+      );
+      runs.push(...response.workflow_runs);
+      if (response.workflow_runs.length < 100) break;
+    }
+    return Promise.all(runs.map((run) => this.resolveWorkflowRun(context, repository, run)));
   }
 
   async getWorkflowRun(

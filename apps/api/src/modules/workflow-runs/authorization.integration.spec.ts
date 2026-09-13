@@ -175,6 +175,21 @@ describe('workflow-run authorization integration', () => {
     },
   );
 
+  it('removes a failed provider run after the same run is refreshed as successful', async () => {
+    const ability = await runs.getReadAbility(users.viewer);
+
+    await expect(runs.findNeedsAttention<{ id: string }>({ select: { id: true } }, ability)).resolves.toEqual([
+      { id: visibleRunId },
+    ]);
+
+    await prisma.workflowRun.update({
+      data: { rawStatus: 'success', status: 'SUCCESS' },
+      where: { id: visibleRunId },
+    });
+
+    await expect(runs.findNeedsAttention<{ id: string }>({ select: { id: true } }, ability)).resolves.toEqual([]);
+  });
+
   it('keeps only actionable change-request failures after closure or a successful merge validation', async () => {
     const previousFailure = await prisma.workflowRun.findUniqueOrThrow({ where: { id: visibleRunId } });
     const mergeTime = new Date('2026-08-26T11:00:00.000Z');

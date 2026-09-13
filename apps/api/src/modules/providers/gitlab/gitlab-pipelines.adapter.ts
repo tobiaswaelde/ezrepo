@@ -143,11 +143,12 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     repository: ProviderRepositoryReference,
     updatedAfter?: Date,
   ): Promise<ProviderWorkflowRun[]> {
-    const query = new URLSearchParams({ per_page: '100', order_by: 'updated_at', sort: 'desc' });
-    if (updatedAfter) query.set('updated_after', updatedAfter.toISOString());
-    const pipelines = await this.request<GitLabPipeline[]>(
+    const parameters: Record<string, string> = { order_by: 'updated_at', sort: 'desc' };
+    if (updatedAfter) parameters.updated_after = updatedAfter.toISOString();
+    const pipelines = await this.listPages<GitLabPipeline>(
       context,
-      `/projects/${encodeURIComponent(repository.providerRepositoryId)}/pipelines?${query}`,
+      `/projects/${encodeURIComponent(repository.providerRepositoryId)}/pipelines`,
+      parameters,
     );
     return pipelines.map((pipeline) => this.toWorkflowRun(pipeline));
   }

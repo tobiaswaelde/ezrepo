@@ -173,9 +173,10 @@ describe('ProviderSyncService', () => {
     expect(prisma.workflow.delete).toHaveBeenCalledWith({ where: { id: 'legacy-workflow-id' } });
   });
 
-  it('refreshes only current active workflow contexts', async () => {
+  it('refreshes current active and failed workflow contexts', async () => {
     const repository = createRepository('repository');
     const refreshedApproval = { ...createWorkflowRun(), providerRunId: 'current-approval' };
+    const refreshedFailure = { ...createWorkflowRun(), providerRunId: 'current-failure', status: 'SUCCESS' as const };
     const prisma = {
       providerAccount: { update: jest.fn().mockResolvedValue(undefined) },
       repository: {
@@ -191,13 +192,16 @@ describe('ProviderSyncService', () => {
         findMany: jest.fn().mockResolvedValue([
           { awaitingApproval: false, providerRunId: 'new-success', status: 'SUCCESS' },
           { awaitingApproval: true, providerRunId: 'current-approval', status: 'QUEUED' },
+          { awaitingApproval: false, providerRunId: 'current-failure', status: 'FAILED' },
         ]),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         upsert: jest.fn(({ create }) => Promise.resolve({ id: 'run-id', ...create })),
       },
     };
     const adapter = {
-      getWorkflowRun: jest.fn().mockResolvedValue(refreshedApproval),
+      getWorkflowRun: jest.fn((_, __, providerRunId: string) =>
+        Promise.resolve(providerRunId === 'current-failure' ? refreshedFailure : refreshedApproval),
+      ),
       listWorkflowRuns: jest.fn().mockResolvedValue([]),
     };
     const service = new ProviderSyncService(
@@ -220,12 +224,18 @@ describe('ProviderSyncService', () => {
     expect(prisma.workflowRun.findMany).toHaveBeenCalledWith({
       distinct: ['workflowId', 'scopeKey'],
       orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
-      select: { awaitingApproval: true, changeRequestNumber: true, event: true, providerRunId: true, status: true },
+      select: { awaitingApproval: true, providerRunId: true, status: true },
       where: { repositoryId: repository.id },
     });
-    expect(adapter.getWorkflowRun).toHaveBeenCalledTimes(1);
+    expect(adapter.getWorkflowRun).toHaveBeenCalledTimes(2);
     expect(adapter.getWorkflowRun).toHaveBeenCalledWith(expect.anything(), repository, 'current-approval');
-    expect(prisma.workflowRun.upsert).toHaveBeenCalledTimes(1);
+    expect(adapter.getWorkflowRun).toHaveBeenCalledWith(expect.anything(), repository, 'current-failure');
+    expect(prisma.workflowRun.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.workflowRun.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ providerRunId: 'current-failure', status: 'SUCCESS' }),
+      }),
+    );
   });
 
   it('refreshes current failed pull-request runs missing their change-request context', async () => {
@@ -255,8 +265,6 @@ describe('ProviderSyncService', () => {
           .mockResolvedValueOnce([
             {
               awaitingApproval: false,
-              changeRequestNumber: null,
-              event: 'pull_request',
               providerRunId: 'missing-change-request',
               status: 'FAILED',
             },
@@ -462,6 +470,100 @@ describe('ProviderSyncService', () => {
       expect.objectContaining({ name: 'renamed', owner: 'new-owner' }),
       undefined,
     );
+  });
+
+  it('records the synchronization start as the next incremental cursor', async () => {
+    jest.useFakeTimers();
+    const synchronizationStartedAt = new Date('2026-09-13T10:00:00.000Z');
+    const synchronizationFinishedAt = new Date('2026-09-13T10:05:00.000Z');
+    jest.setSystemTime(synchronizationStartedAt);
+    const repository = createRepository('repository');
+    const prisma = {
+      providerAccount: { update: jest.fn().mockResolvedValue(undefined) },
+      repository: {
+        findMany: jest.fn().mockResolvedValue([repository]),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      workflowRun: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const adapter = {
+      getWorkflowRun: jest.fn(),
+      listWorkflowRuns: jest.fn().mockImplementation(async () => {
+        jest.setSystemTime(synchronizationFinishedAt);
+        return [];
+      }),
+    };
+    const service = new ProviderSyncService(
+      prisma as unknown as PrismaService,
+      { get: jest.fn().mockReturnValue(adapter) } as unknown as ProviderAdapterRegistry,
+      { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
+      { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
+      { shouldTrack: jest.fn() } as unknown as WorkflowFilterService,
+      { evaluateRulesForRun: jest.fn() } as unknown as NotificationsService,
+      {
+        beginProviderSync: jest.fn().mockReturnValue('sync-id'),
+        finishProviderSync: jest.fn(),
+        refreshRunningWorkflowCount: jest.fn(),
+        updateProviderSync: jest.fn(),
+      } as unknown as SystemStatusService,
+    );
+
+    try {
+      await service.syncEnabledRepositories();
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(prisma.repository.update).toHaveBeenCalledWith({
+      data: { lastSyncAt: synchronizationStartedAt },
+      where: { id: repository.id },
+    });
+    expect(prisma.providerAccount.update).toHaveBeenCalledWith({
+      data: { lastSyncAt: synchronizationStartedAt, lastSyncError: null },
+      where: { id: repository.providerAccount.id },
+    });
+  });
+
+  it('does not advance the workflow cursor for a work-item-only synchronization', async () => {
+    const repository = createRepository('repository');
+    const prisma = {
+      providerAccount: { update: jest.fn().mockResolvedValue(undefined) },
+      repository: {
+        findFirst: jest.fn().mockResolvedValue(repository),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+    };
+    const workItems = { synchronize: jest.fn().mockResolvedValue(undefined) };
+    const service = new ProviderSyncService(
+      prisma as unknown as PrismaService,
+      { get: jest.fn().mockReturnValue({}) } as unknown as ProviderAdapterRegistry,
+      { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
+      { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
+      { shouldTrack: jest.fn() } as unknown as WorkflowFilterService,
+      { evaluateRulesForRun: jest.fn() } as unknown as NotificationsService,
+      {
+        beginProviderSync: jest.fn().mockReturnValue('sync-id'),
+        finishProviderSync: jest.fn(),
+        refreshRunningWorkflowCount: jest.fn(),
+        updateProviderSync: jest.fn(),
+      } as unknown as SystemStatusService,
+      workItems as never,
+    );
+
+    await expect(service.syncRepositoryById(repository.id, ['ISSUES'])).resolves.toBe(true);
+
+    expect(workItems.synchronize).toHaveBeenCalledWith(
+      expect.anything(),
+      repository,
+      expect.anything(),
+      ['ISSUES'],
+      undefined,
+    );
+    expect(prisma.repository.update).not.toHaveBeenCalled();
+    expect(prisma.providerAccount.update).toHaveBeenCalledWith({
+      data: { lastSyncAt: expect.any(Date), lastSyncError: null },
+      where: { id: repository.providerAccount.id },
+    });
   });
 });
 

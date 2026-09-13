@@ -56,6 +56,36 @@ describe('GitHubActionsAdapter', () => {
     );
   });
 
+  it('paginates more than 100 incremental workflow runs', async () => {
+    const workflowRun = (id: number) => ({
+      conclusion: 'success',
+      created_at: '2026-09-13T10:00:00Z',
+      html_url: `https://github.com/octo/ezrepo/actions/runs/${id}`,
+      id,
+      name: 'CI',
+      pull_requests: [],
+      run_started_at: '2026-09-13T10:00:01Z',
+      status: 'completed',
+      updated_at: '2026-09-13T10:01:00Z',
+      workflow_id: 17,
+    });
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ workflow_runs: Array.from({ length: 100 }, (_, index) => workflowRun(index)) })),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow_runs: [workflowRun(100)] })));
+
+    await expect(
+      new GitHubActionsAdapter(fetchFn).listWorkflowRuns(
+        context,
+        { providerRepositoryId: '1', owner: 'octo', name: 'ezrepo' },
+        new Date('2026-09-13T09:00:00Z'),
+      ),
+    ).resolves.toHaveLength(101);
+    expect(fetchFn).toHaveBeenNthCalledWith(2, expect.stringContaining('page=2&per_page=100'), expect.anything());
+  });
+
   it('resolves renamed repository metadata through the previous repository path', async () => {
     const fetchFn = jest.fn().mockResolvedValue(
       new Response(

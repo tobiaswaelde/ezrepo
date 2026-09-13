@@ -158,10 +158,7 @@ export class ForgejoActionsAdapter implements ProviderAdapter {
 
       const totalCountAllowsAnotherPage = data.total_count === undefined || page * FORGEJO_PAGE_SIZE < data.total_count;
       hasMoreRecentRuns =
-        Boolean(updatedAfter) &&
-        pageRuns.length === FORGEJO_PAGE_SIZE &&
-        recentRuns.length > 0 &&
-        totalCountAllowsAnotherPage;
+        pageRuns.length === FORGEJO_PAGE_SIZE && recentRuns.length === pageRuns.length && totalCountAllowsAnotherPage;
       page += 1;
     } while (hasMoreRecentRuns);
 

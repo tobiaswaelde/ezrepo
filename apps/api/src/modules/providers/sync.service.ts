@@ -140,6 +140,7 @@ export class ProviderSyncService {
     scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
     reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
+    const synchronizationStartedAt = new Date();
     this.status.updateProviderSync(progress.id, {
       phase: 'FETCHING_WORKFLOWS',
       repositoriesCompleted: progress.repositoriesCompleted,
@@ -158,7 +159,7 @@ export class ProviderSyncService {
       };
       await this.workItems?.synchronize(context, refreshedRepository, adapter, scopes, reportProgress);
       if (!scopes.includes('WORKFLOWS')) {
-        await this.markSynchronizationSuccess(repository);
+        await this.markSynchronizationSuccess(repository, synchronizationStartedAt, false);
         return;
       }
       await reportProgress?.({ current: null, phase: 'FETCHING_WORKFLOWS', total: null });
@@ -170,19 +171,16 @@ export class ProviderSyncService {
       const currentRuns = await this.prisma.workflowRun.findMany({
         distinct: ['workflowId', 'scopeKey'],
         orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
-        select: { awaitingApproval: true, changeRequestNumber: true, event: true, providerRunId: true, status: true },
+        select: { awaitingApproval: true, providerRunId: true, status: true },
         where: {
           repositoryId: repository.id,
         },
       });
-      const activeRuns = currentRuns.filter(
-        (run) => run.awaitingApproval || run.status === 'QUEUED' || run.status === 'RUNNING',
-      );
-      const failedPullRequestRunsWithoutContext = currentRuns.filter(
-        (run) => run.status === 'FAILED' && run.event === 'pull_request' && !run.changeRequestNumber,
+      const runsToRefresh = currentRuns.filter(
+        (run) => run.awaitingApproval || run.status === 'FAILED' || run.status === 'QUEUED' || run.status === 'RUNNING',
       );
       const refreshedRuns: (ProviderWorkflowRun | null)[] = [];
-      for (const { providerRunId } of [...activeRuns, ...failedPullRequestRunsWithoutContext])
+      for (const { providerRunId } of runsToRefresh)
         refreshedRuns.push(await adapter.getWorkflowRun(context, refreshedRepository, providerRunId));
       const runsByProviderId = new Map(discoveredRuns.map((run) => [run.providerRunId, run]));
       for (const run of refreshedRuns) if (run) runsByProviderId.set(run.providerRunId, run);
@@ -209,7 +207,7 @@ export class ProviderSyncService {
       }
       await reportProgress?.({ current: null, phase: 'REFRESHING_CHANGE_REQUESTS', total: null });
       await this.refreshChangeRequestStates(context, refreshedRepository, adapter);
-      await this.markSynchronizationSuccess(repository);
+      await this.markSynchronizationSuccess(repository, synchronizationStartedAt);
     } catch (error) {
       await this.prisma.providerAccount.update({
         where: { id: repository.providerAccount.id },
@@ -225,9 +223,13 @@ export class ProviderSyncService {
     }
   }
 
-  private async markSynchronizationSuccess(repository: { id: string; providerAccount: { id: string } }): Promise<void> {
-    const lastSyncAt = new Date();
-    await this.prisma.repository.update({ where: { id: repository.id }, data: { lastSyncAt } });
+  private async markSynchronizationSuccess(
+    repository: { id: string; providerAccount: { id: string } },
+    lastSyncAt: Date,
+    updateWorkflowCursor = true,
+  ): Promise<void> {
+    if (updateWorkflowCursor)
+      await this.prisma.repository.update({ where: { id: repository.id }, data: { lastSyncAt } });
     await this.prisma.providerAccount.update({
       where: { id: repository.providerAccount.id },
       data: { lastSyncAt, lastSyncError: null },

@@ -63,6 +63,35 @@ describe('GiteaActionsAdapter', () => {
     expect(fetchFn).toHaveBeenCalledTimes(5);
   });
 
+  it('paginates more than 100 incremental workflow runs', async () => {
+    const workflowRun = (id: number) => ({
+      completed_at: '2026-09-13T10:01:00Z',
+      created_at: '2026-09-13T10:00:00Z',
+      html_url: `https://gitea.example.test/ezrepo/ezrepo/actions/runs/${id}`,
+      id,
+      name: 'CI',
+      status: 'success',
+      updated_at: '2026-09-13T10:01:00Z',
+      workflow_id: 17,
+    });
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            total_count: 101,
+            workflow_runs: Array.from({ length: 100 }, (_, index) => workflowRun(index)),
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ total_count: 101, workflow_runs: [workflowRun(100)] })));
+
+    await expect(
+      new GiteaActionsAdapter(fetchFn).listWorkflowRuns(context, repository, new Date('2026-09-13T09:00:00Z')),
+    ).resolves.toHaveLength(101);
+    expect(fetchFn).toHaveBeenNthCalledWith(2, expect.stringContaining('limit=100&page=2'), expect.anything());
+  });
+
   it('reports unsupported Actions servers without attempting a provider write', async () => {
     const adapter = new GiteaActionsAdapter(jest.fn().mockResolvedValue(new Response(null, { status: 404 })));
     await expect(adapter.listWorkflowRuns(context, repository)).rejects.toBeInstanceOf(GiteaActionsUnsupportedError);

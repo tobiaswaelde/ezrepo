@@ -94,7 +94,7 @@ describe('ForgejoActionsAdapter', () => {
     ]);
   });
 
-  it('paginates incremental runs until reaching the last synchronization time', async () => {
+  it('paginates more than 100 incremental workflow runs', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => ({
       created: '2026-08-01T10:00:00Z',
       html_url: `https://forgejo.example.test/org/repo/actions/runs/${index + 1}`,
@@ -105,11 +105,11 @@ describe('ForgejoActionsAdapter', () => {
     }));
     const secondPage = [
       {
-        created: '2026-08-01T09:00:00Z',
+        created: '2026-08-01T10:01:00Z',
         html_url: 'https://forgejo.example.test/org/repo/actions/runs/101',
         id: 101,
         status: 'success',
-        updated: '2026-08-01T09:05:00Z',
+        updated: '2026-08-01T10:06:00Z',
         workflow_id: 'ci.yml',
       },
     ];
@@ -124,7 +124,7 @@ describe('ForgejoActionsAdapter', () => {
         { providerRepositoryId: '1', owner: 'org', name: 'repo' },
         new Date('2026-08-01T10:00:00Z'),
       ),
-    ).resolves.toHaveLength(100);
+    ).resolves.toHaveLength(101);
     expect(fetchFn).toHaveBeenNthCalledWith(2, expect.stringContaining('page=2&limit=100'), expect.anything());
   });
   it('loads current repository metadata through the stable Forgejo repository ID', async () => {

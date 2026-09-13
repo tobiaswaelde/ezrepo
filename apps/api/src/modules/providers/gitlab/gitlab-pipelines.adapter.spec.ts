@@ -56,6 +56,32 @@ describe('GitLabPipelinesAdapter', () => {
     expect(fetchFn).toHaveBeenCalledWith(expect.stringContaining('/api/v4/projects'), expect.anything());
   });
 
+  it('paginates more than 100 incremental pipelines', async () => {
+    const pipeline = (id: number) => ({
+      created_at: '2026-09-13T10:00:00Z',
+      duration: 60,
+      finished_at: '2026-09-13T10:01:00Z',
+      id,
+      started_at: '2026-09-13T10:00:00Z',
+      status: 'success',
+      updated_at: '2026-09-13T10:01:00Z',
+      web_url: `https://gitlab.example.test/group/ezrepo/-/pipelines/${id}`,
+    });
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(Array.from({ length: 100 }, (_, index) => pipeline(index)))))
+      .mockResolvedValueOnce(new Response(JSON.stringify([pipeline(100)])));
+
+    await expect(
+      new GitLabPipelinesAdapter(fetchFn).listWorkflowRuns(
+        context,
+        { providerRepositoryId: '1', owner: 'group', name: 'ezrepo' },
+        new Date('2026-09-13T09:00:00Z'),
+      ),
+    ).resolves.toHaveLength(101);
+    expect(fetchFn).toHaveBeenNthCalledWith(2, expect.stringContaining('page=2&per_page=100'), expect.anything());
+  });
+
   it('loads current project metadata through the stable GitLab project ID', async () => {
     const fetchFn = jest.fn().mockResolvedValue(
       new Response(

@@ -55,6 +55,7 @@ interface GiteaWorkflowRun {
 }
 
 interface GiteaWorkflowRunsResponse {
+  total_count?: number;
   workflow_runs?: GiteaWorkflowRun[];
 }
 
@@ -126,12 +127,24 @@ export class GiteaActionsAdapter implements ProviderAdapter {
   async listWorkflowRuns(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
+    updatedAfter?: Date,
   ): Promise<ProviderWorkflowRun[]> {
-    const data = await this.actionsRequest<GiteaWorkflowRunsResponse>(
-      context,
-      `/repos/${repository.owner}/${repository.name}/actions/runs?limit=100`,
-    );
-    return (data.workflow_runs ?? []).map((run) => this.toWorkflowRun(run));
+    const runs: GiteaWorkflowRun[] = [];
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({ limit: '100', page: String(page) });
+      const data = await this.actionsRequest<GiteaWorkflowRunsResponse>(
+        context,
+        `/repos/${repository.owner}/${repository.name}/actions/runs?${query}`,
+      );
+      const pageRuns = data.workflow_runs ?? [];
+      const recentRuns = updatedAfter ? pageRuns.filter((run) => new Date(run.updated_at) >= updatedAfter) : pageRuns;
+      runs.push(...recentRuns);
+
+      const totalCountAllowsAnotherPage = data.total_count === undefined || page * 100 < data.total_count;
+      const reachedSynchronizationBoundary = Boolean(updatedAfter) && recentRuns.length < pageRuns.length;
+      if (pageRuns.length < 100 || !totalCountAllowsAnotherPage || reachedSynchronizationBoundary) break;
+    }
+    return runs.map((run) => this.toWorkflowRun(run));
   }
 
   async getWorkflowRun(
