@@ -1,0 +1,26 @@
+/**
+ * A destination configured for one tracked repository.
+ *
+ * The complete Apprise URL is encrypted because it can contain credentials.
+ * Only its scheme is retained as safe display metadata.
+ */
+model NotificationChannel {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name                    String  @db.VarChar(255)
+  enabled                 Boolean @default(true)
+  encryptedUrl            String? @db.Text
+  urlScheme               String? @db.VarChar(64)
+  requiresReconfiguration Boolean @default(false)
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  ruleLinks    NotificationRuleChannel[]
+  deliveryAttempts NotificationDeliveryAttempt[]
+
+  @@unique([repositoryId, name])
+  @@index([repositoryId, enabled])
+  @@map("notification_channels")
+}

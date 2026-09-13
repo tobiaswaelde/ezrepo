@@ -1,0 +1,6 @@
+enum ProviderType {
+  GITHUB
+  GITLAB
+  FORGEJO
+  GITEA
+}

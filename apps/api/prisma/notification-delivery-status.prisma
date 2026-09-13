@@ -1,0 +1,5 @@
+enum NotificationDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}

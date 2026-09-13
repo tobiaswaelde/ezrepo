@@ -1,0 +1,4 @@
+enum RepositoryRole {
+  VIEWER
+  MANAGER
+}

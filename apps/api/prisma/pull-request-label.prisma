@@ -1,0 +1,10 @@
+model PullRequestLabel {
+  pullRequestId String      @db.Uuid
+  pullRequest   PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  labelId       String      @db.Uuid
+  label         WorkItemLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([pullRequestId, labelId])
+  @@index([labelId])
+  @@map("pull_request_labels")
+}

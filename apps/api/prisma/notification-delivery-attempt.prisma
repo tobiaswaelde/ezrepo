@@ -1,0 +1,18 @@
+model NotificationDeliveryAttempt {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+
+  attempt       Int
+  deliveredAt   DateTime?
+  error         String? @db.Text
+
+  notificationDeliveryId String               @db.Uuid
+  notificationDelivery   NotificationDelivery @relation(fields: [notificationDeliveryId], references: [id], onDelete: Cascade)
+
+  notificationChannelId String              @db.Uuid
+  notificationChannel   NotificationChannel @relation(fields: [notificationChannelId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationDeliveryId, notificationChannelId, attempt], map: "notification_delivery_attempts_notificationDeliveryId_notificat")
+  @@index([notificationChannelId, createdAt], map: "notification_delivery_attempts_notificationChannelId_createdAt_")
+  @@map("notification_delivery_attempts")
+}

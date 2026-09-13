@@ -1,0 +1,20 @@
+model WorkItemLabel {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providerLabelId String? @db.VarChar(255)
+  name            String  @db.VarChar(255)
+  normalizedName  String  @db.VarChar(255)
+  color           String? @db.VarChar(32)
+  description     String? @db.Text
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  issues       IssueLabel[]
+  pullRequests PullRequestLabel[]
+
+  @@unique([repositoryId, normalizedName])
+  @@index([repositoryId, name])
+  @@map("work_item_labels")
+}

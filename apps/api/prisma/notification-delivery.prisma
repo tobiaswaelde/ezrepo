@@ -1,0 +1,22 @@
+model NotificationDelivery {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  status     NotificationDeliveryStatus @default(PENDING)
+  finalError String?                    @db.Text
+  nextAttemptAt DateTime?
+
+  notificationRuleId String           @db.Uuid
+  notificationRule   NotificationRule @relation(fields: [notificationRuleId], references: [id], onDelete: Cascade)
+
+  workflowRunId String      @db.Uuid
+  workflowRun   WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+
+  attempts NotificationDeliveryAttempt[]
+
+  @@unique([notificationRuleId, workflowRunId])
+  @@index([status, createdAt])
+  @@index([status, nextAttemptAt])
+  @@map("notification_deliveries")
+}

@@ -1,0 +1,36 @@
+model PullRequest {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providerPullRequestId String                    @db.VarChar(255)
+  number                String                    @db.VarChar(255)
+  title                 String                    @db.VarChar(1024)
+  body                  String?                   @db.Text
+  state                 PullRequestState
+  draft                 Boolean                   @default(false)
+  sourceBranch          String                    @db.VarChar(1024)
+  targetBranch          String                    @db.VarChar(1024)
+  url                   String                    @db.VarChar(2048)
+  providerCreatedAt     DateTime
+  providerUpdatedAt     DateTime
+  closedAt              DateTime?
+  mergedAt              DateTime?
+  workflowStatus        PullRequestWorkflowStatus @default(UNKNOWN)
+  workflowApprovalRequired Boolean                @default(false)
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  authorId     String?       @db.Uuid
+  author       ProviderActor? @relation("PullRequestAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  assignees    PullRequestAssignee[]
+  labels       PullRequestLabel[]
+  workflowRuns WorkflowRun[]
+
+  @@unique([repositoryId, providerPullRequestId])
+  @@unique([repositoryId, number])
+  @@index([repositoryId, state, providerUpdatedAt])
+  @@index([repositoryId, workflowStatus, workflowApprovalRequired])
+  @@index([authorId])
+  @@map("pull_requests")
+}

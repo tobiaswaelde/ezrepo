@@ -1,9 +1,3 @@
-enum RepositorySyncRequestStatus {
-  PENDING
-  RUNNING
-  FAILED
-}
-
 model RepositorySyncRequest {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now())

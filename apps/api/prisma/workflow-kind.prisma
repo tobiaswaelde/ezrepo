@@ -1,0 +1,4 @@
+enum WorkflowKind {
+  STANDARD
+  DEPENDABOT_INTERNAL
+}

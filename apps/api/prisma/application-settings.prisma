@@ -1,9 +1,3 @@
-enum DefaultDateTimeFormat {
-  LOCALE_SHORT
-  LOCALE_MEDIUM
-  ISO
-}
-
 model ApplicationSettings {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now())

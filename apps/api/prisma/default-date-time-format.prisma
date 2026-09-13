@@ -1,0 +1,5 @@
+enum DefaultDateTimeFormat {
+  LOCALE_SHORT
+  LOCALE_MEDIUM
+  ISO
+}

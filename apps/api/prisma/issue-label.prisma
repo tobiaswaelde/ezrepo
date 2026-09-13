@@ -1,0 +1,10 @@
+model IssueLabel {
+  issueId String @db.Uuid
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  labelId String @db.Uuid
+  label   WorkItemLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, labelId])
+  @@index([labelId])
+  @@map("issue_labels")
+}

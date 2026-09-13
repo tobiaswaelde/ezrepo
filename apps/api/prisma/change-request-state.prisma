@@ -1,0 +1,6 @@
+enum ChangeRequestState {
+  UNKNOWN
+  OPEN
+  CLOSED
+  MERGED
+}

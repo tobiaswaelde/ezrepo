@@ -1,0 +1,5 @@
+enum PullRequestState {
+  OPEN
+  CLOSED
+  MERGED
+}

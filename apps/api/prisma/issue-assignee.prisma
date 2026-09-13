@@ -1,0 +1,10 @@
+model IssueAssignee {
+  issueId String @db.Uuid
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  actorId String @db.Uuid
+  actor   ProviderActor @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, actorId])
+  @@index([actorId])
+  @@map("issue_assignees")
+}

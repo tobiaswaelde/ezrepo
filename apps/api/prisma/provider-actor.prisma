@@ -1,0 +1,22 @@
+model ProviderActor {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providerActorId String  @db.VarChar(255)
+  username        String  @db.VarChar(255)
+  displayName     String? @db.VarChar(255)
+  avatarUrl       String? @db.VarChar(2048)
+  url             String? @db.VarChar(2048)
+
+  providerAccountId String          @db.Uuid
+  providerAccount   ProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
+  authoredIssues     Issue[]         @relation("IssueAuthor")
+  authoredPullRequests PullRequest[] @relation("PullRequestAuthor")
+  issueAssignments   IssueAssignee[]
+  pullRequestAssignments PullRequestAssignee[]
+
+  @@unique([providerAccountId, providerActorId])
+  @@index([providerAccountId, username])
+  @@map("provider_actors")
+}

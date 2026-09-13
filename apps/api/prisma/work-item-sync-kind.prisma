@@ -1,0 +1,4 @@
+enum WorkItemSyncKind {
+  ISSUE
+  PULL_REQUEST
+}

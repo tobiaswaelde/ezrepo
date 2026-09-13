@@ -1,10 +1,3 @@
-enum ProviderType {
-  GITHUB
-  GITLAB
-  FORGEJO
-  GITEA
-}
-
 model ProviderAccount {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now())

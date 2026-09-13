@@ -1,0 +1,8 @@
+enum PullRequestWorkflowStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+  UNKNOWN
+}
