@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6
+
+### Patch Changes
+
+- b03e7ba: Add pull-request tracking with workflow status and provider approval visibility.
+- b03e7ba: Add permission-aware read-only issue synchronization, filtering, summaries, and detail views.
+- 42c2077: Split every Prisma model and enum into its own schema file.
+- 17fd0e0: Add a permission-aware repository synchronization jobs console and group the sidebar navigation.
+
 ## 0.2.5
 
 ### Patch Changes
