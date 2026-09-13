@@ -27,6 +27,36 @@ export default defineNuxtConfig({
     fallback: 'dark',
     preference: 'dark',
   },
+  icon: {
+    aliases: {
+      'tabler-pin-off': 'tabler:pinned-off',
+    },
+    collections: ['lucide', 'simple-icons', 'tabler'],
+    fallbackToApi: false,
+    provider: 'none',
+    serverBundle: false,
+    clientBundle: {
+      icons: [
+        'tabler:adjustments',
+        'tabler:arrows-sort',
+        'tabler:cancel',
+        'tabler:device-desktop',
+        'tabler:filter',
+        'tabler:filter-2',
+        'tabler:layers-intersect-2',
+        'tabler:layers-union',
+        'tabler:moon',
+        'tabler:pin',
+        'tabler:pinned-off',
+        'tabler:sort-ascending',
+        'tabler:sort-descending',
+        'tabler:sun',
+      ],
+      scan: {
+        globInclude: ['app/**', 'node_modules/@nuxt/ui/dist/**', 'node_modules/@querry-kit/nuxt-ui/dist/**'],
+      },
+    },
+  },
   i18n: {
     detectBrowserLanguage: {
       cookieKey: 'ezrepo-locale',

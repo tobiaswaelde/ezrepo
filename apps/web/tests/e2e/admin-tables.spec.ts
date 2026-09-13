@@ -7,8 +7,21 @@ async function expectActionTooltip(page: Page, trigger: Locator, text: string): 
   await page.mouse.move(0, 0);
 }
 
+/** Verify that an icon has locally bundled SVG mask data. */
+async function expectBundledIcon(icon: Locator): Promise<void> {
+  await expect(icon).toBeVisible();
+  await expect
+    .poll(() => icon.evaluate((element) => getComputedStyle(element).getPropertyValue('--svg')))
+    .toContain('data:image/svg+xml');
+}
+
 /** Verify that repository and user administration share the full Query Kit table layout. */
 test('repository and user administration render full-page Query Kit tables', async ({ page }, testInfo) => {
+  const externalIconRequests: string[] = [];
+  await page.route(/https?:\/\/(?:api\.iconify\.design|cdn\.jsdelivr\.net|unpkg\.com)\/.*/, async (route) => {
+    externalIconRequests.push(route.request().url());
+    await route.abort();
+  });
   let releaseRepositoryUpdate: (() => void) | undefined;
   const repositoryUpdateResponse = new Promise<void>((resolve) => {
     releaseRepositoryUpdate = resolve;
@@ -75,6 +88,10 @@ test('repository and user administration render full-page Query Kit tables', asy
 
   await page.goto('/repositories');
 
+  await expectBundledIcon(page.locator('.i-lucide\\:git-branch').first());
+  await expectBundledIcon(page.locator('.i-simple-icons\\:github').first());
+  await expectBundledIcon(page.locator('.i-tabler\\:adjustments').first());
+
   const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' });
   const repositoryNavigation = primaryNavigation.getByRole('link', { name: 'Repositories' });
   await expect(repositoryNavigation).toHaveAttribute('href', '/repositories');
@@ -131,6 +148,7 @@ test('repository and user administration render full-page Query Kit tables', asy
   await expect(page.getByText('Table options', { exact: true })).toBeVisible();
 
   await page.screenshot({ path: testInfo.outputPath('user-table.png'), fullPage: true });
+  expect(externalIconRequests).toEqual([]);
 });
 
 /** Verify that repository discovery supports searching and selecting multiple repositories. */
