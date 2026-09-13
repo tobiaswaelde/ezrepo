@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+### Patch Changes
+
+- 0a600a5: Keep the repository webhook status column out of API field projections.
+
 ## 0.4.0
 
 ### Minor Changes
