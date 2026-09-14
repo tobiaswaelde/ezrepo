@@ -90,12 +90,13 @@ test('hides system administration navigation from viewers', async ({ page }) => 
   await expect(page.getByText('No repository health data is available for this period.')).toBeVisible();
 });
 
-test('renders dashboard values, reloads for range filters, and presents request errors', async ({ page }) => {
+test('renders dashboard values, reloads for range filters, and presents request errors', async ({ page }, testInfo) => {
   await mockDashboard(page, 'SYSTEM_ADMIN');
   let failDashboardRequest = false;
   const repositoryUrls: string[] = [];
   const summaryUrls: string[] = [];
   const trendUrls: string[] = [];
+  const pullRequestUrls: string[] = [];
   await page.route('**/api/v1/dashboard/failures', (route) =>
     failDashboardRequest
       ? route.abort('failed')
@@ -122,6 +123,26 @@ test('renders dashboard values, reloads for range filters, and presents request 
       ],
     });
   });
+  await page.route('**/api/v1/pull-requests/filter-options', (route) =>
+    route.fulfill({ json: { assignees: [], authors: [], labels: [], milestones: [] } }),
+  );
+  await page.route(/\/api\/v1\/pull-requests(?:\?.*)?$/, (route) => {
+    pullRequestUrls.push(route.request().url());
+    return route.fulfill({
+      json: {
+        items: [],
+        meta: { hasNextPage: false, hasPrevPage: false, itemCount: 0, page: 1, pageCount: 0, perPage: 25 },
+      },
+    });
+  });
+  await page.route(/\/api\/v1\/repositories(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        meta: { hasNextPage: false, hasPrevPage: false, itemCount: 0, page: 1, pageCount: 0, perPage: 1_000 },
+      },
+    }),
+  );
 
   await page.goto('/');
 
@@ -135,10 +156,49 @@ test('renders dashboard values, reloads for range filters, and presents request 
   await expect(
     page.getByRole('region', { name: 'Workflow health summary' }).getByText('Awaiting approval', { exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: 'View workflows' })).toHaveAttribute(
+  const workflowSummary = page.getByRole('region', { name: 'Workflow health summary' });
+  await expect(workflowSummary.getByRole('link').filter({ hasText: 'Success rate' })).toHaveAttribute(
+    'href',
+    '/workflow-runs',
+  );
+  await expect(workflowSummary.getByRole('link').filter({ hasText: 'Failing now' })).toHaveAttribute(
+    'href',
+    '/workflow-runs/needs-attention',
+  );
+  await expect(workflowSummary.getByRole('link').filter({ hasText: 'Awaiting approval' })).toHaveAttribute(
     'href',
     '/workflows/awaiting-approval',
   );
+  await expect(workflowSummary.getByRole('link').filter({ hasText: 'Median duration' })).toHaveAttribute(
+    'href',
+    '/workflow-runs',
+  );
+  await expect(workflowSummary.getByRole('link').filter({ hasText: 'Total runtime' })).toHaveAttribute(
+    'href',
+    '/workflow-runs',
+  );
+  await expect(workflowSummary.getByRole('link').filter({ hasText: 'Active runs' })).toHaveAttribute(
+    'href',
+    '/workflow-runs?preset=active',
+  );
+  const workSummary = page.getByRole('region', { name: 'Work overview' });
+  await expect(workSummary.getByRole('link').filter({ hasText: 'Open issues' })).toHaveAttribute(
+    'href',
+    '/issues?preset=open',
+  );
+  await expect(workSummary.getByRole('link').filter({ hasText: 'Stale for 30 days' })).toHaveAttribute(
+    'href',
+    '/issues?preset=stale',
+  );
+  await expect(workSummary.getByRole('link').filter({ hasText: 'Open pull requests' })).toHaveAttribute(
+    'href',
+    '/pull-requests?preset=open',
+  );
+  await expect(workSummary.getByRole('link').filter({ hasText: 'Workflow approval required' })).toHaveAttribute(
+    'href',
+    '/pull-requests?preset=approval-required',
+  );
+  await page.screenshot({ path: testInfo.outputPath('dashboard-kpi-links.png'), fullPage: true });
   await expect(page.getByRole('region', { name: 'Workflow health summary' }).getByText('50 %')).toBeVisible();
   await expect(page.getByText('Total runtime')).toBeVisible();
   await expect(page.getByText('90 min', { exact: true })).toBeVisible();
@@ -197,4 +257,31 @@ test('renders dashboard values, reloads for range filters, and presents request 
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
     .toBe(true);
+
+  await page.evaluate(() =>
+    window.localStorage.setItem(
+      'table:pull-requests:filtering',
+      JSON.stringify({
+        filters: [{ field: 'state', id: 'saved-state', operator: 'in', type: 'enum', value: ['CLOSED'] }],
+        operator: 'AND',
+      }),
+    ),
+  );
+  const openPullRequestsLink = workSummary.getByRole('link').filter({ hasText: 'Open pull requests' });
+  await openPullRequestsLink.focus();
+  await expect(openPullRequestsLink).toBeFocused();
+  await openPullRequestsLink.click();
+
+  await expect(page).toHaveURL(/\/pull-requests\?preset=open$/);
+  await expect(page.getByRole('button', { name: 'Open pull requests' })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('pull-request-open-preset.png'), fullPage: true });
+  await expect.poll(() => new URL(pullRequestUrls.at(-1)!).searchParams.get('where') ?? '').toContain('OPEN');
+  expect(new URL(pullRequestUrls.at(-1)!).searchParams.get('where') ?? '').not.toContain('CLOSED');
+  await expect
+    .poll(() => page.evaluate(() => JSON.parse(window.localStorage.getItem('table:pull-requests:filtering') ?? '{}')))
+    .toMatchObject({ filters: [{ field: 'state', value: ['OPEN'] }], operator: 'AND' });
+
+  await page.getByRole('button', { name: 'Open pull requests' }).click();
+  await expect(page).toHaveURL(/\/pull-requests$/);
+  await expect.poll(() => new URL(pullRequestUrls.at(-1)!).searchParams.get('where')).toBeNull();
 });

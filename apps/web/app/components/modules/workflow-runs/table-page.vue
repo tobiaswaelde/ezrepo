@@ -36,6 +36,17 @@
       variant="subtle"
       :title="loadError"
     />
+    <div v-if="activeDashboardPreset" class="mx-4 mb-4">
+      <UButton
+        color="primary"
+        icon="i-tabler-filter"
+        trailing-icon="i-lucide-x"
+        variant="soft"
+        :aria-label="$t('dashboard.activeRuns')"
+        :label="$t('dashboard.activeRuns')"
+        @click="clearDashboardPreset"
+      />
+    </div>
     <UTable
       sticky
       v-model:column-pinning="columnPinning"
@@ -120,6 +131,11 @@ import { useDateTime } from '~/composables/use-date-time';
 import { providerTypes, type WorkflowRun, type WorkflowRunStatus } from '~/types/api/resources';
 import type { ColumnDefinition } from '~/types/table';
 import {
+  emptyDashboardFiltering,
+  resolveWorkflowRunDashboardPreset,
+  type WorkflowRunDashboardPresetName,
+} from '~/utils/dashboard-table-presets';
+import {
   durationFilteringToMilliseconds,
   durationFilteringToSeconds,
   loadWorkflowRunRepositoryFilterOptions,
@@ -147,6 +163,8 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 const { formatDateTime } = useDateTime();
 const api = useEzRepoApi();
 const toast = useToast();
@@ -154,6 +172,8 @@ const { snapshot: systemStatus } = useSystemStatusState();
 const { getLabel: getProviderTypeLabel } = useProviderType();
 const search = ref('');
 const debouncedSearch = refDebounced(search, 250);
+const initialDashboardPreset = resolveWorkflowRunDashboardPreset(route.query.preset);
+const activeDashboardPreset = ref<WorkflowRunDashboardPresetName | null>(initialDashboardPreset?.name ?? null);
 const repositoryFilterLoading = ref(true);
 const repositoryFilterOptions = ref<WorkflowRunRepositoryFilterOption[]>([]);
 const workflowStatuses: WorkflowRunStatus[] = [
@@ -255,6 +275,10 @@ const {
   sorting,
   totalItems,
 } = workflowRunTable;
+if (initialDashboardPreset) {
+  queryFiltering.value = initialDashboardPreset.filtering;
+  page.value = 1;
+}
 const filtering = computed<Filtering>({
   get: () => durationFilteringToSeconds(queryFiltering.value),
   set: (value) => {
@@ -277,9 +301,11 @@ watch(
   queryFiltering,
   () => {
     page.value = 1;
+    releaseDashboardPreset();
   },
   { deep: true },
 );
+watch(search, releaseDashboardPreset);
 watch(
   () => systemStatus.value.activity,
   (activity) => {
@@ -312,6 +338,29 @@ async function loadRepositoryFilterOptions(): Promise<void> {
   } finally {
     repositoryFilterLoading.value = false;
   }
+}
+
+/** Remove the active dashboard preset and its workflow status filter. */
+function clearDashboardPreset(): void {
+  activeDashboardPreset.value = null;
+  queryFiltering.value = emptyDashboardFiltering();
+  search.value = '';
+  page.value = 1;
+  removeDashboardPresetQuery();
+}
+
+/** Stop treating the current filters as a dashboard preset after a manual change. */
+function releaseDashboardPreset(): void {
+  if (!activeDashboardPreset.value) return;
+  activeDashboardPreset.value = null;
+  removeDashboardPresetQuery();
+}
+
+/** Remove only the preset parameter while preserving unrelated route query state. */
+function removeDashboardPresetQuery(): void {
+  const query = { ...route.query };
+  delete query.preset;
+  void router.replace({ query });
 }
 
 /** Format a provider timestamp in the active interface locale. */

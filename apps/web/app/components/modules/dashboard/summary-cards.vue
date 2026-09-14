@@ -1,29 +1,30 @@
 <template>
   <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6" :aria-label="$t('dashboard.summary')">
-    <UCard
+    <component
+      :is="metric.to ? NuxtLink : 'div'"
       v-for="metric in metrics"
       :key="metric.key"
-      :class="metric.highlighted ? 'border-warning/60 bg-warning/5' : undefined"
-      :ui="{ body: 'space-y-3' }"
+      class="block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      :class="metric.to ? 'group' : undefined"
+      :to="metric.to"
     >
-      <div class="flex items-center justify-between gap-3">
-        <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ metric.label }}</p>
-        <UIcon class="size-4 text-muted" :name="metric.icon" />
-      </div>
-      <USkeleton v-if="loading && !summary" class="h-8 w-24" />
-      <p v-else class="text-2xl font-semibold tabular-nums">{{ metric.value }}</p>
-      <p class="text-xs text-muted">{{ metric.context }}</p>
-      <UButton
-        v-if="metric.to"
-        block
-        color="warning"
-        icon="i-lucide-shield-check"
-        size="sm"
-        variant="soft"
-        :label="$t('dashboard.viewAwaitingApproval')"
-        :to="metric.to"
-      />
-    </UCard>
+      <UCard
+        class="h-full transition-colors"
+        :class="[
+          metric.highlighted ? 'border-warning/60 bg-warning/5' : undefined,
+          metric.to ? 'group-hover:border-primary/60 group-hover:bg-elevated' : undefined,
+        ]"
+        :ui="{ body: 'space-y-3' }"
+      >
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-xs font-medium uppercase tracking-wide text-muted">{{ metric.label }}</p>
+          <UIcon class="size-4 text-muted" :name="metric.icon" />
+        </div>
+        <USkeleton v-if="loading && !summary" class="h-8 w-24" />
+        <p v-else class="text-2xl font-semibold tabular-nums">{{ metric.value }}</p>
+        <p class="text-xs text-muted">{{ metric.context }}</p>
+      </UCard>
+    </component>
   </section>
 </template>
 
@@ -36,6 +37,7 @@ const props = defineProps<{
   summary: DashboardSummary | null;
 }>();
 
+const NuxtLink = resolveComponent('NuxtLink');
 const { locale, t } = useI18n();
 
 interface SummaryMetric {
@@ -57,6 +59,7 @@ const metrics = computed<SummaryMetric[]>(() => {
       icon: 'i-lucide-circle-check-big',
       key: 'success-rate',
       label: t('dashboard.successRate'),
+      to: '/workflow-runs',
       value: summary ? `${formatNumber(summary.successRate, 1)} %` : '—',
     },
     {
@@ -64,6 +67,7 @@ const metrics = computed<SummaryMetric[]>(() => {
       icon: 'i-lucide-circle-alert',
       key: 'failing-workflows',
       label: t('dashboard.failingNow'),
+      to: '/workflow-runs/needs-attention',
       value: formatNumber(props.failingWorkflowCount),
     },
     {
@@ -80,6 +84,7 @@ const metrics = computed<SummaryMetric[]>(() => {
       icon: 'i-lucide-timer',
       key: 'median-duration',
       label: t('dashboard.medianDuration'),
+      to: '/workflow-runs',
       value: summary ? formatDuration(summary.medianDurationMs) : '—',
     },
     {
@@ -87,6 +92,7 @@ const metrics = computed<SummaryMetric[]>(() => {
       icon: 'i-lucide-timer-reset',
       key: 'total-duration',
       label: t('dashboard.totalDuration'),
+      to: '/workflow-runs',
       value: summary ? formatTotalDuration(summary.totalRunDurationMs) : '—',
     },
     {
@@ -97,6 +103,7 @@ const metrics = computed<SummaryMetric[]>(() => {
       icon: 'i-lucide-activity',
       key: 'active-runs',
       label: t('dashboard.activeRuns'),
+      to: '/workflow-runs?preset=active',
       value: summary ? formatNumber(activeCount) : '—',
     },
   ];

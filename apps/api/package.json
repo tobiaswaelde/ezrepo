@@ -53,7 +53,7 @@
     "@nestjs/websockets": "^11.2.3",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
-    "@querry-kit/nest": "^1.0.4",
+    "@querry-kit/nest": "^1.0.5",
     "@scalar/nestjs-api-reference": "^1.2.18",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",

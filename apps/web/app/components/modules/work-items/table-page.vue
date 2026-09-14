@@ -46,6 +46,17 @@
     </template>
 
     <div class="p-4 sm:p-6">
+      <UButton
+        v-if="activeDashboardPreset"
+        class="mb-4"
+        color="primary"
+        icon="i-tabler-filter"
+        trailing-icon="i-lucide-x"
+        variant="soft"
+        :aria-label="activeDashboardPresetLabel"
+        :label="activeDashboardPresetLabel"
+        @click="clearDashboardPreset"
+      />
       <ModulesWorkItemsSummaryCards
         :loading="summaryLoading"
         :metrics="summaryMetrics"
@@ -151,12 +162,19 @@ import {
   type WorkItemFilterOptions,
 } from '~/types/api/resources';
 import type { ColumnDefinition } from '~/types/table';
+import {
+  emptyDashboardFiltering,
+  resolveWorkItemDashboardPreset,
+  type WorkItemDashboardPresetName,
+} from '~/utils/dashboard-table-presets';
 import { loadWorkflowRunRepositoryFilterOptions } from '~/utils/workflow-run-filtering';
 
 const props = defineProps<{ kind: 'issue' | 'pull-request' }>();
 type WorkItemRow = (Issue | PullRequest) & Record<string, unknown>;
 type WorkItemTableColumn = ColumnDefinition<WorkItemRow> & { header: string; id: string };
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 const api = useEzRepoApi();
 const { formatDateTime } = useDateTime();
 const { getLabel: getProviderTypeLabel } = useProviderType();
@@ -165,6 +183,9 @@ const debouncedSearch = refDebounced(search, 250);
 const selectedLabels = ref<string[]>([]);
 const updatedFrom = ref('');
 const updatedTo = ref('');
+const initialDashboardPreset = resolveWorkItemDashboardPreset(props.kind, route.query.preset);
+const activeDashboardPreset = ref<WorkItemDashboardPresetName | null>(initialDashboardPreset?.name ?? null);
+const dashboardPresetStaticFilter = ref<Record<string, unknown> | undefined>(initialDashboardPreset?.staticFilter);
 const filterOptions = ref<WorkItemFilterOptions>({ assignees: [], authors: [], labels: [], milestones: [] });
 const repositories = ref<Array<{ label: string; value: string }>>([]);
 const summary = ref<IssueSummary | PullRequestSummary | null>(null);
@@ -253,6 +274,7 @@ const staticFilter = computed(() => {
   const constraints: Record<string, unknown>[] = selectedLabels.value.map((name) => ({
     labels: { some: { label: { normalizedName: name.toLocaleLowerCase() } } },
   }));
+  if (dashboardPresetStaticFilter.value) constraints.push(dashboardPresetStaticFilter.value);
   const value = debouncedSearch.value.trim();
   if (value)
     constraints.push({ OR: [{ number: { contains: value } }, { title: { contains: value, mode: 'insensitive' } }] });
@@ -286,6 +308,16 @@ const {
   sorting,
   totalItems,
 } = table;
+if (initialDashboardPreset) {
+  filtering.value = initialDashboardPreset.filtering;
+  page.value = 1;
+}
+const activeDashboardPresetLabel = computed(() => {
+  if (activeDashboardPreset.value === 'open') return t(props.kind === 'issue' ? 'issues.open' : 'pullRequests.open');
+  if (activeDashboardPreset.value === 'stale') return t('issues.stale');
+  if (activeDashboardPreset.value === 'approval-required') return t('pullRequests.approvalRequired');
+  return '';
+});
 const summaryMetrics = computed(() =>
   props.kind === 'issue'
     ? [
@@ -325,5 +357,35 @@ async function loadSupportingData(): Promise<void> {
 async function refreshAll(): Promise<void> {
   await Promise.all([refresh(), loadSupportingData()]);
 }
+
+/** Remove a dashboard preset and its table constraints. */
+function clearDashboardPreset(): void {
+  activeDashboardPreset.value = null;
+  dashboardPresetStaticFilter.value = undefined;
+  filtering.value = emptyDashboardFiltering();
+  selectedLabels.value = [];
+  search.value = '';
+  updatedFrom.value = '';
+  updatedTo.value = '';
+  page.value = 1;
+  removeDashboardPresetQuery();
+}
+
+/** Stop treating the current table state as a dashboard preset after a manual change. */
+function releaseDashboardPreset(): void {
+  if (!activeDashboardPreset.value) return;
+  activeDashboardPreset.value = null;
+  dashboardPresetStaticFilter.value = undefined;
+  removeDashboardPresetQuery();
+}
+
+/** Remove only the preset parameter while preserving unrelated route query state. */
+function removeDashboardPresetQuery(): void {
+  const query = { ...route.query };
+  delete query.preset;
+  void router.replace({ query });
+}
+
+watch([filtering, search, selectedLabels, updatedFrom, updatedTo], releaseDashboardPreset, { deep: true });
 onMounted(() => Promise.all([initialize(), loadSupportingData()]));
 </script>

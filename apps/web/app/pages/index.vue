@@ -111,16 +111,28 @@ const rangeOptions = computed(() => [
   { label: t('dashboard.last90Days'), value: '90d' },
 ]);
 const workMetrics = computed(() => [
-  { icon: 'i-tabler-circle-dot', label: t('issues.open'), value: String(issueSummary.value?.open ?? '—') },
-  { icon: 'i-lucide-hourglass', label: t('issues.stale'), value: String(issueSummary.value?.stale ?? '—') },
+  {
+    icon: 'i-tabler-circle-dot',
+    label: t('issues.open'),
+    to: '/issues?preset=open',
+    value: String(issueSummary.value?.open ?? '—'),
+  },
+  {
+    icon: 'i-lucide-hourglass',
+    label: t('issues.stale'),
+    to: '/issues?preset=stale',
+    value: String(issueSummary.value?.stale ?? '—'),
+  },
   {
     icon: 'i-tabler-git-pull-request',
     label: t('pullRequests.open'),
+    to: '/pull-requests?preset=open',
     value: String(pullRequestSummary.value?.open ?? '—'),
   },
   {
     icon: 'i-lucide-shield-alert',
     label: t('pullRequests.approvalRequired'),
+    to: '/pull-requests?preset=approval-required',
     value: String(pullRequestSummary.value?.workflowApprovalRequired ?? '—'),
   },
 ]);
