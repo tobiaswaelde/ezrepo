@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- e087053: Replace repository-scoped notification rules with global channels that directly subscribe to workflow, pull-request,
+  and issue lifecycle events, including optional repository and workflow filters and multi-user browser push.
+
+### Patch Changes
+
+- d200ec8: Make dashboard KPI cards keyboard-accessible links to the relevant filtered overview and update the Querry Kit
+  packages.
+- 8696ddf: Add a localized keyboard-shortcuts dialog to the user menu and share global shortcut definitions with their handlers.
+
 ## 0.4.1
 
 ### Patch Changes
