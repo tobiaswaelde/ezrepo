@@ -834,5 +834,14 @@
     "current": "Current version",
     "empty": "No released changes are available yet.",
     "viewAll": "View all releases"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "description": "Global shortcuts are available outside text fields. Press Escape to close dialogs.",
+    "scope": "Scope",
+    "keys": "Keys",
+    "action": "Action",
+    "global": "Global",
+    "toggle": "Toggle keyboard shortcuts"
   }
 }

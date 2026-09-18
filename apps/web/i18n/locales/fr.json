@@ -834,5 +834,14 @@
     "current": "Current version",
     "empty": "No released changes are available yet.",
     "viewAll": "View all releases"
+  },
+  "shortcuts": {
+    "title": "Raccourcis clavier",
+    "description": "Les raccourcis globaux sont disponibles hors des champs de texte. Échap ferme les fenêtres.",
+    "scope": "Portée",
+    "keys": "Touches",
+    "action": "Action",
+    "global": "Global",
+    "toggle": "Afficher ou masquer les raccourcis"
   }
 }

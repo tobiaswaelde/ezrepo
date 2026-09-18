@@ -834,5 +834,14 @@
     "current": "Current version",
     "empty": "No released changes are available yet.",
     "viewAll": "View all releases"
+  },
+  "shortcuts": {
+    "title": "Scorciatoie da tastiera",
+    "description": "Le scorciatoie globali sono disponibili fuori dai campi di testo. Esc chiude le finestre.",
+    "scope": "Ambito",
+    "keys": "Tasti",
+    "action": "Azione",
+    "global": "Globale",
+    "toggle": "Mostra o nascondi le scorciatoie"
   }
 }

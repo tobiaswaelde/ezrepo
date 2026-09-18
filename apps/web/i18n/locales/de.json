@@ -834,5 +834,14 @@
     "current": "Aktuelle Version",
     "empty": "Noch keine veröffentlichten Änderungen verfügbar.",
     "viewAll": "Alle Releases anzeigen"
+  },
+  "shortcuts": {
+    "title": "Tastenkürzel",
+    "description": "Globale Tastenkürzel sind außerhalb von Textfeldern verfügbar. Escape schließt Dialoge.",
+    "scope": "Bereich",
+    "keys": "Tasten",
+    "action": "Aktion",
+    "global": "Global",
+    "toggle": "Tastenkürzel ein-/ausblenden"
   }
 }

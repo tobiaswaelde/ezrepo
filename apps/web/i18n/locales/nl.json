@@ -834,5 +834,14 @@
     "current": "Current version",
     "empty": "No released changes are available yet.",
     "viewAll": "View all releases"
+  },
+  "shortcuts": {
+    "title": "Sneltoetsen",
+    "description": "Globale sneltoetsen zijn beschikbaar buiten tekstvelden. Escape sluit dialoogvensters.",
+    "scope": "Bereik",
+    "keys": "Toetsen",
+    "action": "Actie",
+    "global": "Globaal",
+    "toggle": "Sneltoetsen tonen of verbergen"
   }
 }

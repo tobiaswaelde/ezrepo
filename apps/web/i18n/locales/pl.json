@@ -834,5 +834,14 @@
     "current": "Current version",
     "empty": "No released changes are available yet.",
     "viewAll": "View all releases"
+  },
+  "shortcuts": {
+    "title": "Skróty klawiszowe",
+    "description": "Globalne skróty są dostępne poza polami tekstowymi. Escape zamyka okna dialogowe.",
+    "scope": "Zakres",
+    "keys": "Klawisze",
+    "action": "Działanie",
+    "global": "Globalny",
+    "toggle": "Pokaż lub ukryj skróty klawiszowe"
   }
 }

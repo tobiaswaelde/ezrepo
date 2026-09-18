@@ -204,3 +204,78 @@ test('hides administrative navigation and creation actions from viewers', async 
   await expect(palette.getByText('No matching commands or resources found.')).toBeVisible();
   expect(providerSearchRequests).toBe(0);
 });
+
+for (const role of ['SYSTEM_ADMIN', 'VIEWER'] as const) {
+  test(`shortcut dialog supports menu, focus, keyboard, and themes for ${role}`, async ({ page }, testInfo) => {
+    await mockCommandPaletteShell(page, role);
+    await page.goto('/');
+    const userMenu = page.getByRole('button', { name: 'playwright', exact: true });
+    const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+    await userMenu.click();
+    const menuItem = page.getByRole('menuitem', { name: 'Keyboard shortcuts' });
+    await menuItem.focus();
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('row')).toHaveCount(4);
+    await expect(dialog.getByText('Open command palette')).toBeVisible();
+    const close = dialog.getByRole('button', { name: 'Close', exact: true });
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(close).toBeFocused();
+    await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('shortcuts-desktop-dark.png') });
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(userMenu).toBeFocused();
+    await page.keyboard.press('?');
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('?');
+    await expect(dialog).not.toBeVisible();
+    await expect(userMenu).toBeFocused();
+    await page.getByRole('combobox', { name: 'Search' }).focus();
+    await page.keyboard.press('?');
+    await expect(dialog).not.toBeVisible();
+    await page.keyboard.press('Escape');
+    await userMenu.focus();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+    });
+    await page.keyboard.press('?');
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('shortcuts-mobile-light.png') });
+    await close.click();
+    await expect(dialog).not.toBeVisible();
+    await expect(userMenu).toBeFocused();
+  });
+}
+
+test('documents and runs Command+K on macOS and slash after navigation', async ({ page }) => {
+  await mockCommandPaletteShell(page, 'VIEWER');
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' }),
+  );
+  await page.goto('/');
+  const menu = page.getByRole('button', { name: 'playwright', exact: true });
+  await menu.click();
+  await page.getByRole('menuitem', { name: 'Keyboard shortcuts' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  await expect(dialog.getByRole('row').filter({ hasText: 'Open command palette' })).toContainText('⌘');
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await page.keyboard.press('Meta+K');
+  const palette = page.getByRole('dialog', { name: 'Command palette' });
+  await expect(palette).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'All runs', exact: true }).click();
+  await page.getByRole('button', { name: 'Open command palette' }).focus();
+  await page.keyboard.press('/');
+  await expect(page.getByRole('combobox', { name: 'Search' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await menu.focus();
+  await page.keyboard.press('?');
+  await expect(dialog).toBeVisible();
+});

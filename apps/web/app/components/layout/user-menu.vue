@@ -1,6 +1,19 @@
 <template>
-  <UDropdownMenu v-if="auth.user" :items="items" :ui="{ content: 'w-64' }">
-    <UButton class="gap-2" color="neutral" variant="ghost" :disabled="signingOut" :loading="signingOut">
+  <UDropdownMenu
+    v-if="auth.user"
+    :content="{ onCloseAutoFocus: openShortcutsAfterMenu }"
+    :items="items"
+    :ui="{ content: 'w-64' }"
+  >
+    <UButton
+      ref="menuTrigger"
+      class="gap-2"
+      color="neutral"
+      variant="ghost"
+      :aria-label="getUserIdentityLabel(auth.user)"
+      :disabled="signingOut"
+      :loading="signingOut"
+    >
       <CommonUserAvatar
         size="2xs"
         :avatar-updated-at="auth.user.avatarUpdatedAt"
@@ -18,12 +31,28 @@
 import type { DropdownMenuItem } from '#ui/types';
 
 import { useLocales } from '~/composables/app/locales';
+import { useShortcuts } from '~/composables/app/shortcuts';
 import { useThemes } from '~/composables/app/themes';
 import { useAuthStore } from '~/store/auth';
+import { globalShortcuts } from '~/util/shortcuts';
 import { getUserIdentityLabel } from '~/utils/user-identity';
 
 const auth = useAuthStore();
 const signingOut = ref(false);
+const menuTrigger = useTemplateRef('menuTrigger');
+const shortcutsRequested = ref(false);
+const { open: shortcutsOpen } = useShortcuts();
+
+/** Let the dropdown restore trigger focus before the dialog captures it. */
+function openShortcutsAfterMenu(event: Event): void {
+  if (!shortcutsRequested.value) return;
+  event.preventDefault();
+  menuTrigger.value?.$el?.focus();
+  shortcutsRequested.value = false;
+  void nextTick(() => {
+    shortcutsOpen.value = true;
+  });
+}
 
 const { t } = useI18n();
 const { dropdownMenuItems: localeItems } = useLocales();
@@ -47,6 +76,14 @@ const items = computed<DropdownMenuItem[]>(() => [
     label: t('layout.theme'),
   },
   { type: 'separator' },
+  {
+    icon: 'i-tabler-keyboard',
+    label: t('shortcuts.title'),
+    kbds: [...globalShortcuts.find((shortcut) => shortcut.id === 'shortcuts')!.keys],
+    onSelect: () => {
+      shortcutsRequested.value = true;
+    },
+  },
   {
     color: 'error',
     icon: 'i-tabler-logout',

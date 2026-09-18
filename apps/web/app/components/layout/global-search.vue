@@ -147,7 +147,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
+import { createShortcutBindings } from '~/util/shortcuts';
 
 import { useGlobalSearch } from '~/composables/app/global-search';
 
@@ -194,15 +195,13 @@ function close(): void {
   isOpen.value = false;
 }
 
-/** Focus global search when slash is pressed outside an editable field. */
-function handleKeyboardShortcut(event: KeyboardEvent): void {
-  const target = event.target as HTMLElement | null;
-  if (event.key !== '/' || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')) return;
-  event.preventDefault();
-  isOpen.value = true;
-  searchInput.value?.focus();
-}
-
-onMounted(() => document.addEventListener('keydown', handleKeyboardShortcut));
-onBeforeUnmount(() => document.removeEventListener('keydown', handleKeyboardShortcut));
+defineShortcuts(
+  createShortcutBindings({
+    search: () => {
+      if (document.querySelector('[role="dialog"]')) return;
+      isOpen.value = true;
+      searchInput.value?.focus();
+    },
+  }),
+);
 </script>

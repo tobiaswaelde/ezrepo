@@ -39,19 +39,37 @@
     </div>
 
     <LayoutCommandPalette />
+    <CommonDialogsShortcuts />
     <LayoutChangelogDialog v-model:open="changelogOpen" />
   </UDashboardGroup>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { useCommandPalette } from '~/composables/app/command-palette';
+import { useShortcuts } from '~/composables/app/shortcuts';
 import { useSettingsStore } from '~/store/settings';
+import { createShortcutBindings } from '~/util/shortcuts';
 
 const { t } = useI18n();
 const route = useRoute();
 const usesFullWidthContent = computed(() => route.meta.fullWidth === true);
 const settings = useSettingsStore();
 const changelogOpen = useState('changelog-open', () => false);
+
+const { open: paletteOpen } = useCommandPalette();
+const { open: shortcutsOpen } = useShortcuts();
+
+defineShortcuts(
+  createShortcutBindings({
+    palette: () => {
+      if (!shortcutsOpen.value) paletteOpen.value = !paletteOpen.value;
+    },
+    shortcuts: () => {
+      if (!paletteOpen.value) shortcutsOpen.value = !shortcutsOpen.value;
+    },
+  }),
+);
 
 onMounted(() => {
   void settings.load();

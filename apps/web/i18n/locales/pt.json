@@ -834,5 +834,14 @@
     "current": "Current version",
     "empty": "No released changes are available yet.",
     "viewAll": "View all releases"
+  },
+  "shortcuts": {
+    "title": "Atalhos de teclado",
+    "description": "Os atalhos globais estão disponíveis fora dos campos de texto. Escape fecha os diálogos.",
+    "scope": "Âmbito",
+    "keys": "Teclas",
+    "action": "Ação",
+    "global": "Global",
+    "toggle": "Mostrar ou ocultar atalhos"
   }
 }

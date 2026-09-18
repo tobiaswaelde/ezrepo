@@ -174,12 +174,6 @@ function openDialog(dialogOpen: { value: boolean }): void {
   });
 }
 
-defineShortcuts({
-  meta_k: () => {
-    open.value = !open.value;
-  },
-});
-
 watch(open, (isOpen) => {
   if (!isOpen) query.value = '';
 });

@@ -180,7 +180,7 @@ test('groups authorized global results and keeps stale responses from replacing 
   await expect(results).not.toBeVisible();
   await page.keyboard.press('/');
   await expect(search).toBeFocused();
-  await page.getByRole('heading', { name: 'Workflow dashboard' }).click();
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
   await search.click();
   await results.getByRole('option', { name: 'tobiaswaelde/ezrepo', exact: true }).click();
   await expect(page).toHaveURL(/\/repositories\?repository=repository-1$/);
