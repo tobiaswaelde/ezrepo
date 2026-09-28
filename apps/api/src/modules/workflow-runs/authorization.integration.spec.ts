@@ -190,7 +190,7 @@ describe('workflow-run authorization integration', () => {
     await expect(runs.findNeedsAttention<{ id: string }>({ select: { id: true } }, ability)).resolves.toEqual([]);
   });
 
-  it('keeps only actionable change-request failures after closure or a successful merge validation', async () => {
+  it('keeps only open change-request failures after closure or merge', async () => {
     const previousFailure = await prisma.workflowRun.findUniqueOrThrow({ where: { id: visibleRunId } });
     const mergeTime = new Date('2026-08-26T11:00:00.000Z');
     const createRun = async (input: {
@@ -274,9 +274,10 @@ describe('workflow-run authorization integration', () => {
     const ability = await runs.getReadAbility(users.viewer);
     const needsAttention = await runs.findNeedsAttention<{ id: string }>({ select: { id: true } }, ability);
 
-    expect(needsAttention).toEqual(expect.arrayContaining([{ id: openFailure.id }, { id: unresolvedMerge.id }]));
+    expect(needsAttention).toEqual(expect.arrayContaining([{ id: openFailure.id }]));
     expect(needsAttention).not.toContainEqual({ id: closedFailure.id });
     expect(needsAttention).not.toContainEqual({ id: resolvedMerge.id });
+    expect(needsAttention).not.toContainEqual({ id: unresolvedMerge.id });
     await expect(
       runs.findMany<{ id: string }>(
         { where: { id: { in: [closedFailure.id, resolvedMerge.id] } }, select: { id: true } },

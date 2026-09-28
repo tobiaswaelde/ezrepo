@@ -171,6 +171,7 @@ export class ProviderSyncService {
         });
       }
       await reportProgress?.({ current: null, phase: 'REFRESHING_CHANGE_REQUESTS', total: null });
+      await this.workItems?.reconcileWorkflowRunChangeRequests(repository.id);
       await this.refreshChangeRequestStates(context, refreshedRepository, adapter);
       await this.markSynchronizationSuccess(repository, synchronizationStartedAt);
     } catch (error) {

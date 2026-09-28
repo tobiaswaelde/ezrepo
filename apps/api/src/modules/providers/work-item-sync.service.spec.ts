@@ -101,6 +101,91 @@ describe('WorkItemSyncService', () => {
       where: { id: 'pull-request-id' },
     });
   });
+
+  it('reconciles branch-scoped runs with the pull request active at each run timestamp', async () => {
+    const oldRunAt = new Date('2026-08-05T10:00:00.000Z');
+    const oldSuccessAt = new Date('2026-08-06T10:00:00.000Z');
+    const newRunAt = new Date('2026-09-05T10:00:00.000Z');
+    const prisma = {
+      pullRequest: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            closedAt: null,
+            id: 'new-pull-request',
+            mergedAt: null,
+            number: '20',
+            providerCreatedAt: new Date('2026-09-01T00:00:00.000Z'),
+            sourceBranch: 'feature/reused',
+            state: 'OPEN',
+            targetBranch: 'main',
+          },
+          {
+            closedAt: new Date('2026-08-10T00:00:00.000Z'),
+            id: 'old-pull-request',
+            mergedAt: new Date('2026-08-10T00:00:00.000Z'),
+            number: '10',
+            providerCreatedAt: new Date('2026-08-01T00:00:00.000Z'),
+            sourceBranch: 'feature/reused',
+            state: 'MERGED',
+            targetBranch: 'main',
+          },
+        ]),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      workflowRun: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([
+            { headBranch: 'feature/reused', id: 'old-failure', providerCreatedAt: oldRunAt },
+            { headBranch: 'feature/reused', id: 'old-success', providerCreatedAt: oldSuccessAt },
+            {
+              headBranch: 'feature/reused',
+              id: 'before-first-pull-request',
+              providerCreatedAt: new Date('2026-07-01T00:00:00.000Z'),
+            },
+            { headBranch: 'feature/reused', id: 'new-failure', providerCreatedAt: newRunAt },
+            { headBranch: 'main', id: 'main-failure', providerCreatedAt: newRunAt },
+          ])
+          .mockResolvedValue([{ awaitingApproval: false, status: 'FAILED' }]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const service = new WorkItemSyncService(prisma as unknown as PrismaService, notifications as never);
+
+    await service.reconcileWorkflowRunChangeRequests('repository');
+
+    expect(prisma.pullRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { repositoryId: 'repository', sourceBranch: { in: ['feature/reused', 'main'] } },
+      }),
+    );
+    expect(prisma.workflowRun.updateMany).toHaveBeenNthCalledWith(1, {
+      data: {
+        changeRequestCheckedAt: expect.any(Date),
+        changeRequestMergedAt: null,
+        changeRequestNumber: '20',
+        changeRequestState: 'OPEN',
+        changeRequestTargetBranch: 'main',
+        pullRequestId: 'new-pull-request',
+        scopeKey: 'change-request:20',
+      },
+      where: { id: { in: ['new-failure'] } },
+    });
+    expect(prisma.workflowRun.updateMany).toHaveBeenNthCalledWith(2, {
+      data: {
+        changeRequestCheckedAt: expect.any(Date),
+        changeRequestMergedAt: new Date('2026-08-10T00:00:00.000Z'),
+        changeRequestNumber: '10',
+        changeRequestState: 'MERGED',
+        changeRequestTargetBranch: 'main',
+        pullRequestId: 'old-pull-request',
+        scopeKey: 'change-request:10',
+      },
+      where: { id: { in: ['old-failure', 'old-success'] } },
+    });
+    expect(prisma.workflowRun.updateMany).toHaveBeenCalledTimes(2);
+    expect(prisma.pullRequest.update).toHaveBeenCalledTimes(2);
+  });
 });
 it.each([
   [null, 'OPEN', true, ['ISSUE_OPENED']],

@@ -6,13 +6,13 @@ Work through these items in order. Complete and verify one focused task before s
 
 Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-b9ed8e4e3716)
 
-- [ ] Extend the existing repository synchronization to reconcile workflow runs with their pull or merge request.
-  - [ ] Resolve the change request when a provider run does not contain a direct pull-request reference.
-  - [ ] Do not introduce a separate check-runs job unless the existing synchronization cannot cover the behavior.
-- [ ] Exclude a run from Needs Attention when its change request is closed or merged.
-- [ ] Exclude an older failure when a newer successful run exists for the same execution context.
-- [ ] Correct existing stale records through the next full synchronization or a one-time backfill.
-- [ ] Test newer running and successful runs, closed and merged requests, reused branches, and missing provider mappings.
+- [x] Extend the existing repository synchronization to reconcile workflow runs with their pull or merge request.
+  - [x] Resolve the change request when a provider run does not contain a direct pull-request reference.
+  - [x] Do not introduce a separate check-runs job unless the existing synchronization cannot cover the behavior.
+- [x] Exclude a run from Needs Attention when its change request is closed or merged.
+- [x] Exclude an older failure when a newer successful run exists for the same execution context.
+- [x] Correct existing stale records through the next full synchronization or a one-time backfill.
+- [x] Test newer running and successful runs, closed and merged requests, reused branches, and missing provider mappings.
 
 ## 2. Small UI and localization fixes
 

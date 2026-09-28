@@ -83,6 +83,72 @@ export class WorkItemSyncService {
       await this.synchronizePullRequests(context, repository, adapter, reportProgress);
   }
 
+  /** Associate legacy branch-scoped workflow runs with the pull request active when each run was created. */
+  async reconcileWorkflowRunChangeRequests(repositoryId: string): Promise<void> {
+    const runs = await this.prisma.workflowRun.findMany({
+      orderBy: [{ providerCreatedAt: 'asc' }, { id: 'asc' }],
+      select: { headBranch: true, id: true, providerCreatedAt: true },
+      where: {
+        changeRequestNumber: null,
+        headBranch: { not: null },
+        repositoryId,
+        workflow: { kind: 'STANDARD' },
+      },
+    });
+    const branches = [...new Set(runs.flatMap((run) => (run.headBranch ? [run.headBranch] : [])))];
+    if (branches.length === 0) return;
+
+    const pullRequests = await this.prisma.pullRequest.findMany({
+      orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
+      select: {
+        closedAt: true,
+        id: true,
+        mergedAt: true,
+        number: true,
+        providerCreatedAt: true,
+        sourceBranch: true,
+        state: true,
+        targetBranch: true,
+      },
+      where: { repositoryId, sourceBranch: { in: branches } },
+    });
+    const runIdsByPullRequest = new Map<string, string[]>();
+    for (const run of runs) {
+      // ponytail: retained history bounds this scan; replace it with a database range join if sync volume becomes costly.
+      const pullRequest = pullRequests.find((candidate) => {
+        const terminalAt = candidate.mergedAt ?? candidate.closedAt;
+        return (
+          candidate.sourceBranch === run.headBranch &&
+          candidate.providerCreatedAt <= run.providerCreatedAt &&
+          (!terminalAt || run.providerCreatedAt <= terminalAt)
+        );
+      });
+      if (!pullRequest) continue;
+      const runIds = runIdsByPullRequest.get(pullRequest.id);
+      if (runIds) runIds.push(run.id);
+      else runIdsByPullRequest.set(pullRequest.id, [run.id]);
+    }
+
+    const checkedAt = new Date();
+    for (const pullRequest of pullRequests) {
+      const runIds = runIdsByPullRequest.get(pullRequest.id);
+      if (!runIds) continue;
+      await this.prisma.workflowRun.updateMany({
+        data: {
+          changeRequestCheckedAt: checkedAt,
+          changeRequestMergedAt: pullRequest.mergedAt,
+          changeRequestNumber: pullRequest.number,
+          changeRequestState: pullRequest.state,
+          changeRequestTargetBranch: pullRequest.targetBranch,
+          pullRequestId: pullRequest.id,
+          scopeKey: `change-request:${pullRequest.number}`,
+        },
+        where: { id: { in: runIds } },
+      });
+      await this.refreshPullRequestWorkflowStatus(pullRequest.id);
+    }
+  }
+
   private async synchronizeIssues(
     context: ProviderAccountContext,
     repository: SyncRepository,

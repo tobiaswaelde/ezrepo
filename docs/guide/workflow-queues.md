@@ -22,8 +22,9 @@ synchronization.
 ## Needs attention
 
 **Needs attention** contains actionable workflow contexts whose newest completed run failed. A later successful run,
-closing the related change, or successfully merging it removes the context automatically. Use this queue for failures
-that are current rather than searching the complete historical table.
+closing the related change, or merging it removes the context automatically. During repository synchronization, ezRepo
+also associates older branch-scoped runs with the pull or merge request that was active when the run started. Use this
+queue for failures that are current rather than searching the complete historical table.
 
 Open the provider link to diagnose or resolve a failure. ezRepo cannot rerun, cancel, dispatch, or edit a workflow. If
 the queue cannot be loaded, retry it and check [Repository synchronization jobs](./jobs) for a failed repository read.

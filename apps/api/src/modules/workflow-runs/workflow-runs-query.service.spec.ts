@@ -68,20 +68,14 @@ describe('WorkflowRunsQueryService', () => {
       workflowRun: {
         findMany: jest.fn().mockResolvedValue([
           {
-            changeRequestMergedAt: null,
             changeRequestState: 'UNKNOWN',
-            changeRequestTargetBranch: null,
             id: 'failed-run',
             status: 'FAILED',
-            workflowId: 'workflow-1',
           },
           {
-            changeRequestMergedAt: null,
             changeRequestState: 'UNKNOWN',
-            changeRequestTargetBranch: null,
             id: 'successful-run',
             status: 'SUCCESS',
-            workflowId: 'workflow-2',
           },
         ]),
       },
@@ -127,12 +121,9 @@ describe('WorkflowRunsQueryService', () => {
       include: undefined,
       orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
       select: {
-        changeRequestMergedAt: true,
         changeRequestState: true,
-        changeRequestTargetBranch: true,
         id: true,
         status: true,
-        workflowId: true,
       },
       skip: undefined,
       take: undefined,
@@ -150,66 +141,15 @@ describe('WorkflowRunsQueryService', () => {
     });
   });
 
-  it('removes closed and successfully merged change-request failures without hiding unrelated failures', async () => {
-    const mergeTime = new Date('2026-09-12T10:00:00.000Z');
+  it('removes closed and merged change-request failures without hiding active or unknown failures', async () => {
     const mocks = {
       workflowRun: {
-        findMany: jest
-          .fn()
-          .mockResolvedValueOnce([
-            {
-              changeRequestMergedAt: null,
-              changeRequestState: 'OPEN',
-              changeRequestTargetBranch: 'main',
-              id: 'open-failure',
-              status: 'FAILED',
-              workflowId: 'workflow-open',
-            },
-            {
-              changeRequestMergedAt: null,
-              changeRequestState: 'CLOSED',
-              changeRequestTargetBranch: 'main',
-              id: 'closed-failure',
-              status: 'FAILED',
-              workflowId: 'workflow-closed',
-            },
-            {
-              changeRequestMergedAt: mergeTime,
-              changeRequestState: 'MERGED',
-              changeRequestTargetBranch: 'main',
-              id: 'resolved-merge',
-              status: 'FAILED',
-              workflowId: 'workflow-resolved',
-            },
-            {
-              changeRequestMergedAt: mergeTime,
-              changeRequestState: 'MERGED',
-              changeRequestTargetBranch: 'main',
-              id: 'unresolved-merge',
-              status: 'FAILED',
-              workflowId: 'workflow-unresolved',
-            },
-            {
-              changeRequestMergedAt: null,
-              changeRequestState: 'MERGED',
-              changeRequestTargetBranch: null,
-              id: 'incomplete-merge-metadata',
-              status: 'FAILED',
-              workflowId: 'workflow-incomplete',
-            },
-          ])
-          .mockResolvedValueOnce([
-            {
-              providerCreatedAt: new Date('2026-09-12T10:05:00.000Z'),
-              scopeKey: 'branch:main',
-              workflowId: 'workflow-resolved',
-            },
-            {
-              providerCreatedAt: new Date('2026-09-12T10:05:00.000Z'),
-              scopeKey: 'branch:other',
-              workflowId: 'workflow-unresolved',
-            },
-          ]),
+        findMany: jest.fn().mockResolvedValue([
+          { changeRequestState: 'OPEN', id: 'open-failure', status: 'FAILED' },
+          { changeRequestState: 'UNKNOWN', id: 'unknown-failure', status: 'FAILED' },
+          { changeRequestState: 'CLOSED', id: 'closed-failure', status: 'FAILED' },
+          { changeRequestState: 'MERGED', id: 'merged-failure', status: 'FAILED' },
+        ]),
       },
     };
     const service = new WorkflowRunsQueryService(mocks as unknown as PrismaService, new CaslAbilityFactory());
@@ -219,33 +159,9 @@ describe('WorkflowRunsQueryService', () => {
     );
 
     await expect(service.toNeedsAttentionQueryOptions({ page: 1, perPage: 25 }, ability)).resolves.toMatchObject({
-      where: { id: { in: ['open-failure', 'unresolved-merge', 'incomplete-merge-metadata'] } },
+      where: { id: { in: ['open-failure', 'unknown-failure'] } },
     });
-    expect(mocks.workflowRun.findMany).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        where: {
-          AND: [
-            {},
-            {
-              OR: [
-                {
-                  providerCreatedAt: { gte: mergeTime.toISOString() },
-                  scopeKey: 'branch:main',
-                  workflowId: 'workflow-resolved',
-                },
-                {
-                  providerCreatedAt: { gte: mergeTime.toISOString() },
-                  scopeKey: 'branch:main',
-                  workflowId: 'workflow-unresolved',
-                },
-              ],
-              status: 'SUCCESS',
-            },
-          ],
-        },
-      }),
-    );
+    expect(mocks.workflowRun.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('applies active-state filters only after resolving the latest authorized workflow contexts', async () => {
