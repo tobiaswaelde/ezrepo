@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { CaslModule } from '../../casl/casl.module.js';
 import { JobsModule } from '../../jobs/jobs.module.js';
 import { SecurityModule } from '../../security/security.module.js';
+import { RepositoriesModule } from '../repositories/repositories.module.js';
 import { AppriseNotificationAdapter } from './apprise-notification.adapter.js';
 import { BrowserPushController } from './browser-push.controller.js';
 import { BrowserPushService } from './browser-push.service.js';
@@ -15,7 +16,7 @@ import { NotificationsService } from './notifications.service.js';
 
 /** Registers global notification configuration and delivery. */
 @Module({
-  imports: [CaslModule, JobsModule, SecurityModule],
+  imports: [CaslModule, JobsModule, RepositoriesModule, SecurityModule],
   controllers: [NotificationsController, NotificationDeliveriesController, BrowserPushController],
   providers: [
     NotificationsService,
