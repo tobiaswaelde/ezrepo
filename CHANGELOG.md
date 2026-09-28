@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2
+
+### Patch Changes
+
+- 7366fd4: Prevent excessive backtracking while validating notification email addresses.
+
 ## 0.5.1
 
 ### Patch Changes
