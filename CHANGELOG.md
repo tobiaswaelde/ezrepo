@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+### Patch Changes
+
+- 999cbe1: Fix API startup by providing repository workflow filters to the notifications module.
+
 ## 0.5.0
 
 ### Minor Changes
