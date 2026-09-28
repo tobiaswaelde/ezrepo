@@ -27,7 +27,13 @@ export class UserDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: Date;
 
-  /** Convert a persisted user to a permission-filtered public representation. */
+  /**
+   * Convert a persisted user to a permission-filtered public representation.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param ability - Optional cASL ability used to restrict resource access or exposed fields.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: UserWithAvatar, ability?: AppAbility): UserDto {
     return filterCaslFields(
       {

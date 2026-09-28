@@ -116,7 +116,13 @@ export interface ProviderWorkflowRun {
   workflowPath: string | null;
 }
 
-/** Build the stable execution context used to decide whether a workflow is currently failing. */
+/**
+ * Build the stable execution context used to decide whether a workflow is currently failing.
+ *
+ * @param changeRequestNumber - Provider-local issue or merge-request number.
+ * @param headBranch - Source branch name, or null when the provider does not supply one.
+ * @returns A stable change-request, branch, or repository scope key.
+ */
 export function buildWorkflowRunScopeKey(changeRequestNumber: string | null, headBranch: string | null): string {
   if (changeRequestNumber) return `change-request:${changeRequestNumber}`;
   if (headBranch) return `branch:${headBranch}`;
@@ -139,7 +145,12 @@ export interface VerifiedWebhook {
 /** Independently coalesced domains supported by repository synchronization. */
 export type ProviderSyncScope = 'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS';
 
-/** Map provider webhook event names to the smallest safe synchronization scope. */
+/**
+ * Map provider webhook event names to the smallest safe synchronization scope.
+ *
+ * @param event - Provider webhook event name used to select synchronization domains.
+ * @returns The repository domains affected by the provider event.
+ */
 export function providerWebhookSyncScopes(event: string): ProviderSyncScope[] {
   const normalized = event.toLocaleLowerCase('en-US');
   if (normalized.includes('issue') && !normalized.includes('pull')) return ['ISSUES'];
@@ -166,36 +177,125 @@ export interface ProviderWebhookRequest {
 export interface ProviderAdapter {
   readonly providerType: ProviderType;
 
+  /**
+   * Read and normalize the lifecycle state of one provider change request.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param changeRequestNumber - Provider-local issue or merge-request number.
+   * @returns Normalized change-request state, or null when the provider reports it missing.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   getChangeRequestState(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
     changeRequestNumber: string,
   ): Promise<ProviderChangeRequestState | null>;
+  /**
+   * Read and normalize one provider repository, treating a missing repository as absent.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @returns Normalized repository metadata, or null when the provider reports it missing.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   getRepository(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
   ): Promise<ProviderRepository | null>;
+  /**
+   * Read and normalize one workflow run, treating a missing run as absent.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param providerRunId - Provider-assigned workflow run identifier.
+   * @returns The normalized run, or null when the provider reports it missing.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   getWorkflowRun(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
     providerRunId: string,
   ): Promise<ProviderWorkflowRun | null>;
+  /**
+   * Read recently updated issues and optionally all open issues, merging duplicate provider IDs.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param query - Incremental update boundary and whether to include all currently open items.
+   * @returns Deduplicated normalized issues for the requested window.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   listIssues(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
     query: ProviderWorkItemQuery,
   ): Promise<ProviderIssue[]>;
+  /**
+   * Read recently updated pull requests and optionally all open requests, merging duplicate IDs.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param query - Incremental update boundary and whether to include all currently open items.
+   * @returns Deduplicated normalized pull requests for the requested window.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   listPullRequests(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
     query: ProviderWorkItemQuery,
   ): Promise<ProviderPullRequest[]>;
+  /**
+   * Read repositories accessible through the provider account and normalize their metadata.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @returns Normalized repositories accessible through the account.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   listRepositories(context: ProviderAccountContext): Promise<ProviderRepository[]>;
+  /**
+   * Read and normalize workflow runs within the provider synchronization window.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param updatedAfter - Optional lower boundary for incremental provider synchronization.
+   * @returns Normalized runs collected for the requested synchronization window.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   listWorkflowRuns(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
     updatedAfter?: Date,
   ): Promise<ProviderWorkflowRun[]>;
+  /**
+   * Read the provider identity to verify credentials without modifying provider resources.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @returns The validated provider identity and display name.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   validateAccount(context: ProviderAccountContext): Promise<ProviderAccountValidation>;
+  /**
+   * Verify provider webhook authentication before returning its repository and synchronization scopes.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @returns Verified event metadata and requested scopes, or null when authentication is invalid.
+   */
   verifyWebhook(request: ProviderWebhookRequest): Promise<VerifiedWebhook | null>;
 }

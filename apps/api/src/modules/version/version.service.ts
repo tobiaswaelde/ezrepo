@@ -8,7 +8,12 @@ interface CachedVersion {
   timestamp: number;
 }
 
-/** Extract a SemVer value from GitHub tags created manually or by Changesets. */
+/**
+ * Extract a SemVer value from GitHub tags created manually or by Changesets.
+ *
+ * @param tagName - Optional GitHub release tag to interpret as a SemVer version.
+ * @returns The SemVer release value, or null for a missing or unsupported tag.
+ */
 export function parseReleaseVersion(tagName: string | undefined): string | null {
   return tagName?.match(/(?:^|@)v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/)?.[1] ?? null;
 }
@@ -19,7 +24,11 @@ export class VersionService {
   private cached: CachedVersion | undefined;
   private pending: Promise<{ latest: string | null }> | undefined;
 
-  /** Return the newest GitHub Release version, cached for five minutes. */
+  /**
+   * Return the newest GitHub Release version, cached for five minutes.
+   *
+   * @returns The latest published version, or null when a valid version is unavailable.
+   */
   async getLatest(): Promise<{ latest: string | null }> {
     if (this.cached && Date.now() - this.cached.timestamp < cacheTtl) return { latest: this.cached.latest };
 
@@ -31,6 +40,11 @@ export class VersionService {
     return result;
   }
 
+  /**
+   * Read the latest GitHub release and return an absent version when the lookup fails.
+   *
+   * @returns The latest release version, or null when GitHub cannot provide a valid version.
+   */
   private async fetchLatest(): Promise<{ latest: string | null }> {
     try {
       const response = await fetch(releasesUrl, {

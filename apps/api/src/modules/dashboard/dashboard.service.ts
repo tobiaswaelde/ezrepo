@@ -54,6 +54,12 @@ export interface WorkflowRunTrendBucket {
 /** Reads dashboard aggregates from only the workflow runs visible to the authenticated user. */
 @Injectable()
 export class DashboardService {
+  /**
+   * Initialize DashboardService with its required dependencies.
+   *
+   * @param workflowRuns - Ability-aware workflow-run query service.
+   * @param prisma - Database client used for persisted application state.
+   */
   constructor(
     private readonly workflowRuns: WorkflowRunsQueryService,
     private readonly prisma: PrismaService,
@@ -111,11 +117,13 @@ export class DashboardService {
   /**
    * Summarize visible period metrics and current workflow state.
    *
-   * Success rate excludes cancelled, skipped, and unknown outcomes because those runs do not represent a decided result.
+   * Success rate excludes cancelled, skipped, and unknown outcomes because those runs do not represent a decided
+   * result.
    *
    * @param user - Authenticated user requesting the dashboard.
    * @param query - Inclusive period used for completed-run metrics.
    * @returns Permission-aware summary metrics.
+   * @throws BadRequestException - The dashboard start timestamp must not be after the end timestamp.
    */
   async getSummary(user: AuthenticatedUser, query: DashboardPeriodQueryDto): Promise<DashboardSummaryDto> {
     const { from, to } = this.parsePeriod(query);
@@ -166,6 +174,7 @@ export class DashboardService {
    * @param user - Authenticated user requesting the dashboard.
    * @param query - Inclusive period used for completed-run metrics.
    * @returns Up to six visible repositories ordered by failures and success rate.
+   * @throws BadRequestException - The dashboard start timestamp must not be after the end timestamp.
    */
   async getRepositoryHealth(user: AuthenticatedUser, query: DashboardPeriodQueryDto): Promise<RepositoryHealthDto[]> {
     const { from, to } = this.parsePeriod(query);
@@ -219,7 +228,7 @@ export class DashboardService {
    * @param user - Authenticated user requesting the dashboard.
    * @param query - Inclusive time range and bucket size.
    * @returns A continuous sequence of trend buckets, including empty intervals.
-   * @throws {BadRequestException} When the requested range is invalid.
+   * @throws BadRequestException - When the requested range is invalid.
    */
   async getTrend(user: AuthenticatedUser, query: WorkflowRunTrendQueryDto): Promise<WorkflowRunTrendBucket[]> {
     const { from, to } = this.parsePeriod(query);
@@ -244,6 +253,14 @@ export class DashboardService {
     return buckets;
   }
 
+  /**
+   * Create empty UTC trend buckets spanning the requested period.
+   *
+   * @param from - Inclusive start of the requested time range.
+   * @param to - Inclusive end of the requested time range.
+   * @param size - UTC hour, day, or week interval used for trend buckets.
+   * @returns Chronologically ordered UTC buckets with zero initial counts.
+   */
   private createBuckets(from: Date, to: Date, size: TrendBucketSize): WorkflowRunTrendBucket[] {
     const buckets: WorkflowRunTrendBucket[] = [];
     for (
@@ -256,6 +273,13 @@ export class DashboardService {
     return buckets;
   }
 
+  /**
+   * Load workflow runs with repository access restrictions and dashboard relations.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param options - Query options applied within the resource visibility restriction.
+   * @returns Visible workflow runs with the dashboard relations loaded.
+   */
   private async findVisibleRuns(
     user: AuthenticatedUser,
     options: QueryOptionsMap<WorkflowRunTypeMap>['findMany'],
@@ -264,6 +288,12 @@ export class DashboardService {
     return this.workflowRuns.findMany<DashboardWorkflowRunModel>({ ...options, include: dashboardRunInclude }, ability);
   }
 
+  /**
+   * Count terminal workflow outcomes for the dashboard status distribution.
+   *
+   * @param runs - Workflow runs to aggregate, associate, or persist.
+   * @returns Counts for each terminal workflow status.
+   */
   private countStatuses(runs: Pick<DashboardSummaryRun, 'status'>[]): DashboardStatusDistributionDto {
     return {
       cancelled: runs.filter((run) => run.status === 'CANCELLED').length,
@@ -274,6 +304,12 @@ export class DashboardService {
     };
   }
 
+  /**
+   * Calculate the median of numeric values without mutating the input.
+   *
+   * @param values - Values used for the calculation or stable filter ordering.
+   * @returns The middle value or rounded average of the middle pair, or null for an empty input.
+   */
   private median(values: number[]): number | null {
     if (values.length === 0) return null;
     const sorted = [...values].sort((left, right) => left - right);
@@ -281,6 +317,13 @@ export class DashboardService {
     return sorted.length % 2 === 0 ? Math.round((sorted[middle - 1] + sorted[middle]) / 2) : sorted[middle];
   }
 
+  /**
+   * Parse and validate the requested dashboard time range.
+   *
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns Validated start and end timestamps.
+   * @throws BadRequestException - The dashboard start timestamp must not be after the end timestamp.
+   */
   private parsePeriod(query: DashboardPeriodQueryDto): { from: Date; to: Date } {
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -290,10 +333,23 @@ export class DashboardService {
     return { from, to };
   }
 
+  /**
+   * Round a percentage to the dashboard display precision.
+   *
+   * @param value - Value to parse, validate, or normalize.
+   * @returns The percentage rounded to one decimal place.
+   */
   private roundPercentage(value: number): number {
     return Math.round(value * 10) / 10;
   }
 
+  /**
+   * Align a timestamp with the start of its UTC hour, day, or week.
+   *
+   * @param value - Value to parse, validate, or normalize.
+   * @param size - UTC hour, day, or week interval used for trend buckets.
+   * @returns The UTC start timestamp of the containing bucket.
+   */
   private floorBucket(value: Date, size: TrendBucketSize): Date {
     const date = new Date(value);
     date.setUTCMinutes(0, 0, 0);
@@ -307,6 +363,13 @@ export class DashboardService {
     return date;
   }
 
+  /**
+   * Advance a UTC bucket boundary by one requested interval.
+   *
+   * @param value - Value to parse, validate, or normalize.
+   * @param size - UTC hour, day, or week interval used for trend buckets.
+   * @returns The UTC start timestamp of the following bucket.
+   */
   private nextBucket(value: Date, size: TrendBucketSize): Date {
     const next = new Date(value);
     if (size === 'hour') next.setUTCHours(next.getUTCHours() + 1);

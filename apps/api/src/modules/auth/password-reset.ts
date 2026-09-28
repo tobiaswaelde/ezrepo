@@ -2,7 +2,19 @@ import bcrypt from 'bcrypt';
 
 interface PasswordResetDatabase {
   user: {
+    /**
+     * Find the local user whose password will be reset.
+     *
+     * @param input - Input values used to validate and perform the operation.
+     * @returns The matching local user ID, or null when the login does not exist.
+     */
     findUnique(input: { where: { username: string } }): Promise<{ id: string } | null>;
+    /**
+     * Replace the password hash and increment the local user authentication version.
+     *
+     * @param input - Input values used to validate and perform the operation.
+     * @returns The database update result.
+     */
     update(input: {
       data: { authVersion: { increment: number }; passwordHash: string };
       where: { id: string };
@@ -16,7 +28,8 @@ interface PasswordResetDatabase {
  * @param database - Prisma-compatible user persistence.
  * @param username - Exact local login username.
  * @param password - Replacement password with at least twelve characters.
- * @throws {Error} When the input is invalid or the user does not exist.
+ * @returns A promise that resolves when the operation completes.
+ * @throws Error - When the input is invalid or the user does not exist.
  */
 export async function resetPassword(
   database: PasswordResetDatabase,

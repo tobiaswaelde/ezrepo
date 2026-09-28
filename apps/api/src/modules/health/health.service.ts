@@ -24,6 +24,11 @@ export interface HealthResponse {
 /** Reports locally available health information without performing provider requests. */
 @Injectable()
 export class HealthService {
+  /**
+   * Initialize HealthService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -63,6 +68,12 @@ export class HealthService {
     }
   }
 
+  /**
+   * Project provider synchronization metadata into a credential-free health response.
+   *
+   * @param provider - Provider identity or persisted metadata associated with the operation.
+   * @returns Provider health metadata without credentials.
+   */
   private toProviderHealth(provider: {
     displayName: string;
     enabled: boolean;

@@ -26,19 +26,37 @@ interface AuthenticatedRequest {
 @Authenticated()
 @Controller('notification-channels')
 export class NotificationsController {
+  /**
+   * Initialize NotificationsController with its required dependencies.
+   *
+   * @param notifications - Service managing channels and idempotent notification events.
+   * @param channelQueries - Ability-aware notification channel query service.
+   */
   constructor(
     private readonly notifications: NotificationsService,
     private readonly channelQueries: NotificationChannelsQueryService,
   ) {}
 
-  /** List repositories available as optional event filters. */
+  /**
+   * List repositories available as optional event filters.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @returns Repository choices available for notification filter configuration.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   @Get('manageable-repositories')
   @ApiOkResponse({ isArray: true })
   async manageableRepositories(@Req() request: AuthenticatedRequest) {
     return this.notifications.listFilterRepositories(request.user);
   }
 
-  /** Query channels with server-side filtering, sorting and pagination. */
+  /**
+   * Query channels with server-side filtering, sorting and pagination.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns The visible resource page and its query metadata.
+   */
   @Get('query')
   @ApiResourceQuery()
   @ApiPaginatedResponse({ description: 'Visible notification channels.', model: NotificationChannelDto })
@@ -84,7 +102,12 @@ export class NotificationsController {
     });
   }
 
-  /** List global channels visible to every authenticated caller. */
+  /**
+   * List global channels visible to every authenticated caller.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @returns Safe global notification channel DTOs.
+   */
   @Get()
   @ApiOperation({ summary: 'List visible notification channels' })
   @ApiOkResponse({ type: NotificationChannelDto, isArray: true })
@@ -94,7 +117,17 @@ export class NotificationsController {
     );
   }
 
-  /** Create a global channel as a system administrator. */
+  /**
+   * Create a global channel as a system administrator.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param input - Channel name, transport settings, event subscriptions, and browser recipients.
+   * @returns The created channel with safe transport and subscription metadata.
+   * @throws ServiceUnavailableException - Browser push is not configured.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws BadRequestException - Notification events must not be repeated. One or more repository filters are invalid.
+   * Workflow patterns are only supported for workflow events.
+   */
   @Post()
   @ApiOperation({ summary: 'Create a notification channel' })
   @ApiOkResponse({ type: NotificationChannelDto })
@@ -105,7 +138,16 @@ export class NotificationsController {
     return NotificationChannelDto.fromModel(await this.notifications.createChannel(request.user, input));
   }
 
-  /** Send one immediate, non-retrying test notification and return its history record. */
+  /**
+   * Send one immediate, non-retrying test notification and return its history record.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param id - Local identifier of the target record.
+   * @returns The test delivery and its recorded attempt results.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Notification channel not found.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   @Post(':id/test')
   @ApiOperation({ summary: 'Test one notification channel' })
   @ApiOkResponse({ type: NotificationDeliveryDto })
@@ -113,7 +155,19 @@ export class NotificationsController {
     return NotificationDeliveryDto.fromModel(await this.notifications.testChannel(request.user, id));
   }
 
-  /** Update a global channel as a system administrator. */
+  /**
+   * Update a global channel as a system administrator.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param id - Local identifier of the target record.
+   * @param input - Channel fields to replace; omitted values and write-only credentials are retained.
+   * @returns The updated channel with safe transport and subscription metadata.
+   * @throws ForbiddenException - Browser push channels do not accept destination configuration. Configure a replacement
+   * Apprise URL before enabling this channel.
+   * @throws NotFoundException - Notification channel not found.
+   * @throws BadRequestException - Notification events must not be repeated. One or more repository filters are invalid.
+   * Workflow patterns are only supported for workflow events.
+   */
   @Patch(':id')
   @ApiOperation({ summary: 'Update a notification channel' })
   @ApiOkResponse({ type: NotificationChannelDto })
@@ -125,7 +179,15 @@ export class NotificationsController {
     return NotificationChannelDto.fromModel(await this.notifications.updateChannel(request.user, id, input));
   }
 
-  /** Delete a global channel as a system administrator. */
+  /**
+   * Delete a global channel as a system administrator.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param id - Local identifier of the target record.
+   * @returns A promise that resolves when the operation completes.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Notification channel not found.
+   */
   @Delete(':id')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete a notification channel' })

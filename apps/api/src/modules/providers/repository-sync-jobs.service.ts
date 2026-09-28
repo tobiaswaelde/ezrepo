@@ -15,13 +15,26 @@ import { ProviderSyncQueueService } from './sync-queue.service.js';
 /** Provides permission-scoped repository synchronization job reads and starts. */
 @Injectable()
 export class RepositorySyncJobsService {
+  /**
+   * Initialize RepositorySyncJobsService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param repositories - Ability-aware repository query service.
+   * @param queue - Durable repository synchronization queue.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly repositories: RepositoriesQueryService,
     private readonly queue: ProviderSyncQueueService,
   ) {}
 
-  /** Query permanently available synchronization jobs for visible enabled repositories. */
+  /**
+   * Query permanently available synchronization jobs for visible enabled repositories.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param query - Repository search text and pagination options for visible synchronization jobs.
+   * @returns The visible resource page and its query metadata.
+   */
   async query(user: AuthenticatedUser, query: RepositorySyncJobQueryDto) {
     const ability = await this.repositories.getReadAbility(user);
     const searchWhere = query.search
@@ -50,7 +63,12 @@ export class RepositorySyncJobsService {
     };
   }
 
-  /** Count each synchronization state across visible enabled repositories. */
+  /**
+   * Count each synchronization state across visible enabled repositories.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns State counts restricted to the resources visible to the caller.
+   */
   async summary(user: AuthenticatedUser): Promise<RepositorySyncJobSummaryDto> {
     const ability = await this.repositories.getReadAbility(user);
     const where = { AND: [this.repositories.visibleWhere(ability), { enabled: true }] };
@@ -63,12 +81,22 @@ export class RepositorySyncJobsService {
     return { failed, idle: total - pending - running - failed, pending, running, total };
   }
 
-  /** Start every currently idle or failed synchronization job. */
+  /**
+   * Start every currently idle or failed synchronization job.
+   *
+   * @returns The number of available repositories queued.
+   */
   async startAll(): Promise<number> {
     return this.queue.enqueueAvailableRepositories();
   }
 
-  /** Start one enabled repository synchronization unless it is already active. */
+  /**
+   * Start one enabled repository synchronization unless it is already active.
+   *
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @returns The number of synchronization requests accepted for the selected repository.
+   * @throws NotFoundException - Repository synchronization job not found.
+   */
   async start(repositoryId: string): Promise<number> {
     const repository = await this.prisma.repository.findFirst({
       select: { id: true },

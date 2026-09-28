@@ -44,6 +44,12 @@ export interface GiteaPullRequestResponse extends GiteaIssueResponse {
   merged_at?: string | null;
 }
 
+/**
+ * Normalize an optional provider actor without inventing a missing identity.
+ *
+ * @param actor - Optional provider user identity associated with a work item.
+ * @returns The normalized actor, or null when no actor is supplied.
+ */
 function toActor(actor: GiteaWorkItemActor | null | undefined): ProviderActor | null {
   if (!actor) return null;
   return {
@@ -55,6 +61,12 @@ function toActor(actor: GiteaWorkItemActor | null | undefined): ProviderActor | 
   };
 }
 
+/**
+ * Normalize provider label identity and presentation metadata.
+ *
+ * @param label - Human-readable field name used in validation errors.
+ * @returns Normalized label metadata.
+ */
 function toLabel(label: GiteaWorkItemLabel): ProviderWorkItemLabel {
   return {
     color: label.color ?? null,
@@ -64,7 +76,12 @@ function toLabel(label: GiteaWorkItemLabel): ProviderWorkItemLabel {
   };
 }
 
-/** Normalize one Gitea-compatible issue response. */
+/**
+ * Normalize one Gitea-compatible issue response.
+ *
+ * @param issue - Issue data being normalized, persisted, or used as an event source.
+ * @returns The normalized issue and related provider metadata.
+ */
 export function toProviderIssue(issue: GiteaIssueResponse): ProviderIssue {
   return {
     assignees: (issue.assignees ?? []).flatMap((actor) => toActor(actor) ?? []),
@@ -83,7 +100,12 @@ export function toProviderIssue(issue: GiteaIssueResponse): ProviderIssue {
   };
 }
 
-/** Normalize one Gitea-compatible pull or merge request response. */
+/**
+ * Normalize one Gitea-compatible pull or merge request response.
+ *
+ * @param pullRequest - Pull-request data being normalized, persisted, or used as an event source.
+ * @returns The normalized pull request and related provider metadata.
+ */
 export function toProviderPullRequest(pullRequest: GiteaPullRequestResponse): ProviderPullRequest {
   const mergedAt = pullRequest.merged_at ? new Date(pullRequest.merged_at) : null;
   return {

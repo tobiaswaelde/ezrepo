@@ -35,25 +35,44 @@ interface ClaimedSyncRequest {
 export class ProviderSyncQueueService {
   private readonly logger = new Logger(ProviderSyncQueueService.name);
 
+  /**
+   * Initialize ProviderSyncQueueService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param jobs - Runner that prevents overlapping background jobs and disables them in tests.
+   * @param sync - Service executing repository synchronization work.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly jobs: JobRunnerService,
     private readonly sync: ProviderSyncService,
   ) {}
 
-  /** Enqueue all enabled repositories for the configured reconciliation interval. */
+  /**
+   * Enqueue all enabled repositories for the configured reconciliation interval.
+   *
+   * @returns A promise that resolves when the operation completes.
+   */
   @Interval(ENV.SCHEDULER_SYNC_INTERVAL_SECONDS * 1000)
   async scheduleReconciliation(): Promise<void> {
     await this.jobs.run('provider-sync-enqueue', () => this.enqueueEnabledRepositories());
   }
 
-  /** Process all currently due synchronization requests. */
+  /**
+   * Process all currently due synchronization requests.
+   *
+   * @returns A promise that resolves when the operation completes.
+   */
   @Interval(queueWorkerIntervalMs)
   async scheduleQueueProcessing(): Promise<void> {
     await this.jobs.run('provider-sync-worker', () => this.processDueRequests());
   }
 
-  /** Persist immediate requests for every enabled tracked repository. */
+  /**
+   * Persist immediate requests for every enabled tracked repository.
+   *
+   * @returns A promise that resolves when the operation completes.
+   */
   async enqueueEnabledRepositories(): Promise<void> {
     const repositories = await this.prisma.repository.findMany({
       select: { id: true },
@@ -62,7 +81,11 @@ export class ProviderSyncQueueService {
     for (const repository of repositories) await this.enqueueRepository(repository.id, 0);
   }
 
-  /** Enqueue enabled repositories that are not already waiting or running. */
+  /**
+   * Enqueue enabled repositories that are not already waiting or running.
+   *
+   * @returns The number of requests successfully queued.
+   */
   async enqueueAvailableRepositories(): Promise<number> {
     const repositories = await this.prisma.repository.findMany({
       select: { id: true },
@@ -79,12 +102,24 @@ export class ProviderSyncQueueService {
     return queuedCount;
   }
 
-  /** Persist an immediate synchronization request for one newly tracked or manually selected repository. */
+  /**
+   * Persist an immediate synchronization request for one newly tracked or manually selected repository.
+   *
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param database - Database client or transaction used for the operation.
+   * @returns A promise that resolves when the operation completes.
+   */
   async enqueueRepositorySync(repositoryId: string, database: QueueDatabase = this.prisma): Promise<void> {
     await this.enqueueRepository(repositoryId, 0, database);
   }
 
-  /** Enqueue an enabled repository unless it is already waiting or running. */
+  /**
+   * Enqueue an enabled repository unless it is already waiting or running.
+   *
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @returns Whether a new or failed request was successfully queued.
+   * @throws Error - When creating the queue record fails and no concurrent request exists to explain the failure.
+   */
   async enqueueRepositorySyncIfAvailable(repositoryId: string): Promise<boolean> {
     const repository = await this.prisma.repository.findFirst({
       select: { id: true, syncRequest: { select: { status: true } } },
@@ -136,7 +171,14 @@ export class ProviderSyncQueueService {
     }
   }
 
-  /** Persist a debounced request for one enabled tracked repository. */
+  /**
+   * Persist a debounced request for one enabled tracked repository.
+   *
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param database - Database client or transaction used for the operation.
+   * @param scopes - Repository domains requested for this synchronization.
+   * @returns Whether the repository is enabled and its webhook work was queued.
+   */
   async enqueueWebhookRepository(
     repositoryId: string,
     database: QueueDatabase = this.prisma,
@@ -155,7 +197,11 @@ export class ProviderSyncQueueService {
     return true;
   }
 
-  /** Claim and execute due requests until no immediately claimable work remains. */
+  /**
+   * Claim and execute due requests until no immediately claimable work remains.
+   *
+   * @returns A promise that resolves when the operation completes.
+   */
   async processDueRequests(): Promise<void> {
     await this.prisma.repositorySyncRequest.deleteMany({
       where: {
@@ -170,6 +216,15 @@ export class ProviderSyncQueueService {
     } while (claimed);
   }
 
+  /**
+   * Atomically merge requested scopes into the durable queue while preserving active leases.
+   *
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param delayMs - Delay in milliseconds before queued work becomes eligible.
+   * @param database - Database client or transaction used for the operation.
+   * @param scopes - Repository domains requested for this synchronization.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async enqueueRepository(
     repositoryId: string,
     delayMs: number,
@@ -219,6 +274,11 @@ export class ProviderSyncQueueService {
     `);
   }
 
+  /**
+   * Find and claim the next due synchronization request with an available provider account.
+   *
+   * @returns The first successfully leased request, or null when no candidate can be claimed.
+   */
   private async claimNextRequest(): Promise<ClaimedSyncRequest | null> {
     const now = new Date();
     const candidates = await this.prisma.repositorySyncRequest.findMany({
@@ -250,6 +310,13 @@ export class ProviderSyncQueueService {
     return null;
   }
 
+  /**
+   * Acquire account and request leases together before returning executable synchronization work.
+   *
+   * @param candidate - Candidate record whose eligibility is checked against current state.
+   * @param now - Reference time for deterministic time-dependent calculations.
+   * @returns The claimed request and owned lease token, or null when either claim loses a race.
+   */
   private async claimCandidate(
     candidate: RepositorySyncRequest & { repository: { providerAccountId: string } },
     now: Date,
@@ -313,6 +380,12 @@ export class ProviderSyncQueueService {
     });
   }
 
+  /**
+   * Execute a leased synchronization request and persist its completion or retry outcome.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async processClaimedRequest(request: ClaimedSyncRequest): Promise<void> {
     try {
       await this.sync.syncRepositoryById(request.repositoryId, request.scopes, (update) =>
@@ -324,6 +397,12 @@ export class ProviderSyncQueueService {
     }
   }
 
+  /**
+   * Release synchronization leases and retain work requested during the completed generation.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async completeRequest(request: ClaimedSyncRequest): Promise<void> {
     await this.prisma.transaction(async (transaction) => {
       const current = await transaction.repositorySyncRequest.findUnique({ where: { id: request.id } });
@@ -354,6 +433,13 @@ export class ProviderSyncQueueService {
     });
   }
 
+  /**
+   * Apply the retry decision while preserving superseding requests and releasing owned leases.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param error - Failure to classify or sanitized message to persist.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async failRequest(request: ClaimedSyncRequest, error: unknown): Promise<void> {
     const decision = providerRetryDecision(error, request.attempt);
     await this.prisma.transaction(async (transaction) => {
@@ -395,6 +481,14 @@ export class ProviderSyncQueueService {
     this.logger.warn(`Queued synchronization failed for repository ${request.repositoryId}.`);
   }
 
+  /**
+   * Clear an account lease only when the caller still owns its token.
+   *
+   * @param database - Database client or transaction used for the operation.
+   * @param providerAccountId - Local identifier of the provider account.
+   * @param leaseToken - Ownership token required to update or release the active lease.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async releaseAccountLease(
     database: Prisma.TransactionClient,
     providerAccountId: string,
@@ -406,6 +500,13 @@ export class ProviderSyncQueueService {
     });
   }
 
+  /**
+   * Persist progress only for the running request owned by the supplied lease.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param update - Safe progress fields to replace on the active synchronization.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async updateRequestProgress(
     request: Pick<ClaimedSyncRequest, 'id' | 'leaseToken'>,
     update: RepositorySyncProgressUpdate,
@@ -420,6 +521,12 @@ export class ProviderSyncQueueService {
     });
   }
 
+  /**
+   * Translate synchronization errors into credential-free queue status messages.
+   *
+   * @param error - Failure to classify or sanitized message to persist.
+   * @returns A credential-free queue failure message.
+   */
   private failureMessage(error: unknown): string {
     if (error instanceof ProviderRequestError && error.rateLimited) return 'Provider rate limit reached.';
     if (error instanceof ProviderRequestError) return `Provider request failed with status ${error.status}.`;

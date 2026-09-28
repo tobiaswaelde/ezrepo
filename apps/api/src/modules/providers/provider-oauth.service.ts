@@ -28,6 +28,14 @@ interface OAuthTokenResponse {
 /** Coordinates browser-based provider authorization without exposing OAuth client secrets. */
 @Injectable()
 export class ProviderOAuthService {
+  /**
+   * Initialize ProviderOAuthService with its required dependencies.
+   *
+   * @param accounts - Service managing local provider accounts and repository discovery.
+   * @param fetch - Fetch implementation used for provider OAuth requests.
+   * @param prisma - Database client used for persisted application state.
+   * @param states - Service encrypting and validating short-lived OAuth authorization context.
+   */
   constructor(
     private readonly accounts: ProviderAccountsService,
     @Inject(PROVIDER_FETCH) private readonly fetch: ProviderFetch,
@@ -38,9 +46,11 @@ export class ProviderOAuthService {
   /**
    * Builds an authorization URL for a system administrator.
    *
-   * @param user The signed-in administrator starting the authorization.
-   * @param input Provider account metadata.
+   * @param user - The signed-in administrator starting the authorization.
+   * @param input - Provider account metadata.
    * @returns The provider authorization URL.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws BadRequestException - OAuth is not configured for this provider.
    */
   start(user: AuthenticatedUser, input: StartProviderOAuthDto): ProviderOAuthAuthorizationDto {
     this.accounts.assertAdmin(user);
@@ -64,7 +74,11 @@ export class ProviderOAuthService {
     return { authorizationUrl: authorizationUrl.toString() };
   }
 
-  /** Returns providers whose OAuth client credentials are configured in this installation. */
+  /**
+   * Returns providers whose OAuth client credentials are configured in this installation.
+   *
+   * @returns The supported providers with complete OAuth configuration.
+   */
   availableProviderTypes(): ProviderType[] {
     return (['GITHUB', 'GITLAB', 'FORGEJO'] as const).filter((providerType) => {
       const configuration = getProviderOAuthConfiguration(providerType);
@@ -75,9 +89,17 @@ export class ProviderOAuthService {
   /**
    * Exchanges a provider authorization code and creates the encrypted account record.
    *
-   * @param stateValue The protected state value returned by the provider.
-   * @param code The one-time provider authorization code.
-   * @throws BadGatewayException When the provider rejects the code or returns no token.
+   * @param stateValue - The protected state value returned by the provider.
+   * @param code - The one-time provider authorization code.
+   * @returns A promise that resolves when the operation completes.
+   * @throws BadGatewayException - When the provider rejects the code or returns no token.
+   * @throws ForbiddenException - When the initiating user no longer exists or no longer has the system administrator
+   * role.
+   * @throws BadRequestException - When the state is malformed, modified, or expired.
+   * @throws Error - When the encrypted envelope is malformed or fails authentication with the configured key.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
    */
   async complete(stateValue: string, code: string): Promise<void> {
     const state = this.states.consume(stateValue);
@@ -123,6 +145,13 @@ export class ProviderOAuthService {
     });
   }
 
+  /**
+   * Resolve the configured OAuth endpoints and client credentials for a provider.
+   *
+   * @param providerType - Provider implementation selected for the operation.
+   * @returns Configured OAuth endpoints, scopes, and client credentials.
+   * @throws BadRequestException - OAuth is not configured for this provider.
+   */
   private getConfiguration(providerType: ProviderType): ProviderOAuthConfiguration {
     const configuration = getProviderOAuthConfiguration(providerType);
     if (!configuration.clientId || !configuration.clientSecret) {
@@ -133,6 +162,12 @@ export class ProviderOAuthService {
   }
 }
 
+/**
+ * Build OAuth endpoints and scopes from the configured provider instance.
+ *
+ * @param providerType - Provider implementation selected for the operation.
+ * @returns Provider-specific OAuth endpoints, scopes, and client credentials.
+ */
 function getProviderOAuthConfiguration(providerType: ProviderType): ProviderOAuthConfiguration {
   switch (providerType) {
     case 'GITHUB':
@@ -168,6 +203,12 @@ function getProviderOAuthConfiguration(providerType: ProviderType): ProviderOAut
   }
 }
 
+/**
+ * Remove the final slash from a provider base URL.
+ *
+ * @param value - Value to parse, validate, or normalize.
+ * @returns The URL with one trailing slash removed.
+ */
 function withoutTrailingSlash(value: string): string {
   return value.replace(/\/$/, '');
 }

@@ -18,12 +18,24 @@ interface AuthenticatedRequest {
 @Authenticated()
 @Controller('notification-deliveries')
 export class NotificationDeliveriesController {
+  /**
+   * Initialize NotificationDeliveriesController with its required dependencies.
+   *
+   * @param notifications - Service managing channels and idempotent notification events.
+   * @param deliveryQueries - Ability-aware notification delivery query service.
+   */
   constructor(
     private readonly notifications: NotificationsService,
     private readonly deliveryQueries: NotificationDeliveriesQueryService,
   ) {}
 
-  /** Query authorized delivery history with server-side filtering, sorting and pagination. */
+  /**
+   * Query authorized delivery history with server-side filtering, sorting and pagination.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns The visible resource page and its query metadata.
+   */
   @Get('query')
   @ApiResourceQuery()
   @ApiPaginatedResponse({ description: 'Authorized notification delivery history.', model: NotificationDeliveryDto })
@@ -76,7 +88,14 @@ export class NotificationDeliveriesController {
     });
   }
 
-  /** List delivery history visible to a system administrator. */
+  /**
+   * List delivery history visible to a system administrator.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param repositoryId - Optional local identifier of the tracked repository.
+   * @returns Safe delivery history with attempt outcomes and event context.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   @Get()
   @ApiOperation({ summary: 'List visible notification delivery history' })
   @ApiOkResponse({ type: NotificationDeliveryDto, isArray: true })

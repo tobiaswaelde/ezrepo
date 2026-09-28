@@ -7,9 +7,19 @@ import { ProviderOAuthService } from './provider-oauth.service.js';
 /** Receives provider OAuth redirects and returns the administrator to the provider-account screen. */
 @Controller('provider-accounts/oauth')
 export class ProviderOAuthController {
+  /**
+   * Initialize ProviderOAuthController with its required dependencies.
+   *
+   * @param oauth - Service coordinating provider OAuth authorization and completion.
+   */
   constructor(private readonly oauth: ProviderOAuthService) {}
 
-  /** Completes an OAuth authorization and redirects without exposing provider error details. */
+  /**
+   * Completes an OAuth authorization and redirects without exposing provider error details.
+   *
+   * @param query - Authorization code and protected state returned by the provider.
+   * @returns The application redirect URL after connecting the provider account.
+   */
   @Get('callback')
   @Redirect(ENV.PUBLIC_URL, 302)
   async callback(@Query() query: ProviderOAuthCallbackDto): Promise<{ url: string }> {

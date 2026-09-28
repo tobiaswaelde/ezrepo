@@ -11,6 +11,11 @@ import { getCorsOrigins, validationOptions } from './config/http.js';
 import { HttpExceptionFilter } from './filters/http-exception.filter.js';
 import { PrismaExceptionFilter } from './prisma/prisma-exception.filter.js';
 
+/**
+ * Configure and start the Nest HTTP API, validation, documentation, and graceful shutdown.
+ *
+ * @returns A promise that resolves when the operation completes.
+ */
 export async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 

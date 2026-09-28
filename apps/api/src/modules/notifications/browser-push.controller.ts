@@ -19,8 +19,19 @@ interface AuthenticatedRequest {
 @Authenticated()
 @Controller('browser-push')
 export class BrowserPushController {
+  /**
+   * Initialize BrowserPushController with its required dependencies.
+   *
+   * @param browserPush - Service managing browser push subscriptions and delivery.
+   */
   constructor(private readonly browserPush: BrowserPushService) {}
 
+  /**
+   * Return browser push availability, the public VAPID key, and the current user subscription count.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @returns Push availability, the non-secret public key, and the user subscription count.
+   */
   @Get()
   @ApiOperation({ summary: 'Get browser-push availability and enrollment status' })
   @ApiOkResponse({ type: BrowserPushStatusDto })
@@ -28,6 +39,16 @@ export class BrowserPushController {
     return this.browserPush.status(request.user.id);
   }
 
+  /**
+   * Register an encrypted browser push subscription for the authenticated user.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param input - Push endpoint and browser-generated authentication and encryption keys.
+   * @returns A promise that resolves when the operation completes.
+   * @throws BadRequestException - Browser push subscription keys are required.
+   * @throws ForbiddenException - Browser push subscription belongs to another user.
+   * @throws ServiceUnavailableException - Browser push is not configured.
+   */
   @Post('subscriptions')
   @HttpCode(204)
   @ApiNoContentResponse()
@@ -38,6 +59,13 @@ export class BrowserPushController {
     await this.browserPush.register(request.user.id, input);
   }
 
+  /**
+   * Remove a browser subscription belonging to the authenticated user.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @param input - Push endpoint owned by the current user to remove.
+   * @returns A promise that resolves when the operation completes.
+   */
   @Delete('subscriptions')
   @HttpCode(204)
   @ApiNoContentResponse()

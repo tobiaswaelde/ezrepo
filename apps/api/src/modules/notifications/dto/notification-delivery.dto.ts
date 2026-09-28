@@ -46,7 +46,12 @@ export class NotificationDeliveryAttemptDto {
   @ApiProperty()
   createdAt!: Date;
 
-  /** Convert an attempt without exposing any channel or subscription secret. */
+  /**
+   * Convert an attempt without exposing any channel or subscription secret.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: DeliveryAttemptModel): NotificationDeliveryAttemptDto {
     return {
       id: model.id,
@@ -104,7 +109,12 @@ export class NotificationDeliveryDto {
   @ApiProperty({ type: [NotificationDeliveryAttemptDto] })
   attempts!: NotificationDeliveryAttemptDto[];
 
-  /** Convert a delivery and its relations without credentials or endpoint details. */
+  /**
+   * Convert a delivery and its relations without credentials or endpoint details.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: DeliveryHistoryModel): NotificationDeliveryDto {
     const subjectKind = model.workflowRun
       ? 'WORKFLOW_RUN'

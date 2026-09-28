@@ -11,7 +11,7 @@
     "db:reset-password": "node dist/scripts/reset-password.js",
     "dev": "nest start --watch",
     "docker:build": "docker build -f Dockerfile -t ezrepo-api:local ../..",
-    "lint": "eslint .",
+    "lint": "eslint . && node --test ../../scripts/check-api-tsdoc.test.mjs && node ../../scripts/check-api-tsdoc.mjs",
     "start": "nest start",
     "start:prod": "node dist/main.js",
     "test": "NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config jest.config.ts --runInBand",

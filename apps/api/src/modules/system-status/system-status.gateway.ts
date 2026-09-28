@@ -22,17 +22,34 @@ export class SystemStatusGateway implements OnGatewayConnection, OnGatewayInit, 
 
   private statusSubscription?: Subscription;
 
+  /**
+   * Initialize SystemStatusGateway with its required dependencies.
+   *
+   * @param auth - Service for local identity and bearer-token authentication.
+   * @param status - Service providing safe status snapshots and their update stream.
+   */
   constructor(
     private readonly auth: AuthService,
     private readonly status: SystemStatusService,
   ) {}
 
+  /**
+   * Broadcast status snapshots when the system status stream changes.
+   *
+   * @returns No return value.
+   */
   afterInit(): void {
     this.statusSubscription = this.status.changes$.subscribe((snapshot) => {
       this.server.to(AUTHENTICATED_STATUS_ROOM).emit(SYSTEM_STATUS_EVENT, snapshot);
     });
   }
 
+  /**
+   * Authenticate a socket before sending the initial status snapshot.
+   *
+   * @param client - Socket connection whose bearer token must be authenticated.
+   * @returns A promise that resolves when the operation completes.
+   */
   async handleConnection(client: Socket): Promise<void> {
     const accessToken = client.handshake.auth.token;
     if (typeof accessToken !== 'string') {
@@ -49,6 +66,11 @@ export class SystemStatusGateway implements OnGatewayConnection, OnGatewayInit, 
     }
   }
 
+  /**
+   * Unsubscribe from system status updates during gateway shutdown.
+   *
+   * @returns No return value.
+   */
   onModuleDestroy(): void {
     this.statusSubscription?.unsubscribe();
   }

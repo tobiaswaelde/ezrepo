@@ -18,7 +18,15 @@ interface PreparedNotificationUrl {
 /** Validates structured channel configuration and creates one canonical Apprise URL. */
 @Injectable()
 export class NotificationChannelUrlService {
-  /** Create an Apprise URL for the selected transport type. */
+  /**
+   * Create an Apprise URL for the selected transport type.
+   *
+   * @param type - Notification transport selected for the channel.
+   * @param configuration - Transport-specific destination settings; omitted for browser push.
+   * @returns The canonical Apprise URL and scheme, or null for browser push.
+   * @throws BadRequestException - Browser push channels do not accept configuration. Notification channel configuration
+   * is required. Unsupported notification channel type.
+   */
   prepare(
     type: NotificationChannelType,
     configuration?: NotificationConfigurationInput,
@@ -46,6 +54,14 @@ export class NotificationChannelUrlService {
     }
   }
 
+  /**
+   * Validate SMTP settings and encode an Apprise email destination.
+   *
+   * @param input - SMTP host, sender, recipients, credentials, port, and TLS mode.
+   * @returns The encoded SMTP Apprise URL and scheme.
+   * @throws BadRequestException - At least one email recipient is required. Select a valid email security mode. Email
+   * port must be between 1 and 65535.
+   */
   private prepareEmail(input: EmailNotificationConfigurationInput): PreparedNotificationUrl {
     const smtpHost = this.requiredString(input.smtpHost, 'SMTP host');
     const from = this.requiredEmail(input.from, 'From address');
@@ -68,6 +84,13 @@ export class NotificationChannelUrlService {
     return { scheme: protocol.slice(0, -1), value: url.toString() };
   }
 
+  /**
+   * Validate a Gotify server and application token and encode its Apprise destination.
+   *
+   * @param input - Gotify server URL, application token, and optional priority.
+   * @returns The encoded Gotify Apprise URL and scheme.
+   * @throws BadRequestException - When the field is empty, is not a valid URL, or does not use HTTP or HTTPS.
+   */
   private prepareGotify(input: GotifyNotificationConfigurationInput): PreparedNotificationUrl {
     const server = this.httpUrl(input.serverUrl, 'Gotify server URL');
     const token = this.requiredString(input.token, 'Gotify application token');
@@ -78,6 +101,13 @@ export class NotificationChannelUrlService {
     return { scheme: protocol.slice(0, -1), value: url.toString() };
   }
 
+  /**
+   * Validate an ntfy topic and server and encode its authenticated Apprise destination.
+   *
+   * @param input - Topic, optional server URL and authentication, and delivery priority.
+   * @returns The encoded ntfy Apprise URL and scheme.
+   * @throws BadRequestException - When the field is not a string or is empty after trimming.
+   */
   private prepareNtfy(input: NtfyNotificationConfigurationInput): PreparedNotificationUrl {
     const topic = this.requiredString(input.topic, 'ntfy topic');
     const server = this.httpUrl(input.serverUrl || 'https://ntfy.sh', 'ntfy server URL');
@@ -91,6 +121,13 @@ export class NotificationChannelUrlService {
     return { scheme: protocol.slice(0, -1), value: url.toString() };
   }
 
+  /**
+   * Validate a Discord webhook URL and encode its Apprise destination.
+   *
+   * @param input - Discord webhook URL containing the webhook ID and token.
+   * @returns The encoded Discord Apprise URL and scheme.
+   * @throws BadRequestException - Provide a Discord webhook URL.
+   */
   private prepareDiscord(input: DiscordNotificationConfigurationInput): PreparedNotificationUrl {
     const webhook = this.httpUrl(input.webhookUrl, 'Discord webhook URL');
     if (
@@ -104,6 +141,13 @@ export class NotificationChannelUrlService {
     return { scheme: 'discord', value: `discord://${encodeURIComponent(match[1]!)}/${encodeURIComponent(match[2]!)}` };
   }
 
+  /**
+   * Validate a custom Apprise URL and retain its transport scheme.
+   *
+   * @param input - Custom Apprise destination URL to validate.
+   * @returns The validated Apprise URL and its transport scheme.
+   * @throws BadRequestException - Provide a valid Apprise notification URL.
+   */
   private prepareCustom(input: CustomAppriseNotificationConfigurationInput): PreparedNotificationUrl {
     const value = this.requiredString(input.url, 'Apprise notification URL');
     if (/\s/.test(value)) throw new BadRequestException('Provide a valid Apprise notification URL.');
@@ -117,11 +161,27 @@ export class NotificationChannelUrlService {
     }
   }
 
+  /**
+   * Require a nonempty string and remove surrounding whitespace.
+   *
+   * @param value - Value to parse, validate, or normalize.
+   * @param label - Human-readable field name used in validation errors.
+   * @returns The nonempty trimmed string.
+   * @throws BadRequestException - When the field is not a string or is empty after trimming.
+   */
   private requiredString(value: unknown, label: string): string {
     if (typeof value !== 'string' || !value.trim()) throw new BadRequestException(`${label} is required.`);
     return value.trim();
   }
 
+  /**
+   * Require a trimmed email address with a valid basic address structure.
+   *
+   * @param value - Value to parse, validate, or normalize.
+   * @param label - Human-readable field name used in validation errors.
+   * @returns The validated and trimmed email address.
+   * @throws BadRequestException - When the field is empty or does not match the supported email address format.
+   */
   private requiredEmail(value: unknown, label: string): string {
     const email = this.requiredString(value, label);
     if (!/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email))
@@ -129,6 +189,14 @@ export class NotificationChannelUrlService {
     return email;
   }
 
+  /**
+   * Parse a required HTTP or HTTPS destination URL.
+   *
+   * @param value - Value to parse, validate, or normalize.
+   * @param label - Human-readable field name used in validation errors.
+   * @returns The parsed HTTP or HTTPS URL.
+   * @throws BadRequestException - When the field is empty, is not a valid URL, or does not use HTTP or HTTPS.
+   */
   private httpUrl(value: unknown, label: string): URL {
     try {
       const url = new URL(this.requiredString(value, label));

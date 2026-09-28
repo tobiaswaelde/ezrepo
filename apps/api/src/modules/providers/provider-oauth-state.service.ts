@@ -15,12 +15,17 @@ interface ProviderOAuthState {
 /** Creates and validates encrypted, short-lived OAuth state values. */
 @Injectable()
 export class ProviderOAuthStateService {
+  /**
+   * Initialize ProviderOAuthStateService with its required dependencies.
+   *
+   * @param credentials - Service encrypting and decrypting persisted credentials.
+   */
   constructor(private readonly credentials: ProviderCredentialService) {}
 
   /**
    * Encrypts authorization context so it can be returned by the provider without a database write.
    *
-   * @param input The administrator and provider metadata associated with this authorization.
+   * @param input - The administrator and provider metadata associated with this authorization.
    * @returns An authenticated opaque state value safe to include in the authorization URL.
    */
   create(input: Omit<ProviderOAuthState, 'expiresAt'>): string {
@@ -30,9 +35,10 @@ export class ProviderOAuthStateService {
   /**
    * Decrypts and validates authorization context returned by a provider.
    *
-   * @param value The state parameter returned by the provider.
+   * @param value - The state parameter returned by the provider.
    * @returns The verified authorization context.
-   * @throws BadRequestException When the state is malformed, modified, or expired.
+   * @throws BadRequestException - When the state is malformed, modified, or expired.
+   * @throws Error - When the encrypted envelope is malformed or fails authentication with the configured key.
    */
   consume(value: string): ProviderOAuthState {
     try {
@@ -56,6 +62,12 @@ export class ProviderOAuthStateService {
   }
 }
 
+/**
+ * Narrow an unknown value to a provider supporting OAuth authorization.
+ *
+ * @param value - Value to parse, validate, or normalize.
+ * @returns Whether the value is GitHub, GitLab, or Forgejo.
+ */
 function isProviderType(value: unknown): value is ProviderType {
   return value === 'GITHUB' || value === 'GITLAB' || value === 'FORGEJO';
 }

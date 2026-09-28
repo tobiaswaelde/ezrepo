@@ -12,6 +12,11 @@ export class McpHttpService implements OnModuleDestroy {
   private readonly handler;
   readonly nodeHandler: NodeMcpRequestHandler;
 
+  /**
+   * Initialize McpHttpService with its required dependencies.
+   *
+   * @param factory - Factory creating an MCP server bound to the authenticated user.
+   */
   constructor(factory: McpServerFactory) {
     this.handler = createMcpHandler(({ authInfo }) => factory.create(this.getUser(authInfo)), {
       legacy: 'reject',
@@ -20,10 +25,22 @@ export class McpHttpService implements OnModuleDestroy {
     this.nodeHandler = toNodeHandler(this.handler, { onerror: (error) => this.logger.error(error.message) });
   }
 
+  /**
+   * Close the shared MCP handler during application shutdown.
+   *
+   * @returns A promise that resolves when the operation completes.
+   */
   async onModuleDestroy(): Promise<void> {
     await this.handler.close();
   }
 
+  /**
+   * Extract the authenticated user bound to the MCP request context.
+   *
+   * @param authInfo - Optional authentication metadata attached by the MCP HTTP endpoint.
+   * @returns The authenticated user attached to the MCP context.
+   * @throws Error - MCP authentication context is missing.
+   */
   private getUser(authInfo?: AuthInfo): AuthenticatedUser {
     const user = authInfo?.extra?.user as AuthenticatedUser | undefined;
     if (!user) throw new Error('MCP authentication context is missing.');

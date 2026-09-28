@@ -47,6 +47,13 @@ export function mapPrismaException(exception: Prisma.PrismaClientKnownRequestErr
 /** Converts known Prisma request errors into safe HTTP responses. */
 @Catch(Prisma.PrismaClientKnownRequestError)
 export class PrismaExceptionFilter implements ExceptionFilter {
+  /**
+   * Translate an exception into the stable HTTP error response.
+   *
+   * @param exception - Exception to translate into the public error contract.
+   * @param host - Nest arguments host providing the HTTP response.
+   * @returns No return value.
+   */
   catch(exception: Prisma.PrismaClientKnownRequestError, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
     const mapped = mapPrismaException(exception);

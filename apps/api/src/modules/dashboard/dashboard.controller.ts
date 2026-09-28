@@ -22,6 +22,11 @@ interface AuthenticatedRequest {
 @Authenticated()
 @Controller('dashboard')
 export class DashboardController {
+  /**
+   * Initialize DashboardController with its required dependencies.
+   *
+   * @param dashboard - Service for permission-scoped dashboard metrics.
+   */
   constructor(private readonly dashboard: DashboardService) {}
 
   /**
@@ -76,6 +81,7 @@ export class DashboardController {
    * @param request - Authenticated request user.
    * @param query - Requested inclusive time range.
    * @returns Period metrics and current visible workflow state.
+   * @throws BadRequestException - The dashboard start timestamp must not be after the end timestamp.
    */
   @Get('summary')
   @ApiOperation({ summary: 'Get visible workflow health summary' })
@@ -93,6 +99,7 @@ export class DashboardController {
    * @param request - Authenticated request user.
    * @param query - Requested inclusive time range.
    * @returns Repositories with the most relevant health aggregates first.
+   * @throws BadRequestException - The dashboard start timestamp must not be after the end timestamp.
    */
   @Get('repositories')
   @ApiOperation({ summary: 'Get visible repository workflow health' })
@@ -114,6 +121,7 @@ export class DashboardController {
    * @param request - Authenticated request user.
    * @param query - Requested time range and UTC bucket size.
    * @returns Continuous success and error trend buckets.
+   * @throws BadRequestException - When the requested range is invalid.
    */
   @Get('trend')
   @ApiOperation({ summary: 'Get success and error workflow-run trend buckets' })

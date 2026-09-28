@@ -9,7 +9,12 @@ import { ENV } from '../config/env.js';
 export class CredentialEncryptionService {
   private readonly key = Buffer.from(ENV.TOKEN_ENCRYPTION_KEY, 'base64');
 
-  /** Encrypt a credential without retaining or logging its plaintext. */
+  /**
+   * Encrypt a credential without retaining or logging its plaintext.
+   *
+   * @param plaintext - Secret value to encrypt without retaining or logging it.
+   * @returns A versionless IV, authentication-tag, and ciphertext envelope encoded with base64url.
+   */
   encrypt(plaintext: string): string {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.key, iv);
@@ -19,7 +24,13 @@ export class CredentialEncryptionService {
     );
   }
 
-  /** Decrypt a credential stored by {@link encrypt}. */
+  /**
+   * Decrypt a credential stored by {@link encrypt}.
+   *
+   * @param encrypted - Authenticated encrypted credential envelope stored by the application.
+   * @returns The authenticated plaintext credential.
+   * @throws Error - When the encrypted envelope is malformed or fails authentication with the configured key.
+   */
   decrypt(encrypted: string): string {
     const [ivValue, tagValue, ciphertextValue, extra] = encrypted.split('.');
     if (!ivValue || !tagValue || !ciphertextValue || extra) throw new Error('Invalid encrypted credential.');

@@ -53,6 +53,12 @@ export class WorkflowRunsQueryService extends QueryService<
   AppAbility,
   CaslSubject.WorkflowRun
 > {
+  /**
+   * Initialize WorkflowRunsQueryService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilityFactory: CaslAbilityFactory,
@@ -130,6 +136,7 @@ export class WorkflowRunsQueryService extends QueryService<
    * @param options - Prisma-compatible selection, relations, ordering, and limit.
    * @param ability - Repository-scoped read ability.
    * @returns Visible latest terminal failures.
+   * @typeParam T - Result type preserved by this operation.
    */
   async findNeedsAttention<T = unknown>(
     options: QueryOptionsMap<WorkflowRunTypeMap>['findMany'],
@@ -154,6 +161,7 @@ export class WorkflowRunsQueryService extends QueryService<
    * @param options - Prisma-compatible selection, relations, ordering, and filters for the current runs.
    * @param ability - Repository-scoped read ability.
    * @returns Visible current workflow runs matching the requested filters.
+   * @typeParam T - Result type preserved by this operation.
    */
   async findCurrent<T = unknown>(
     options: QueryOptionsMap<WorkflowRunTypeMap>['findMany'],
@@ -169,7 +177,12 @@ export class WorkflowRunsQueryService extends QueryService<
     );
   }
 
-  /** Resolve authorized, actionable failures without exposing inaccessible workflow contexts. */
+  /**
+   * Resolve authorized, actionable failures without exposing inaccessible workflow contexts.
+   *
+   * @param ability - CASL ability used to restrict resource access or exposed fields.
+   * @returns An authorized predicate selecting actionable current terminal failures.
+   */
   private async getNeedsAttentionWhere(ability: AppAbility): Promise<Prisma.WorkflowRunWhereInput> {
     const latestTerminalRuns = await this.findMany<LatestTerminalWorkflowRun>(
       {
@@ -196,7 +209,12 @@ export class WorkflowRunsQueryService extends QueryService<
     };
   }
 
-  /** Resolve authorized IDs for the newest run of every workflow and PR, branch, or repository context. */
+  /**
+   * Resolve authorized IDs for the newest run of every workflow and PR, branch, or repository context.
+   *
+   * @param ability - CASL ability used to restrict resource access or exposed fields.
+   * @returns An authorized predicate selecting the newest run for each workflow execution context.
+   */
   private async getCurrentWhere(ability: AppAbility): Promise<Prisma.WorkflowRunWhereInput> {
     const currentRuns = await this.findMany<Pick<WorkflowRun, 'id'>>(
       {
@@ -210,7 +228,13 @@ export class WorkflowRunsQueryService extends QueryService<
     return { id: { in: currentRuns.map((run) => run.id) } };
   }
 
-  /** Combine an invariant resource predicate with an optional public Query Kit predicate. */
+  /**
+   * Combine an invariant resource predicate with an optional public Query Kit predicate.
+   *
+   * @param invariant - Mandatory visibility or current-state predicate that must remain enforced.
+   * @param requested - Optional caller predicate to combine with the mandatory restriction.
+   * @returns The mandatory predicate combined with any caller predicate using logical AND.
+   */
   private combineWhere(
     invariant: Prisma.WorkflowRunWhereInput,
     requested?: Prisma.WorkflowRunWhereInput,

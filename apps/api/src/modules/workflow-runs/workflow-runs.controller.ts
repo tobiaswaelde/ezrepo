@@ -34,6 +34,11 @@ const workflowRunContextInclude = {
 @Authenticated()
 @Controller('workflow-runs')
 export class WorkflowRunsController {
+  /**
+   * Initialize WorkflowRunsController with its required dependencies.
+   *
+   * @param workflowRuns - Ability-aware workflow-run query service.
+   */
   constructor(private readonly workflowRuns: WorkflowRunsQueryService) {}
 
   /**

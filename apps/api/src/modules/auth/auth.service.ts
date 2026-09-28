@@ -24,11 +24,25 @@ const avatarMetadata = { select: { updatedAt: true } } as const;
 
 @Injectable()
 export class AuthService {
+  /**
+   * Initialize AuthService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param jwt - JWT signer and verifier configured for application authentication.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
   ) {}
 
+  /**
+   * Verify local credentials and issue an access token with the current authentication version.
+   *
+   * @param username - Local login name identifying the account.
+   * @param password - Plaintext password to verify or hash; never returned or logged.
+   * @returns The authenticated identity and its newly signed access token.
+   * @throws UnauthorizedException - Invalid credentials.
+   */
   async signIn(username: string, password: string): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({ where: { username }, include: { avatar: avatarMetadata } });
     if (!user || !(await bcrypt.compare(password, user.passwordHash)))
@@ -37,12 +51,22 @@ export class AuthService {
     return { accessToken: await this.createAccessToken(authenticatedUser, user.authVersion), user: authenticatedUser };
   }
 
-  /** Return whether at least one local user has completed first-run setup. */
+  /**
+   * Return whether at least one local user has completed first-run setup.
+   *
+   * @returns Whether at least one local user already exists.
+   */
   async getSetupStatus(): Promise<{ initialized: boolean }> {
     return { initialized: (await this.prisma.user.count()) > 0 };
   }
 
-  /** Create exactly one first-run system administrator under a transaction-scoped PostgreSQL lock. */
+  /**
+   * Create exactly one first-run system administrator under a transaction-scoped PostgreSQL lock.
+   *
+   * @param input - Initial administrator username, password, and optional profile names.
+   * @returns The first administrator identity and its access token.
+   * @throws ConflictException - The application is already initialized.
+   */
   async setup(input: SetupInput): Promise<AuthResult> {
     const passwordHash = await bcrypt.hash(input.password, 12);
     const user = await this.prisma.transaction(async (transaction) => {
@@ -62,7 +86,15 @@ export class AuthService {
     return { accessToken: await this.createAccessToken(authenticatedUser, user.authVersion), user: authenticatedUser };
   }
 
-  /** Replace the current password, invalidate other tokens, and issue a replacement token. */
+  /**
+   * Replace the current password, invalidate other tokens, and issue a replacement token.
+   *
+   * @param userId - Local user identifier targeted by the operation.
+   * @param currentPassword - Existing plaintext password used to authorize the credential change.
+   * @param newPassword - Replacement plaintext password to hash and persist.
+   * @returns The updated user identity and replacement access token.
+   * @throws UnauthorizedException - Invalid credentials.
+   */
   async updatePassword(userId: string, currentPassword: string, newPassword: string): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash)))
@@ -79,7 +111,14 @@ export class AuthService {
     };
   }
 
-  /** Update one user's personal identity while protecting changes to their login name. */
+  /**
+   * Update one user's personal identity while protecting changes to their login name.
+   *
+   * @param userId - Local user identifier targeted by the operation.
+   * @param input - Profile values and the current password required when changing the login name.
+   * @returns The updated safe user identity.
+   * @throws UnauthorizedException - When the user no longer exists or a username change lacks valid credentials.
+   */
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
@@ -107,7 +146,8 @@ export class AuthService {
    *
    * @param accessToken - Encoded ezRepo access token.
    * @returns The current persisted user represented by the token.
-   * @throws UnauthorizedException when the token or referenced user is invalid.
+   * @throws UnauthorizedException - When the bearer token is invalid, expired, or no longer matches the persisted user
+   * authentication version.
    */
   async authenticateAccessToken(accessToken: string): Promise<AuthenticatedUser> {
     try {
@@ -125,10 +165,23 @@ export class AuthService {
     }
   }
 
+  /**
+   * Sign an access token bound to the user and current authentication version.
+   *
+   * @param user - Safe user identity whose ID, role, and username are included in the signed claims.
+   * @param authVersion - Persisted authentication version used to invalidate older tokens.
+   * @returns The signed bearer token.
+   */
   private createAccessToken(user: AuthenticatedUser, authVersion: number): Promise<string> {
     return this.jwt.signAsync({ authVersion, sub: user.id, role: user.role, username: user.username });
   }
 
+  /**
+   * Project persisted user data into the safe authenticated identity.
+   *
+   * @param user - Persisted user fields to project without credentials.
+   * @returns The safe application identity without password or token secrets.
+   */
   private toAuthenticatedUser(user: {
     avatar: { updatedAt: Date } | null;
     firstName: string | null;

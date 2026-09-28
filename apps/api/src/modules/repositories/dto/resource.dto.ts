@@ -28,7 +28,13 @@ export class ProviderAccountDto {
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   lastSyncAt!: Date | null;
 
-  /** Convert a provider account to its safe public representation. */
+  /**
+   * Convert a provider account to its safe public representation.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param ability - Optional cASL ability used to restrict resource access or exposed fields.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: ProviderAccount, ability?: AppAbility): ProviderAccountDto {
     return filterCaslFields(
       {
@@ -85,7 +91,13 @@ export class RepositoryDto {
   @ApiProperty({ isArray: true, type: () => RepositoryMemberSummaryDto })
   members!: RepositoryMemberSummaryDto[];
 
-  /** Convert a tracked repository to a permission-filtered API response. */
+  /**
+   * Convert a tracked repository to a permission-filtered API response.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param ability - Optional cASL ability used to restrict resource access or exposed fields.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: RepositoryResourceModel, ability?: AppAbility): RepositoryDto {
     return filterCaslFields(
       {
@@ -154,7 +166,13 @@ export class WorkflowRunDto {
   @ApiProperty({ enum: ['GITHUB', 'GITLAB', 'FORGEJO', 'GITEA'] })
   providerType!: ProviderAccount['providerType'];
 
-  /** Convert a normalized provider run to a permission-filtered API response. */
+  /**
+   * Convert a normalized provider run to a permission-filtered API response.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param ability - Optional cASL ability used to restrict resource access or exposed fields.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: WorkflowRunResourceModel, ability?: AppAbility): WorkflowRunDto {
     return filterCaslFields(
       {
@@ -205,7 +223,13 @@ export class WorkflowFilterDto {
   @ApiProperty({ format: 'uuid' })
   repositoryId!: string;
 
-  /** Convert a workflow filter to a repository-scoped API response. */
+  /**
+   * Convert a workflow filter to a repository-scoped API response.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param ability - Optional cASL ability used to restrict resource access or exposed fields.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: WorkflowFilter, ability?: AppAbility): WorkflowFilterDto {
     return filterCaslFields(
       { id: model.id, pattern: model.pattern, mode: model.mode, repositoryId: model.repositoryId },
@@ -229,7 +253,12 @@ export class RepositoryMembershipDto {
   @ApiProperty()
   user!: Pick<User, 'firstName' | 'id' | 'lastName' | 'role' | 'username'> & { avatarUpdatedAt: Date | null };
 
-  /** Convert a membership and its safe user relation into a public representation. */
+  /**
+   * Convert a membership and its safe user relation into a public representation.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(
     model: RepositoryMembership & {
       user: Pick<User, 'firstName' | 'id' | 'lastName' | 'role' | 'username'> & {

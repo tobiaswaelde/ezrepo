@@ -42,6 +42,12 @@ export class ProviderAccountsQueryService extends QueryService<
   AppAbility,
   CaslSubject.ProviderAccount
 > {
+  /**
+   * Initialize ProviderAccountsQueryService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+   */
   constructor(
     prisma: PrismaService,
     private readonly abilityFactory: CaslAbilityFactory,
@@ -54,13 +60,24 @@ export class ProviderAccountsQueryService extends QueryService<
     });
   }
 
-  /** Resolve the full provider-account read ability for a system administrator. */
+  /**
+   * Resolve the full provider-account read ability for a system administrator.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns The CASL ability used for resource queries and DTO projection.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   getReadAbility(user: AuthenticatedUser): AppAbility {
     if (user.role !== 'SYSTEM_ADMIN') throw new ForbiddenException('System administrator access is required.');
     return this.abilityFactory.createForUser(user, []);
   }
 
-  /** Apply a stable default order when no sort is selected in the table. */
+  /**
+   * Apply a stable default order when no sort is selected in the table.
+   *
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns Query Kit options with explicit relation loading and stable default sorting.
+   */
   toQueryOptions(query: ProviderAccountQueryDto): QueryOptionsMap<ProviderAccountTypeMap>['query'] {
     const { search, where, ...options } = query;
     const searchWhere: Prisma.ProviderAccountWhereInput | undefined = search

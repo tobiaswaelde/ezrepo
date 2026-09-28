@@ -14,12 +14,25 @@ interface AuthenticatedRequest {
 /** Resolves memberships and enforces endpoint policies after JWT authentication. */
 @Injectable()
 export class PoliciesGuard implements CanActivate {
+  /**
+   * Initialize PoliciesGuard with its required dependencies.
+   *
+   * @param reflector - Nest metadata reader for route policy declarations.
+   * @param prisma - Database client used for persisted application state.
+   * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+   */
   constructor(
     private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
     private readonly abilityFactory: CaslAbilityFactory,
   ) {}
 
+  /**
+   * Evaluate every route policy against the authenticated user and current repository memberships.
+   *
+   * @param context - Nest execution context containing the current handler and HTTP request.
+   * @returns Whether every configured policy allows the request.
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const handlers = this.reflector.getAllAndOverride<PolicyHandler[]>(CHECK_POLICIES_KEY, [
       context.getHandler(),

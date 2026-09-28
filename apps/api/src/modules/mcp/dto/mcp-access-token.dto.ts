@@ -50,7 +50,13 @@ export class McpAccessTokenDto {
   @ApiProperty({ format: 'uuid' })
   userId!: string;
 
-  /** Map persisted token metadata without exposing its hash. */
+  /**
+   * Map persisted token metadata without exposing its hash.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param now - Reference time for deterministic time-dependent calculations.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: McpAccessToken, now = new Date()): McpAccessTokenDto {
     return {
       createdAt: model.createdAt,

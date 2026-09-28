@@ -77,13 +77,26 @@ const repositoryFieldSchema = {
 @Authenticated()
 @Controller('repositories')
 export class RepositoriesController {
+  /**
+   * Initialize RepositoriesController with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param configuration - Service managing repository membership, filters, and webhook settings.
+   * @param repositories - Ability-aware repository query service.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly configuration: RepositoryConfigurationService,
     private readonly repositories: RepositoriesQueryService,
   ) {}
 
-  /** Query repositories with server-side filtering, sorting, field selection, and pagination. */
+  /**
+   * Query repositories with server-side filtering, sorting, field selection, and pagination.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns The visible resource page and its query metadata.
+   */
   @Get()
   @ApiResourceQuery()
   @ApiPaginatedResponse({ description: 'Tracked repositories.', model: RepositoryDto })
@@ -111,7 +124,13 @@ export class RepositoriesController {
     });
   }
 
-  /** Return safe webhook setup metadata for all tracked repositories. */
+  /**
+   * Return safe webhook setup metadata for all tracked repositories.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @returns Webhook setup metadata without signing secrets.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   @Get('webhook-configurations')
   @ApiOkResponse({ type: RepositoryWebhookConfigurationDto, isArray: true })
   async webhookConfigurations(
@@ -120,7 +139,14 @@ export class RepositoriesController {
     return this.configuration.listWebhookConfigurations(request.user);
   }
 
-  /** Get one repository when it is visible to the authenticated user. */
+  /**
+   * Get one repository when it is visible to the authenticated user.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param id - Local identifier of the target record.
+   * @returns The safe detail DTO for the visible resource.
+   * @throws NotFoundException - When the resource is missing or not visible to the authenticated user.
+   */
   @Get(':id')
   async findById(@Req() request: { user: AuthenticatedUser }, @Param('id') id: string): Promise<RepositoryDto> {
     const ability = await this.repositories.getReadAbility(request.user);
@@ -146,7 +172,15 @@ export class RepositoriesController {
     );
   }
 
-  /** List all workflow filters configured for one repository. */
+  /**
+   * List all workflow filters configured for one repository.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @returns The repository workflow filters in stable order.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Repository not found.
+   */
   @Get(':id/workflow-filters')
   async listWorkflowFilters(
     @Req() request: { user: AuthenticatedUser },
@@ -157,7 +191,17 @@ export class RepositoriesController {
     );
   }
 
-  /** Add a validated workflow filter for one repository. */
+  /**
+   * Add a validated workflow filter for one repository.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param body - Validated request body for the operation.
+   * @returns The validated workflow filter persisted for the repository.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Repository not found.
+   * @throws BadRequestException - Workflow filter patterns must not be empty. Workflow filter pattern is invalid.
+   */
   @Post(':id/workflow-filters')
   async createWorkflowFilter(
     @Req() request: { user: AuthenticatedUser },
@@ -167,7 +211,16 @@ export class RepositoriesController {
     return WorkflowFilterDto.fromModel(await this.configuration.createWorkflowFilter(request.user, repositoryId, body));
   }
 
-  /** Remove one workflow filter from the selected repository. */
+  /**
+   * Remove one workflow filter from the selected repository.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param filterId - Identifier of the filter belonging to the selected repository.
+   * @returns A promise that resolves when the operation completes.
+   * @throws NotFoundException - Workflow filter not found.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   @Delete(':id/workflow-filters/:filterId')
   @HttpCode(204)
   async deleteWorkflowFilter(
@@ -178,7 +231,15 @@ export class RepositoriesController {
     await this.configuration.deleteWorkflowFilter(request.user, repositoryId, filterId);
   }
 
-  /** List every user assigned to one repository. */
+  /**
+   * List every user assigned to one repository.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @returns Repository memberships with safe user profile metadata.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Repository not found.
+   */
   @Get(':id/memberships')
   async listMemberships(
     @Req() request: { user: AuthenticatedUser },
@@ -189,7 +250,17 @@ export class RepositoriesController {
     );
   }
 
-  /** Add or update one repository member role. */
+  /**
+   * Add or update one repository member role.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param userId - Local user identifier targeted by the operation.
+   * @param body - Validated request body for the operation.
+   * @returns The persisted membership with safe user profile metadata.
+   * @throws NotFoundException - User not found.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   @Put(':id/memberships/:userId')
   async upsertMembership(
     @Req() request: { user: AuthenticatedUser },
@@ -202,7 +273,16 @@ export class RepositoriesController {
     );
   }
 
-  /** Remove one user's access to the selected repository. */
+  /**
+   * Remove one user's access to the selected repository.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param userId - Local user identifier targeted by the operation.
+   * @returns A promise that resolves when the operation completes.
+   * @throws NotFoundException - Repository membership not found.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   @Delete(':id/memberships/:userId')
   @HttpCode(204)
   async deleteMembership(
@@ -213,7 +293,16 @@ export class RepositoriesController {
     await this.configuration.deleteMembership(request.user, repositoryId, userId);
   }
 
-  /** Store or rotate the selected repository's webhook signing secret. */
+  /**
+   * Store or rotate the selected repository's webhook signing secret.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param body - Validated request body for the operation.
+   * @returns Safe webhook setup metadata after the secret is persisted.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Repository not found.
+   */
   @Put(':id/webhook-configuration')
   @ApiOkResponse({ type: RepositoryWebhookConfigurationDto })
   async setWebhookSecret(
@@ -224,7 +313,15 @@ export class RepositoriesController {
     return this.configuration.setWebhookSecret(request.user, repositoryId, body.webhookSecret);
   }
 
-  /** Remove the selected repository's webhook signing secret. */
+  /**
+   * Remove the selected repository's webhook signing secret.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @returns A promise that resolves when the operation completes.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Repository not found.
+   */
   @Delete(':id/webhook-configuration')
   @HttpCode(204)
   @ApiNoContentResponse()
@@ -235,6 +332,15 @@ export class RepositoriesController {
     await this.configuration.clearWebhookSecret(request.user, repositoryId);
   }
 
+  /**
+   * Update the selected local resource after authorization and validation.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param id - Local identifier of the target record.
+   * @param body - Validated request body for the operation.
+   * @returns The updated resource projected into its public representation.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   @Patch(':id') async update(
     @Req() request: { user: AuthenticatedUser },
     @Param('id') id: string,
@@ -243,6 +349,13 @@ export class RepositoriesController {
     this.assertAdmin(request.user);
     return RepositoryDto.fromModel(await this.prisma.repository.update({ where: { id }, data: body }));
   }
+  /**
+   * Require the system administrator role before applying an administrative operation.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns No return value.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   private assertAdmin(user: AuthenticatedUser): void {
     if (user.role !== 'SYSTEM_ADMIN') throw new ForbiddenException('System administrator access is required.');
   }

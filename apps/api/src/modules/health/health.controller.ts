@@ -6,8 +6,18 @@ import { HealthService, type HealthResponse } from './health.service.js';
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
+  /**
+   * Initialize HealthController with its required dependencies.
+   *
+   * @param healthService - Service reading database and persisted provider health.
+   */
   constructor(private readonly healthService: HealthService) {}
 
+  /**
+   * Return database reachability and the last persisted provider synchronization state.
+   *
+   * @returns Database health and safe persisted provider synchronization summaries.
+   */
   @Get()
   @Version(VERSION_NEUTRAL)
   @ApiOperation({ summary: 'Get application health status' })

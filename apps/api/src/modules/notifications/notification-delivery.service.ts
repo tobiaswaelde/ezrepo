@@ -29,7 +29,12 @@ type DeliveryChannel = NotificationDeliveryModel['notificationChannel'];
 
 const maximumAttempts = 3;
 
-/** Return the bounded exponential delay before a subsequent delivery attempt. */
+/**
+ * Return the bounded exponential delay before a subsequent delivery attempt.
+ *
+ * @param attempt - One-based delivery or synchronization attempt number.
+ * @returns The capped exponential retry delay in milliseconds.
+ */
 export function notificationRetryDelayMs(attempt: number): number {
   return Math.min(60_000 * 2 ** Math.max(attempt - 1, 0), 60 * 60_000);
 }
@@ -39,6 +44,14 @@ export function notificationRetryDelayMs(attempt: number): number {
 export class NotificationDeliveryService {
   private readonly logger = new Logger(NotificationDeliveryService.name);
 
+  /**
+   * Initialize NotificationDeliveryService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param jobs - Runner that prevents overlapping background jobs and disables them in tests.
+   * @param apprise - Adapter sending notifications through the configured Apprise endpoint.
+   * @param browserPush - Service managing browser push subscriptions and delivery.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly jobs: JobRunnerService,
@@ -46,13 +59,23 @@ export class NotificationDeliveryService {
     private readonly browserPush: BrowserPushService,
   ) {}
 
-  /** Retry delivery records whose bounded exponential delay has elapsed. */
+  /**
+   * Retry delivery records whose bounded exponential delay has elapsed.
+   *
+   * @returns A promise that resolves when the operation completes.
+   */
   @Interval(60_000)
   async scheduleRetries(): Promise<void> {
     await this.jobs.run('notification-delivery-retry', () => this.deliverPending());
   }
 
-  /** Attempt every requested pending delivery once, retaining an immutable attempt audit trail. */
+  /**
+   * Attempt every requested pending delivery once, retaining an immutable attempt audit trail.
+   *
+   * @param deliveryIds - Optional delivery identifiers restricting the pending work to execute.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   async deliverPending(deliveryIds?: string[]): Promise<void> {
     const now = new Date();
     const deliveries = await this.prisma.notificationDelivery.findMany({
@@ -66,6 +89,13 @@ export class NotificationDeliveryService {
     for (const delivery of deliveries) await this.deliver(delivery);
   }
 
+  /**
+   * Attempt a pending delivery while preserving successful targets from earlier attempts.
+   *
+   * @param delivery - Persisted delivery with its channel, source, and prior attempts.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   private async deliver(delivery: NotificationDeliveryModel): Promise<void> {
     const channel = delivery.notificationChannel;
     if (!channel.enabled) {
@@ -92,6 +122,16 @@ export class NotificationDeliveryService {
     if (!delivered) this.logger.warn(`Notification delivery ${delivery.id} failed.`);
   }
 
+  /**
+   * Dispatch one delivery through its configured notification transport.
+   *
+   * @param delivery - Persisted delivery with its channel, source, and prior attempts.
+   * @param channel - Persisted notification destination and required transport configuration.
+   * @param payload - Notification content shared across delivery transports.
+   * @param attempt - One-based delivery or synchronization attempt number.
+   * @param deliveredSubscriptionIds - Device subscriptions already delivered successfully and excluded from retries.
+   * @returns Whether delivery succeeded for all remaining required targets.
+   */
   private async deliverChannel(
     delivery: NotificationDeliveryModel,
     channel: DeliveryChannel,
@@ -99,17 +139,53 @@ export class NotificationDeliveryService {
     attempt: number,
     deliveredSubscriptionIds: Set<string>,
   ): Promise<boolean> {
-    if (channel.type !== NotificationChannelType.BROWSER_PUSH) {
-      try {
-        await this.apprise.send(channel, payload);
-        await this.createAttempt(delivery.id, channel.id, attempt, true);
-        return true;
-      } catch (error) {
-        await this.createAttempt(delivery.id, channel.id, attempt, false, this.errorMessage(error));
-        return false;
-      }
-    }
+    return channel.type === NotificationChannelType.BROWSER_PUSH
+      ? this.deliverBrowserPush(delivery, channel, payload, attempt, deliveredSubscriptionIds)
+      : this.deliverApprise(delivery, channel, payload, attempt);
+  }
 
+  /**
+   * Send an Apprise notification and persist the successful or failed attempt.
+   *
+   * @param delivery - Persisted delivery with its channel, source, and prior attempts.
+   * @param channel - Persisted notification destination and required transport configuration.
+   * @param payload - Notification content shared across delivery transports.
+   * @param attempt - One-based delivery or synchronization attempt number.
+   * @returns Whether the Apprise send and successful attempt recording completed.
+   */
+  private async deliverApprise(
+    delivery: NotificationDeliveryModel,
+    channel: DeliveryChannel,
+    payload: NotificationPayload,
+    attempt: number,
+  ): Promise<boolean> {
+    try {
+      await this.apprise.send(channel, payload);
+      await this.createAttempt(delivery.id, channel.id, attempt, true);
+      return true;
+    } catch (error) {
+      await this.createAttempt(delivery.id, channel.id, attempt, false, this.errorMessage(error));
+      return false;
+    }
+  }
+
+  /**
+   * Send browser push notifications to remaining recipients and record per-device outcomes.
+   *
+   * @param delivery - Persisted delivery with its channel, source, and prior attempts.
+   * @param channel - Persisted notification destination and required transport configuration.
+   * @param payload - Notification content shared across delivery transports.
+   * @param attempt - One-based delivery or synchronization attempt number.
+   * @param deliveredSubscriptionIds - Device subscriptions already delivered successfully and excluded from retries.
+   * @returns Whether all remaining browser targets were delivered without recipient failures.
+   */
+  private async deliverBrowserPush(
+    delivery: NotificationDeliveryModel,
+    channel: DeliveryChannel,
+    payload: NotificationPayload,
+    attempt: number,
+    deliveredSubscriptionIds: Set<string>,
+  ): Promise<boolean> {
     if (channel.recipients.length === 0) {
       await this.createAttempt(delivery.id, channel.id, attempt, false, 'Browser push recipients are missing.');
       return false;
@@ -141,6 +217,17 @@ export class NotificationDeliveryService {
     return delivered;
   }
 
+  /**
+   * Persist one immutable notification attempt with a sanitized outcome.
+   *
+   * @param deliveryId - Local identifier of the notification delivery.
+   * @param channelId - Local identifier of the notification channel.
+   * @param attempt - One-based delivery or synchronization attempt number.
+   * @param delivered - Whether the notification reached all required targets.
+   * @param error - Failure to classify or sanitized message to persist.
+   * @param subscriptionId - Optional browser subscription associated with this attempt.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async createAttempt(
     deliveryId: string,
     channelId: string,
@@ -161,6 +248,15 @@ export class NotificationDeliveryService {
     });
   }
 
+  /**
+   * Mark a delivery complete, schedule its retry, or record terminal failure.
+   *
+   * @param delivery - Persisted delivery with its channel, source, and prior attempts.
+   * @param delivered - Whether the notification reached all required targets.
+   * @param attemptNumber - One-based attempt number used to determine retry exhaustion.
+   * @param error - Sanitized final failure message, or null after successful delivery.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async finish(
     delivery: NotificationDeliveryModel,
     delivered: boolean,
@@ -182,6 +278,13 @@ export class NotificationDeliveryService {
     });
   }
 
+  /**
+   * Build the transport-neutral payload for a test or persisted notification event.
+   *
+   * @param delivery - Persisted delivery with its channel, source, and prior attempts.
+   * @returns The normalized notification content for the configured transport.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   private createPayload(delivery: NotificationDeliveryModel): NotificationPayload {
     if (delivery.kind === NotificationDeliveryKind.TEST) {
       return {
@@ -209,6 +312,12 @@ export class NotificationDeliveryService {
     };
   }
 
+  /**
+   * Return a notification failure message that does not expose destination credentials.
+   *
+   * @param error - Caught transport error whose message must be sanitized before persistence.
+   * @returns A sanitized notification failure message.
+   */
   private errorMessage(error: unknown): string {
     return error instanceof Error && error.message === 'Apprise notification delivery failed.'
       ? error.message

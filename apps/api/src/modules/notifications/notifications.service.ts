@@ -71,6 +71,16 @@ interface EventSource {
 /** Manages global notification destinations, subscriptions, and idempotent event deliveries. */
 @Injectable()
 export class NotificationsService {
+  /**
+   * Initialize NotificationsService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param credentials - Service encrypting and decrypting persisted credentials.
+   * @param workflowFilters - Service validating and evaluating workflow-name patterns.
+   * @param deliveryService - Service executing and retrying persisted notification deliveries.
+   * @param channelUrls - Service validating structured destinations and encoding Apprise URLs.
+   * @param browserPush - Service managing browser push subscriptions and delivery.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly credentials: CredentialEncryptionService,
@@ -80,7 +90,11 @@ export class NotificationsService {
     private readonly browserPush: BrowserPushService,
   ) {}
 
-  /** Return every global channel to an authenticated user. */
+  /**
+   * Return every global channel to an authenticated user.
+   *
+   * @returns Persisted channels with subscriptions and recipient display metadata.
+   */
   async listChannels() {
     return this.prisma.notificationChannel.findMany({
       include: notificationChannelInclude,
@@ -88,7 +102,13 @@ export class NotificationsService {
     });
   }
 
-  /** Return repositories available as optional global event filters. */
+  /**
+   * Return repositories available as optional global event filters.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns Repositories available to the administrator as event-subscription filters.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   async listFilterRepositories(user: AuthenticatedUser) {
     this.assertAdmin(user);
     return this.prisma.repository.findMany({
@@ -97,7 +117,17 @@ export class NotificationsService {
     });
   }
 
-  /** Create one global channel and its event subscriptions. */
+  /**
+   * Create one global channel and its event subscriptions.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param input - Channel name, transport settings, event subscriptions, and browser recipients.
+   * @returns The persisted channel with subscriptions and recipient display metadata.
+   * @throws ServiceUnavailableException - Browser push is not configured.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws BadRequestException - Notification events must not be repeated. One or more repository filters are invalid.
+   * Workflow patterns are only supported for workflow events.
+   */
   async createChannel(user: AuthenticatedUser, input: CreateNotificationChannelDto) {
     this.assertAdmin(user);
     const type = input.type ?? NotificationChannelType.CUSTOM_APPRISE;
@@ -122,7 +152,19 @@ export class NotificationsService {
     });
   }
 
-  /** Update a global channel while preserving omitted write-only credentials. */
+  /**
+   * Update a global channel while preserving omitted write-only credentials.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param id - Local identifier of the target record.
+   * @param input - Channel fields to replace; omitted fields, including write-only credentials, are preserved.
+   * @returns The updated channel with subscriptions and recipients.
+   * @throws ForbiddenException - Browser push channels do not accept destination configuration. Configure a replacement
+   * Apprise URL before enabling this channel.
+   * @throws NotFoundException - Notification channel not found.
+   * @throws BadRequestException - Notification events must not be repeated. One or more repository filters are invalid.
+   * Workflow patterns are only supported for workflow events.
+   */
   async updateChannel(user: AuthenticatedUser, id: string, input: UpdateNotificationChannelDto) {
     this.assertAdmin(user);
     const channel = await this.findChannel(id);
@@ -160,14 +202,29 @@ export class NotificationsService {
     });
   }
 
-  /** Delete a global channel. */
+  /**
+   * Delete a global channel.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param id - Local identifier of the target record.
+   * @returns A promise that resolves when the operation completes.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Notification channel not found.
+   */
   async deleteChannel(user: AuthenticatedUser, id: string): Promise<void> {
     this.assertAdmin(user);
     await this.findChannel(id);
     await this.prisma.notificationChannel.delete({ where: { id } });
   }
 
-  /** List system-wide delivery history for system administrators. */
+  /**
+   * List system-wide delivery history for system administrators.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param repositoryId - Optional local identifier of the tracked repository.
+   * @returns Delivery history with attempts and event context, ordered newest first.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   async listDeliveryHistory(user: AuthenticatedUser, repositoryId?: string) {
     this.assertAdmin(user);
     return this.prisma.notificationDelivery.findMany({
@@ -177,7 +234,16 @@ export class NotificationsService {
     });
   }
 
-  /** Create and immediately execute one non-retrying test delivery. */
+  /**
+   * Create and immediately execute one non-retrying test delivery.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param id - Local identifier of the target record.
+   * @returns The test delivery with its completed attempt history.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws NotFoundException - Notification channel not found.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   async testChannel(user: AuthenticatedUser, id: string) {
     this.assertAdmin(user);
     const channel = await this.findChannel(id);
@@ -197,7 +263,15 @@ export class NotificationsService {
     });
   }
 
-  /** Classify and enqueue a terminal workflow transition after the baseline sync. */
+  /**
+   * Classify and enqueue a terminal workflow transition after the baseline sync.
+   *
+   * @param run - Workflow run whose provider data or persisted state is being processed.
+   * @param previousStatus - Previously persisted run status, or null for a newly discovered run.
+   * @param baseline - Whether this is the initial synchronization, during which lifecycle notifications are suppressed.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   async evaluateWorkflowRun(
     run: {
       id: string;
@@ -249,7 +323,14 @@ export class NotificationsService {
     });
   }
 
-  /** Enqueue one normalized issue lifecycle event. */
+  /**
+   * Enqueue one normalized issue lifecycle event.
+   *
+   * @param eventType - Normalized domain event to deliver.
+   * @param issue - Issue data being normalized, persisted, or used as an event source.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   async emitIssueEvent(
     eventType: NotificationEventType,
     issue: { id: string; providerUpdatedAt: Date; repositoryId: string },
@@ -262,7 +343,14 @@ export class NotificationsService {
     });
   }
 
-  /** Enqueue one normalized pull-request lifecycle event. */
+  /**
+   * Enqueue one normalized pull-request lifecycle event.
+   *
+   * @param eventType - Normalized domain event to deliver.
+   * @param pullRequest - Pull-request data being normalized, persisted, or used as an event source.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   async emitPullRequestEvent(
     eventType: NotificationEventType,
     pullRequest: { id: string; providerUpdatedAt: Date; repositoryId: string },
@@ -275,7 +363,29 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * Find subscribed channels and enqueue idempotent deliveries for one domain event.
+   *
+   * @param source - Normalized domain event, repository scope, and idempotent delivery key.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   private async emitEvent(source: EventSource): Promise<void> {
+    const channels = await this.findMatchingChannels(source);
+    if (channels.length === 0) return;
+    await this.createEventDeliveries(
+      source,
+      channels.map(({ id }) => id),
+    );
+  }
+
+  /**
+   * Select enabled channels whose event, repository, and workflow filters match the source.
+   *
+   * @param source - Normalized domain event, repository scope, and idempotent delivery key.
+   * @returns Matching channel records with at least their local identifiers.
+   */
+  private async findMatchingChannels(source: EventSource): Promise<{ id: string }[]> {
     const matchingEventTypes = source.matchingEventTypes ?? [source.eventType];
     const channels = await this.prisma.notificationChannel.findMany({
       include: {
@@ -294,7 +404,7 @@ export class NotificationsService {
         },
       },
     });
-    const matchingChannels = channels.filter((channel) =>
+    return channels.filter((channel) =>
       channel.eventSubscriptions.some(
         (subscription) =>
           (subscription.repositories.length === 0 ||
@@ -306,15 +416,24 @@ export class NotificationsService {
             )),
       ),
     );
-    if (matchingChannels.length === 0) return;
+  }
 
+  /**
+   * Create missing event deliveries and execute pending deliveries for the selected channels.
+   *
+   * @param source - Normalized domain event, repository scope, and idempotent delivery key.
+   * @param channelIds - Matching notification channels that should receive the event.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
+  private async createEventDeliveries(source: EventSource, channelIds: string[]): Promise<void> {
     await this.prisma.notificationDelivery.createMany({
-      data: matchingChannels.map((channel) => ({
+      data: channelIds.map((channelId) => ({
         deduplicationKey: source.deduplicationKey,
         eventType: source.eventType,
         issueId: source.issueId,
         kind: NotificationDeliveryKind.EVENT,
-        notificationChannelId: channel.id,
+        notificationChannelId: channelId,
         pullRequestId: source.pullRequestId,
         repositoryId: source.repositoryId,
         workflowRunId: source.workflowRunId,
@@ -325,13 +444,21 @@ export class NotificationsService {
       select: { id: true },
       where: {
         deduplicationKey: source.deduplicationKey,
-        notificationChannelId: { in: matchingChannels.map(({ id }) => id) },
+        notificationChannelId: { in: channelIds },
         status: 'PENDING',
       },
     });
     if (deliveries.length > 0) await this.deliveryService.deliverPending(deliveries.map(({ id }) => id));
   }
 
+  /**
+   * Validate unique event subscriptions, repository filters, and workflow patterns for persistence.
+   *
+   * @param inputs - Requested event subscriptions to validate and prepare for persistence.
+   * @returns Validated nested event-subscription data ready for Prisma persistence.
+   * @throws BadRequestException - Notification events must not be repeated. One or more repository filters are invalid.
+   * Workflow patterns are only supported for workflow events.
+   */
   private async prepareSubscriptions(inputs: NotificationEventSubscriptionInputDto[]) {
     const eventTypes = inputs.map(({ eventType }) => eventType);
     if (new Set(eventTypes).size !== eventTypes.length)
@@ -356,6 +483,15 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * Validate browser push recipient IDs and reject recipients on other channel types.
+   *
+   * @param type - Notification transport selected for the channel.
+   * @param input - Requested browser push recipient user IDs; omission is treated as an empty list.
+   * @returns Validated browser recipient IDs, or an empty list for other transports.
+   * @throws BadRequestException - Only browser push channels accept browser recipients. Browser push channels require
+   * at least one recipient. One or more browser recipients are invalid.
+   */
   private async prepareRecipients(type: NotificationChannelType, input: string[] | undefined): Promise<string[]> {
     const recipientIds = input ?? [];
     if (type !== NotificationChannelType.BROWSER_PUSH) {
@@ -370,10 +506,24 @@ export class NotificationsService {
     return recipientIds;
   }
 
+  /**
+   * Require the system administrator role before applying an administrative operation.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns No return value.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   private assertAdmin(user: AuthenticatedUser): void {
     if (user.role !== 'SYSTEM_ADMIN') throw new ForbiddenException('System administrator access is required.');
   }
 
+  /**
+   * Load a notification channel or report that it no longer exists.
+   *
+   * @param id - Local identifier of the target record.
+   * @returns The persisted notification channel.
+   * @throws NotFoundException - Notification channel not found.
+   */
   private async findChannel(id: string) {
     const channel = await this.prisma.notificationChannel.findUnique({ where: { id } });
     if (!channel) throw new NotFoundException('Notification channel not found.');

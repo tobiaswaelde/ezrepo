@@ -20,7 +20,7 @@ const PUBLIC_TABLES_QUERY = `
  * @param databaseUrl - PostgreSQL URL of the database being cleaned.
  * @param tableNames - Application table names discovered from PostgreSQL.
  * @returns A truncate statement, or null when the schema contains no application tables.
- * @throws {Error} When the URL does not point to a database ending in `_test`.
+ * @throws Error - When the URL does not point to a database ending in `_test`.
  */
 export function buildTestDatabaseCleanupStatement(databaseUrl: string, tableNames: string[]): string | null {
   const databaseName = new URL(databaseUrl).pathname.slice(1);
@@ -44,12 +44,18 @@ export function buildTestDatabaseCleanupStatement(databaseUrl: string, tableName
 /** Clears all application tables between integration tests. */
 @Injectable()
 export class TestDatabaseService {
+  /**
+   * Initialize TestDatabaseService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Remove all application data while preserving Prisma migration metadata.
    *
-   * @throws {Error} When the configured database name does not end in `_test`.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When the configured database name does not end in `_test`.
    */
   async cleanup(): Promise<void> {
     if (!ENV.isTest) {

@@ -7,7 +7,12 @@ export interface JobExecutionConfiguration {
   isTest: boolean;
 }
 
-/** Determine whether background work may execute in the current process. */
+/**
+ * Determine whether background work may execute in the current process.
+ *
+ * @param configuration - Configuration values used to select and validate this operation.
+ * @returns Whether scheduling is enabled and the process is outside the test environment.
+ */
 export function isJobExecutionEnabled(configuration: JobExecutionConfiguration): boolean {
   return configuration.SCHEDULER_ENABLED && !configuration.isTest;
 }

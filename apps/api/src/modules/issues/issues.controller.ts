@@ -28,11 +28,24 @@ const issueInclude = {
 @Authenticated()
 @Controller('issues')
 export class IssuesController {
+  /**
+   * Initialize IssuesController with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param issues - Ability-aware issue query service.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly issues: IssuesQueryService,
   ) {}
 
+  /**
+   * Query visible records with filtering, sorting, and pagination.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns The visible resource page and its query metadata.
+   */
   @Get()
   @ApiOperation({ summary: 'Query visible issues' })
   @ApiResourceQuery()
@@ -50,6 +63,12 @@ export class IssuesController {
     });
   }
 
+  /**
+   * Count the current states of records visible to the authenticated user.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @returns State counts restricted to the resources visible to the caller.
+   */
   @Get('summary')
   @ApiOkResponse({ type: IssueSummaryDto })
   async summary(@Req() request: { user: AuthenticatedUser }): Promise<IssueSummaryDto> {
@@ -71,6 +90,12 @@ export class IssuesController {
     return { assigned, open, recentlyUpdated, stale };
   }
 
+  /**
+   * Return filter choices derived only from work items visible to the authenticated user.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @returns Sorted filter choices from visible work items.
+   */
   @Get('filter-options')
   @ApiOkResponse({ type: WorkItemFilterOptionsDto })
   async filterOptions(@Req() request: { user: AuthenticatedUser }): Promise<WorkItemFilterOptionsDto> {
@@ -87,6 +112,14 @@ export class IssuesController {
     return this.toFilterOptions(items);
   }
 
+  /**
+   * Load one visible resource and map it to its public detail representation.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param id - Local identifier of the target record.
+   * @returns The safe detail DTO for the visible resource.
+   * @throws NotFoundException - When the resource is missing or not visible to the authenticated user.
+   */
   @Get(':id')
   @ApiOkResponse({ type: IssueDto })
   async findById(@Req() request: { user: AuthenticatedUser }, @Param('id') id: string): Promise<IssueDto> {
@@ -98,6 +131,12 @@ export class IssuesController {
     );
   }
 
+  /**
+   * Collect distinct authors, assignees, labels, and milestones for work-item filters.
+   *
+   * @param items - Records used to build the result.
+   * @returns Distinct, sorted filter values.
+   */
   private toFilterOptions(
     items: Array<{
       assignees: Array<{ actor: { username: string } }>;
@@ -117,6 +156,12 @@ export class IssuesController {
       for (const { label } of item.labels)
         if (!labels.has(label.normalizedName)) labels.set(label.normalizedName, label.name);
     }
+    /**
+     * Sort distinct filter values for stable presentation.
+     *
+     * @param values - Values used for the calculation or stable filter ordering.
+     * @returns The supplied values in stable alphabetical order.
+     */
     const sort = (values: Iterable<string>) => [...values].sort((left, right) => left.localeCompare(right));
     return {
       assignees: sort(assignees),

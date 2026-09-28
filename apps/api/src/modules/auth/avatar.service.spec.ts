@@ -1,4 +1,7 @@
-import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
+import type { IncomingMessage } from 'node:http';
+import { Readable } from 'node:stream';
+
+import { BadGatewayException, BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 import sharp from 'sharp';
 
 import { AvatarService } from './avatar.service.js';
@@ -53,6 +56,65 @@ describe('AvatarService', () => {
     await expect(service.download('https://example.com:8443/avatar.png')).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.download('https://127.0.0.1/avatar.png')).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.download('https://[::1]/avatar.png')).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  function remoteResponse(chunks: Buffer[], headers: IncomingMessage['headers'], statusCode = 200): IncomingMessage {
+    return Object.assign(Readable.from(chunks), { headers, statusCode }) as unknown as IncomingMessage;
+  }
+
+  it('reads a streamed remote image and validates the declared format', async () => {
+    const data = await sharp({ create: { background: 'white', channels: 3, height: 10, width: 10 } })
+      .png()
+      .toBuffer();
+    const response = remoteResponse([data.subarray(0, 20), data.subarray(20)], {
+      'content-type': 'IMAGE/PNG; charset=binary',
+    });
+
+    await expect(
+      service['handleDownloadResponse'](response, new URL('https://example.test/avatar.png'), 0),
+    ).resolves.toEqual({ data, mimeType: 'image/png' });
+
+    await expect(
+      service['handleDownloadResponse'](
+        remoteResponse([data], { 'content-type': 'image/jpeg' }),
+        new URL('https://example.test/avatar.png'),
+        0,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it.each(['declared', 'streamed'])('enforces the %s remote image size limit', async (lengthSource) => {
+    const response = remoteResponse(
+      lengthSource === 'streamed' ? [Buffer.alloc(2 * 1024 * 1024), Buffer.from([1])] : [],
+      {
+        'content-type': 'image/png',
+        ...(lengthSource === 'declared' ? { 'content-length': String(2 * 1024 * 1024 + 1) } : {}),
+      },
+    );
+
+    await expect(
+      service['handleDownloadResponse'](response, new URL('https://example.test/avatar.png'), 0),
+    ).rejects.toBeInstanceOf(PayloadTooLargeException);
+    expect(response.destroyed).toBe(true);
+  });
+
+  it('revalidates redirect destinations and enforces the redirect limit', async () => {
+    const url = new URL('https://example.test/avatar.png');
+    await expect(
+      service['handleDownloadResponse'](remoteResponse([], { location: 'https://127.0.0.1/avatar.png' }, 302), url, 0),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service['handleDownloadResponse'](remoteResponse([], { location: '/next.png' }, 302), url, 3),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service['handleDownloadResponse'](remoteResponse([], { location: 'https://[invalid' }, 302), url, 0),
+    ).rejects.toBeInstanceOf(BadGatewayException);
+  });
+
+  it('rejects unsuccessful remote responses before decoding their body', async () => {
+    await expect(
+      service['handleDownloadResponse'](remoteResponse([], {}, 503), new URL('https://example.test/avatar.png'), 0),
+    ).rejects.toBeInstanceOf(BadGatewayException);
   });
 
   it('removes and retrieves stored avatar records without loading a user', async () => {

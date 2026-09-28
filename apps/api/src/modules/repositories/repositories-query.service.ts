@@ -43,6 +43,12 @@ export class RepositoriesQueryService extends QueryService<
   AppAbility,
   CaslSubject.Repository
 > {
+  /**
+   * Initialize RepositoriesQueryService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilityFactory: CaslAbilityFactory,
@@ -55,7 +61,12 @@ export class RepositoriesQueryService extends QueryService<
     });
   }
 
-  /** Resolve a repository read ability from the current user's persisted memberships. */
+  /**
+   * Resolve a repository read ability from the current user's persisted memberships.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns The CASL ability used for resource queries and DTO projection.
+   */
   async getReadAbility(user: AuthenticatedUser): Promise<AppAbility> {
     const memberships =
       user.role === 'SYSTEM_ADMIN'
@@ -67,7 +78,12 @@ export class RepositoriesQueryService extends QueryService<
     return this.abilityFactory.createForUser(user, memberships);
   }
 
-  /** Apply a stable default order when the table has no selected sort. */
+  /**
+   * Apply a stable default order when the table has no selected sort.
+   *
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns Query Kit options with explicit relation loading and stable default sorting.
+   */
   toQueryOptions(query: RepositoryQueryDto): QueryOptionsMap<RepositoryTypeMap>['query'] {
     const { search, where, ...options } = query;
     const searchWhere: Prisma.RepositoryWhereInput | undefined = search
@@ -87,7 +103,12 @@ export class RepositoriesQueryService extends QueryService<
     };
   }
 
-  /** Return the Prisma restriction for repositories readable through the supplied ability. */
+  /**
+   * Return the Prisma restriction for repositories readable through the supplied ability.
+   *
+   * @param ability - CASL ability used to restrict resource access or exposed fields.
+   * @returns A Prisma predicate limiting results to readable resources.
+   */
   visibleWhere(ability: AppAbility): Prisma.RepositoryWhereInput {
     return accessibleBy(ability, CaslAction.Read).ofType(
       CaslSubject.Repository as never,

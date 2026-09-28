@@ -21,13 +21,27 @@ export class SystemStatusService implements OnModuleInit {
 
   readonly changes$ = this.changes.asObservable();
 
+  /**
+   * Initialize SystemStatusService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Initialize the running workflow count from persisted state.
+   *
+   * @returns A promise that resolves when the operation completes.
+   */
   async onModuleInit(): Promise<void> {
     await this.refreshRunningWorkflowCount();
   }
 
-  /** Return the latest status snapshot for a newly authenticated socket. */
+  /**
+   * Return the latest status snapshot for a newly authenticated socket.
+   *
+   * @returns The current workflow count and active synchronization progress.
+   */
   getSnapshot(): SystemStatusSnapshot {
     const activity = [...this.providerSyncs.values()].sort((left, right) => right.sequence - left.sequence)[0];
     return {
@@ -46,7 +60,11 @@ export class SystemStatusService implements OnModuleInit {
     };
   }
 
-  /** Start tracking one scheduled or webhook-triggered provider synchronization. */
+  /**
+   * Start tracking one scheduled or webhook-triggered provider synchronization.
+   *
+   * @returns A unique ID for subsequent progress and completion updates.
+   */
   beginProviderSync(): string {
     const id = randomUUID();
     this.providerSyncs.set(id, {
@@ -62,20 +80,35 @@ export class SystemStatusService implements OnModuleInit {
     return id;
   }
 
-  /** Replace the safe progress fields for an active provider synchronization. */
+  /**
+   * Replace the safe progress fields for an active provider synchronization.
+   *
+   * @param id - Local identifier of the target record.
+   * @param update - Safe progress fields to replace on the active synchronization.
+   * @returns No return value.
+   */
   updateProviderSync(id: string, update: ProviderSyncActivityUpdate): void {
     if (!this.providerSyncs.has(id)) return;
     this.providerSyncs.set(id, { kind: 'PROVIDER_SYNC', ...update, sequence: ++this.sequence });
     this.publish();
   }
 
-  /** Stop exposing a completed provider synchronization. */
+  /**
+   * Stop exposing a completed provider synchronization.
+   *
+   * @param id - Local identifier of the target record.
+   * @returns No return value.
+   */
   finishProviderSync(id: string): void {
     if (!this.providerSyncs.delete(id)) return;
     this.publish();
   }
 
-  /** Refresh the global number of workflow runs currently persisted as running. */
+  /**
+   * Refresh the global number of workflow runs currently persisted as running.
+   *
+   * @returns A promise that resolves when the operation completes.
+   */
   async refreshRunningWorkflowCount(): Promise<void> {
     try {
       this.runningWorkflowCount = await this.prisma.workflowRun.count({ where: { status: 'RUNNING' } });
@@ -85,6 +118,11 @@ export class SystemStatusService implements OnModuleInit {
     }
   }
 
+  /**
+   * Emit the latest safe system status snapshot to subscribers.
+   *
+   * @returns No return value.
+   */
   private publish(): void {
     this.changes.next(this.getSnapshot());
   }

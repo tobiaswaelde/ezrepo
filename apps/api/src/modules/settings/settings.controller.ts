@@ -11,9 +11,18 @@ import { SettingsService } from './settings.service.js';
 @Authenticated()
 @Controller('settings')
 export class SettingsController {
+  /**
+   * Initialize SettingsController with its required dependencies.
+   *
+   * @param settings - Service reading and updating application-wide settings.
+   */
   constructor(private readonly settings: SettingsService) {}
 
-  /** Return settings used across the application. */
+  /**
+   * Return settings used across the application.
+   *
+   * @returns The current persisted application settings or their defaults.
+   */
   @Get()
   @ApiOperation({ summary: 'Get global application settings' })
   @ApiOkResponse({ type: ApplicationSettingsDto })
@@ -21,7 +30,14 @@ export class SettingsController {
     return this.settings.get();
   }
 
-  /** Replace mutable global settings as a system administrator. */
+  /**
+   * Replace mutable global settings as a system administrator.
+   *
+   * @param request - HTTP request carrying the authenticated application user.
+   * @param input - Validated global retention and default date/time settings.
+   * @returns The persisted application settings.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   @Patch()
   @ApiOperation({ summary: 'Update global application settings' })
   @ApiOkResponse({ type: ApplicationSettingsDto })

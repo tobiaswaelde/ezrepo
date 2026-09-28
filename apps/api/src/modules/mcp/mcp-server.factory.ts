@@ -121,9 +121,19 @@ const readOnlyAnnotations = {
 /** Creates a fresh permission-bound MCP server for every stateless HTTP request. */
 @Injectable()
 export class McpServerFactory {
+  /**
+   * Initialize McpServerFactory with its required dependencies.
+   *
+   * @param tools - Permission-scoped implementations of the exposed MCP tools.
+   */
   constructor(private readonly tools: McpToolsService) {}
 
-  /** Build the exact read-only tool catalog available to one authenticated user. */
+  /**
+   * Build the exact read-only tool catalog available to one authenticated user.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns A fresh MCP server whose read-only tools are bound to the supplied user.
+   */
   create(user: AuthenticatedUser): McpServer {
     const server = new McpServer({ name: 'ezrepo', version: '1.0.0' });
 
@@ -209,6 +219,12 @@ export class McpServerFactory {
     return server;
   }
 
+  /**
+   * Serialize a tool result into both MCP text content and structured JSON content.
+   *
+   * @param value - JSON-serializable result returned by a permission-scoped MCP tool.
+   * @returns Equivalent text and structured JSON representations of the tool result.
+   */
   private result(value: unknown): { content: [{ text: string; type: 'text' }]; structuredContent: JSONValue } {
     const structuredContent = JSON.parse(JSON.stringify(value)) as JSONValue;
     return { content: [{ text: JSON.stringify(structuredContent), type: 'text' }], structuredContent };

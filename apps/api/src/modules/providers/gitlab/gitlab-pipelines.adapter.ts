@@ -89,18 +89,52 @@ interface GitLabPullRequestResponse extends GitLabIssue {
 export class GitLabPipelinesAdapter implements ProviderAdapter {
   readonly providerType = 'GITLAB' as const;
 
+  /**
+   * Initialize GitLabPipelinesAdapter with its required dependencies.
+   *
+   * @param fetchFn - Fetch implementation used for read-only provider requests.
+   */
   constructor(@Inject(PROVIDER_FETCH) private readonly fetchFn: FetchLike = fetch) {}
 
+  /**
+   * Read the provider identity to verify credentials without modifying provider resources.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @returns The validated provider identity and display name.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async validateAccount(context: ProviderAccountContext): Promise<ProviderAccountValidation> {
     const user = await this.request<{ username: string }>(context, '/user');
     return { displayName: user.username, valid: true };
   }
 
+  /**
+   * Read repositories accessible through the provider account and normalize their metadata.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @returns Normalized repositories accessible through the account.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async listRepositories(context: ProviderAccountContext): Promise<ProviderRepository[]> {
     const projects = await this.request<GitLabProject[]>(context, '/projects?membership=true&simple=true&per_page=100');
     return projects.map((project) => this.toRepository(project));
   }
 
+  /**
+   * Read and normalize the lifecycle state of one provider change request.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param changeRequestNumber - Provider-local issue or merge-request number.
+   * @returns Normalized change-request state, or null when the provider reports it missing.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async getChangeRequestState(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
@@ -125,6 +159,16 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     };
   }
 
+  /**
+   * Read and normalize one provider repository, treating a missing repository as absent.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @returns Normalized repository metadata, or null when the provider reports it missing.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async getRepository(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
@@ -138,6 +182,17 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     return this.toRepository((await response.json()) as GitLabProject);
   }
 
+  /**
+   * Read and normalize workflow runs within the provider synchronization window.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param updatedAfter - Optional lower boundary for incremental provider synchronization.
+   * @returns Normalized runs collected for the requested synchronization window.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async listWorkflowRuns(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
@@ -153,6 +208,17 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     return pipelines.map((pipeline) => this.toWorkflowRun(pipeline));
   }
 
+  /**
+   * Read and normalize one workflow run, treating a missing run as absent.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param providerRunId - Provider-assigned workflow run identifier.
+   * @returns The normalized run, or null when the provider reports it missing.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async getWorkflowRun(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
@@ -167,6 +233,17 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     return this.toWorkflowRun((await response.json()) as GitLabPipeline);
   }
 
+  /**
+   * Read recently updated issues and optionally all open issues, merging duplicate provider IDs.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param query - Incremental update boundary and whether to include all currently open items.
+   * @returns Deduplicated normalized issues for the requested window.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async listIssues(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
@@ -188,6 +265,17 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     return this.uniqueById([...recent, ...open]).map((issue) => this.toIssue(issue, labels));
   }
 
+  /**
+   * Read recently updated pull requests and optionally all open requests, merging duplicate IDs.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param query - Incremental update boundary and whether to include all currently open items.
+   * @returns Deduplicated normalized pull requests for the requested window.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async listPullRequests(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
@@ -213,6 +301,13 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     return this.uniqueById([...recent, ...open]).map((pullRequest) => this.toPullRequest(pullRequest, labels));
   }
 
+  /**
+   * Verify provider webhook authentication before returning its repository and synchronization scopes.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @returns Verified event metadata and requested scopes, or null when authentication is invalid.
+   * @throws SyntaxError - When an authenticated webhook body is not valid JSON.
+   */
   async verifyWebhook(request: ProviderWebhookRequest): Promise<VerifiedWebhook | null> {
     const token = request.headers['x-gitlab-token'];
     const event = request.headers['x-gitlab-event'];
@@ -226,6 +321,13 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     };
   }
 
+  /**
+   * Compare the legacy GitLab webhook token with the configured signing secret.
+   *
+   * @param token - Bearer token or provider credential; never included in diagnostic output.
+   * @param signingSecret - Configured webhook secret used only for signature verification.
+   * @returns Whether the supplied legacy token matches the signing secret.
+   */
   private hasValidLegacyToken(token: string | string[] | undefined, signingSecret: string): boolean {
     return (
       typeof token === 'string' &&
@@ -233,6 +335,12 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
       timingSafeEqual(Buffer.from(token), Buffer.from(signingSecret))
     );
   }
+  /**
+   * Normalize provider repository identity, ownership, name, and URL.
+   *
+   * @param project - GitLab project metadata to normalize.
+   * @returns Normalized repository metadata.
+   */
   private toRepository(project: GitLabProject): ProviderRepository {
     return {
       providerRepositoryId: String(project.id),
@@ -241,6 +349,12 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
       url: project.web_url,
     };
   }
+  /**
+   * Validate the GitLab webhook signature using the signed delivery metadata and payload.
+   *
+   * @param request - Incoming request with the authentication or webhook context required by this endpoint.
+   * @returns Whether the signed webhook metadata authenticates the payload.
+   */
   private hasValidWebhookSignature(request: ProviderWebhookRequest): boolean {
     const signature = request.headers['webhook-signature'];
     const id = request.headers['webhook-id'];
@@ -260,15 +374,45 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
       .digest('base64')}`;
     return signature.split(' ').some((candidate) => this.hasEqualValue(candidate, expected));
   }
+  /**
+   * Compare equal-length webhook authentication values using constant-time comparison.
+   *
+   * @param value - Value to parse, validate, or normalize.
+   * @param expected - Expected authentication value used for constant-time comparison.
+   * @returns Whether both values have equal lengths and equal bytes.
+   */
   private hasEqualValue(value: string, expected: string): boolean {
     return value.length === expected.length && timingSafeEqual(Buffer.from(value), Buffer.from(expected));
   }
 
+  /**
+   * Perform an authenticated read-only provider request and decode its JSON response.
+   *
+   * @typeParam T - Expected decoded provider response shape.
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param path - Provider API path relative to the configured instance.
+   * @returns The decoded provider JSON response.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   private async request<T>(context: ProviderAccountContext, path: string): Promise<T> {
     const response = await this.fetchFn(this.url(context, path), { headers: this.headers(context) });
     if (!response.ok) throw providerRequestError('GitLab', response);
     return (await response.json()) as T;
   }
+  /**
+   * Read provider pages until exhausted or the synchronization boundary is reached.
+   *
+   * @typeParam T - Provider record type preserved in the result.
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param path - Provider API path relative to the configured instance.
+   * @param parameters - Query-string values sent with every page request.
+   * @returns Accepted records collected across provider pages.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   private async listPages<T extends { id: number }>(
     context: ProviderAccountContext,
     path: string,
@@ -283,9 +427,26 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     }
     return items;
   }
+  /**
+   * Deduplicate provider records by ID, keeping the last occurrence of each record.
+   *
+   * @typeParam T - Provider record type preserved in the result.
+   * @param items - Records used to build the result.
+   * @returns One record per ID in first-insertion order, containing the last value for that ID.
+   */
   private uniqueById<T extends { id: number }>(items: T[]): T[] {
     return [...new Map(items.map((item) => [item.id, item])).values()];
   }
+  /**
+   * Read project labels into a name-keyed lookup for work-item normalization.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @returns Project labels indexed by their names.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   private async listProjectLabels(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference,
@@ -297,6 +458,12 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     );
     return new Map(labels.map((label) => [label.name.toLocaleLowerCase('en-US'), label]));
   }
+  /**
+   * Normalize an optional provider actor without inventing a missing identity.
+   *
+   * @param actor - Optional provider user identity associated with a work item.
+   * @returns The normalized actor, or null when no actor is supplied.
+   */
   private toActor(actor: GitLabActor | null | undefined): ProviderActor | null {
     if (!actor) return null;
     return {
@@ -307,6 +474,13 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
       username: actor.username,
     };
   }
+  /**
+   * Normalize a provider issue and its author, assignees, labels, and lifecycle metadata.
+   *
+   * @param issue - Issue data being normalized, persisted, or used as an event source.
+   * @param labels - Project label metadata indexed by label name.
+   * @returns The normalized issue and its related metadata.
+   */
   private toIssue(issue: GitLabIssue, labels: Map<string, GitLabLabel>): ProviderIssue {
     return {
       assignees: (issue.assignees ?? []).flatMap((actor) => this.toActor(actor) ?? []),
@@ -329,6 +503,13 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
       url: issue.web_url,
     };
   }
+  /**
+   * Normalize a provider pull request and its review, branch, and lifecycle metadata.
+   *
+   * @param pullRequest - Pull-request data being normalized, persisted, or used as an event source.
+   * @param labels - Project label metadata indexed by label name.
+   * @returns The normalized pull request and its related metadata.
+   */
   private toPullRequest(pullRequest: GitLabPullRequestResponse, labels: Map<string, GitLabLabel>): ProviderPullRequest {
     const mergedAt = pullRequest.merged_at ? new Date(pullRequest.merged_at) : null;
     return {
@@ -355,13 +536,32 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
       url: pullRequest.web_url,
     };
   }
+  /**
+   * Build the provider-specific authentication and content negotiation headers.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @returns Provider authentication and content negotiation headers.
+   */
   private headers(context: ProviderAccountContext): HeadersInit {
     return { Accept: 'application/json', Authorization: `Bearer ${context.accessToken}` };
   }
+  /**
+   * Resolve a provider API path against the configured instance base URL.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param path - Provider API path relative to the configured instance.
+   * @returns The absolute provider API URL.
+   */
   private url(context: ProviderAccountContext, path: string): string {
     const baseUrl = (context.baseUrl ?? 'https://gitlab.com').replace(/\/$/, '');
     return `${baseUrl.endsWith('/api/v4') ? baseUrl : `${baseUrl}/api/v4`}${path}`;
   }
+  /**
+   * Normalize a provider run, retaining lifecycle, timing, workflow identity, and change-request scope.
+   *
+   * @param pipeline - GitLab pipeline whose workflow or merge-request metadata is needed.
+   * @returns The normalized workflow run and its execution context.
+   */
   private toWorkflowRun(pipeline: GitLabPipeline): ProviderWorkflowRun {
     const startedAt = pipeline.started_at ? new Date(pipeline.started_at) : null;
     const completedAt = pipeline.finished_at ? new Date(pipeline.finished_at) : null;
@@ -397,12 +597,24 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     };
   }
 
+  /**
+   * Construct the merge-request URL from a pipeline merge-request ref.
+   *
+   * @param pipeline - GitLab pipeline whose workflow or merge-request metadata is needed.
+   * @returns The merge-request URL, or null when the ref is not a merge-request ref.
+   */
   private gitLabMergeRequestUrl(pipeline: GitLabPipeline): string | null {
     const mergeRequestIid = this.gitLabMergeRequestNumber(pipeline);
     if (!mergeRequestIid) return null;
     return pipeline.web_url.replace(/\/-\/pipelines\/\d+(?:\/)?$/, `/-/merge_requests/${mergeRequestIid}`);
   }
 
+  /**
+   * Extract the merge-request number from a GitLab pipeline ref.
+   *
+   * @param pipeline - GitLab pipeline whose workflow or merge-request metadata is needed.
+   * @returns The extracted merge-request number, or null for other refs.
+   */
   private gitLabMergeRequestNumber(pipeline: GitLabPipeline): number | null {
     const refMatch = pipeline.ref?.match(/^refs\/merge-requests\/(\d+)\/head$/);
     return pipeline.merge_request?.iid ?? (refMatch ? Number(refMatch[1]) : null);

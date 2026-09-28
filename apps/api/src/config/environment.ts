@@ -64,6 +64,14 @@ const validators = {
 /** The validated API runtime configuration. */
 export type EzRepoEnvironment = CleanedEnv<typeof validators>;
 
+/**
+ * Report invalid environment keys without including their secret values.
+ *
+ * @typeParam T - Validated environment schema.
+ * @param param0 - Validation report containing errors keyed by environment variable name.
+ * @returns No return value.
+ * @throws Error - When any environment variable fails validation; reported messages contain keys but not secret values.
+ */
 function throwOnInvalidEnvironment<T>({ errors }: ReporterOptions<T>): void {
   const messages = Object.entries(errors as Record<string, Error | undefined>).map(
     ([key, error]) => `${key}: ${error?.message ?? 'is invalid'}`,
@@ -79,7 +87,7 @@ function throwOnInvalidEnvironment<T>({ errors }: ReporterOptions<T>): void {
  *
  * @param environment - Raw environment variables to validate.
  * @returns A read-only, typed configuration object.
- * @throws {Error} When required values are missing or cross-field validation fails.
+ * @throws Error - When required values are missing or cross-field validation fails.
  */
 export function loadEnvironment(environment: NodeJS.ProcessEnv): EzRepoEnvironment {
   const config = cleanEnv(environment, validators, { reporter: throwOnInvalidEnvironment });

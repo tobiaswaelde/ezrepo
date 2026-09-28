@@ -42,6 +42,12 @@ export class IssuesQueryService extends QueryService<
   AppAbility,
   CaslSubject.Issue
 > {
+  /**
+   * Initialize IssuesQueryService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilityFactory: CaslAbilityFactory,
@@ -54,6 +60,12 @@ export class IssuesQueryService extends QueryService<
     });
   }
 
+  /**
+   * Resolve the resource read ability for the authenticated user.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns The CASL ability used for resource queries and DTO projection.
+   */
   async getReadAbility(user: AuthenticatedUser): Promise<AppAbility> {
     const memberships =
       user.role === 'SYSTEM_ADMIN'
@@ -65,6 +77,12 @@ export class IssuesQueryService extends QueryService<
     return this.abilityFactory.createForUser(user, memberships);
   }
 
+  /**
+   * Convert resource filters and sorting into Query Kit options with stable default ordering.
+   *
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns Query Kit options with explicit relation loading and stable default sorting.
+   */
   toQueryOptions(query: IssueQueryDto): QueryOptionsMap<IssueTypeMap>['query'] {
     const { labels, search, where, ...options } = query;
     const constraints: Prisma.IssueWhereInput[] = [where ?? {}];
@@ -81,6 +99,12 @@ export class IssuesQueryService extends QueryService<
     };
   }
 
+  /**
+   * Build the database restriction for resources readable through the supplied ability.
+   *
+   * @param ability - CASL ability used to restrict resource access or exposed fields.
+   * @returns A Prisma predicate limiting results to readable resources.
+   */
   visibleWhere(ability: AppAbility): Prisma.IssueWhereInput {
     return accessibleBy(ability, CaslAction.Read).ofType(CaslSubject.Issue as never) as Prisma.IssueWhereInput;
   }

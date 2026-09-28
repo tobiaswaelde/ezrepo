@@ -73,7 +73,12 @@ export class DashboardWorkflowRunDto {
   @ApiProperty({ type: DashboardProviderDto })
   provider!: DashboardProviderDto;
 
-  /** Map a loaded dashboard workflow run to its explicit safe public representation. */
+  /**
+   * Map a loaded dashboard workflow run to its explicit safe public representation.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: DashboardWorkflowRunModel): DashboardWorkflowRunDto {
     return {
       awaitingApproval: model.awaitingApproval,

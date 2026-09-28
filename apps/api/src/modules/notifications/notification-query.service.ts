@@ -44,6 +44,14 @@ export interface NotificationDeliveryTypeMap extends NotificationTypeMapBase {
   aggregateInputType: Prisma.NotificationDeliveryAggregateArgs;
 }
 
+/**
+ * Build notification resource permissions from the authenticated user role.
+ *
+ * @param prisma - Database client used for persisted application state.
+ * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+ * @param user - Authenticated user whose identity and permissions apply to the operation.
+ * @returns Notification permissions for the current user role.
+ */
 async function buildAbility(
   prisma: PrismaService,
   abilityFactory: CaslAbilityFactory,
@@ -66,6 +74,12 @@ export class NotificationChannelsQueryService extends QueryService<
   AppAbility,
   CaslSubject.NotificationChannel
 > {
+  /**
+   * Initialize NotificationChannelsQueryService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilityFactory: CaslAbilityFactory,
@@ -78,10 +92,22 @@ export class NotificationChannelsQueryService extends QueryService<
     });
   }
 
+  /**
+   * Resolve the resource read ability for the authenticated user.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns The CASL ability used for resource queries and DTO projection.
+   */
   getReadAbility(user: AuthenticatedUser): Promise<AppAbility> {
     return buildAbility(this.prisma, this.abilityFactory, user);
   }
 
+  /**
+   * Convert resource filters and sorting into Query Kit options with stable default ordering.
+   *
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns Query Kit options with explicit relation loading and stable default sorting.
+   */
   toQueryOptions(query: NotificationChannelQueryDto): QueryOptionsMap<NotificationChannelTypeMap>['query'] {
     const { search, where, ...options } = query;
     const searchWhere: Prisma.NotificationChannelWhereInput | undefined = search
@@ -105,6 +131,12 @@ export class NotificationDeliveriesQueryService extends QueryService<
   AppAbility,
   CaslSubject.NotificationDelivery
 > {
+  /**
+   * Initialize NotificationDeliveriesQueryService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilityFactory: CaslAbilityFactory,
@@ -117,10 +149,22 @@ export class NotificationDeliveriesQueryService extends QueryService<
     });
   }
 
+  /**
+   * Resolve the resource read ability for the authenticated user.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns The CASL ability used for resource queries and DTO projection.
+   */
   getReadAbility(user: AuthenticatedUser): Promise<AppAbility> {
     return buildAbility(this.prisma, this.abilityFactory, user);
   }
 
+  /**
+   * Convert resource filters and sorting into Query Kit options with stable default ordering.
+   *
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns Query Kit options with explicit relation loading and stable default sorting.
+   */
   toQueryOptions(query: NotificationDeliveryQueryDto): QueryOptionsMap<NotificationDeliveryTypeMap>['query'] {
     const { search, where, ...options } = query;
     const searchWhere: Prisma.NotificationDeliveryWhereInput | undefined = search

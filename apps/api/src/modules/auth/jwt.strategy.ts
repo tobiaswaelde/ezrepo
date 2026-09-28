@@ -8,6 +8,11 @@ import type { AuthenticatedUser } from './types.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  /**
+   * Initialize JwtStrategy with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   */
   constructor(private readonly prisma: PrismaService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -16,6 +21,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
+  /**
+   * Resolve a JWT subject and reject tokens with a stale authentication version.
+   *
+   * @param payload - Verified JWT claims containing the user ID and authentication version.
+   * @returns The current authenticated identity loaded from the database.
+   * @throws UnauthorizedException - When the subject does not exist or the authentication version does not match the
+   * persisted user.
+   */
   async validate(payload: { authVersion?: number; sub: string }): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },

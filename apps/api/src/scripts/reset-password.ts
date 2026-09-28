@@ -3,6 +3,11 @@ import { stdin, stdout } from 'node:process';
 import { resetPassword } from '../modules/auth/password-reset.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
+/**
+ * Read the replacement password from standard input without logging it.
+ *
+ * @returns The password supplied on standard input with trailing line endings removed.
+ */
 async function readPassword(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of stdin) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
@@ -11,6 +16,12 @@ async function readPassword(): Promise<string> {
     .replace(/\r?\n$/, '');
 }
 
+/**
+ * Reset a local account password from command-line input and close the database connection.
+ *
+ * @returns A promise that resolves when the operation completes.
+ * @throws Error - Usage: printf "password\n" | node dist/scripts/reset-password.js <username>
+ */
 async function main(): Promise<void> {
   const username = process.argv[2]?.trim();
   if (!username) throw new Error('Usage: printf "password\\n" | node dist/scripts/reset-password.js <username>');

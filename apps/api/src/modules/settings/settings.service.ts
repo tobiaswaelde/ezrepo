@@ -10,9 +10,18 @@ const GLOBAL_SETTINGS_KEY = 'global';
 /** Reads and persists the singleton application-wide settings record. */
 @Injectable()
 export class SettingsService {
+  /**
+   * Initialize SettingsService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Return persisted settings or the database defaults before the first update. */
+  /**
+   * Return persisted settings or the database defaults before the first update.
+   *
+   * @returns The current persisted application settings or their defaults.
+   */
   async get(): Promise<ApplicationSettingsDto> {
     const settings = await this.prisma.applicationSettings.findUnique({ where: { key: GLOBAL_SETTINGS_KEY } });
     return {
@@ -21,7 +30,12 @@ export class SettingsService {
     };
   }
 
-  /** Persist all mutable application-wide settings in the singleton record. */
+  /**
+   * Persist all mutable application-wide settings in the singleton record.
+   *
+   * @param input - Mutable global retention and default date/time settings.
+   * @returns The persisted application settings.
+   */
   async update(input: UpdateApplicationSettingsDto): Promise<ApplicationSettingsDto> {
     const settings = await this.prisma.applicationSettings.upsert({
       create: { key: GLOBAL_SETTINGS_KEY, ...input },

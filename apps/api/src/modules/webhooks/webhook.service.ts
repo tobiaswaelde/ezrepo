@@ -21,6 +21,14 @@ export interface WebhookAcceptance {
 /** Verifies signed provider webhooks and schedules read-only targeted synchronization. */
 @Injectable()
 export class WebhookService {
+  /**
+   * Initialize WebhookService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param adapters - Registry resolving the read-only adapter for each provider type.
+   * @param credentials - Service encrypting and decrypting persisted credentials.
+   * @param syncQueue - Durable queue for repository synchronization requests.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly adapters: ProviderAdapterRegistry,
@@ -35,7 +43,8 @@ export class WebhookService {
    * @param repositoryId - Configured ezRepo repository identifier.
    * @param request - Raw request data required for signature validation.
    * @returns Accepted delivery metadata, including duplicate delivery detection.
-   * @throws {UnauthorizedException} When the account or signature cannot be verified.
+   * @throws UnauthorizedException - When the account or signature cannot be verified.
+   * @throws Error - When no adapter is registered for the requested provider type.
    */
   async receive(providerType: ProviderType, repositoryId: string, request: WebhookRequest): Promise<WebhookAcceptance> {
     const repository = await this.prisma.repository.findUnique({
@@ -84,6 +93,13 @@ export class WebhookService {
     return { accepted: true, duplicate: false };
   }
 
+  /**
+   * Extract the provider-specific webhook delivery identifier.
+   *
+   * @param providerType - Provider implementation selected for the operation.
+   * @param headers - HTTP headers containing provider delivery or rate-limit metadata.
+   * @returns The provider delivery ID, or null when no supported header is present.
+   */
   private getDeliveryId(
     providerType: ProviderType,
     headers: Record<string, string | string[] | undefined>,
@@ -99,6 +115,12 @@ export class WebhookService {
     return candidates.find((header): header is string => typeof header === 'string' && header.length > 0) ?? null;
   }
 
+  /**
+   * Recognize the database uniqueness conflict for a previously accepted webhook delivery.
+   *
+   * @param error - Failure to classify or sanitized message to persist.
+   * @returns Whether the error is a Prisma unique-constraint conflict.
+   */
   private isDuplicateDeliveryError(error: unknown): boolean {
     return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
   }

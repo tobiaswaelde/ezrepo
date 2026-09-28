@@ -1,6 +1,13 @@
 import type { ProviderType, WorkflowRunStatus } from '../../generated/prisma/client.js';
 
-/** Identify provider states that require a human approval before execution can continue. */
+/**
+ * Identify provider states that require a human approval before execution can continue.
+ *
+ * @param provider - Provider identity or persisted metadata associated with the operation.
+ * @param lifecycle - Raw provider lifecycle or execution state.
+ * @param conclusion - Optional terminal provider conclusion, taking precedence where supported.
+ * @returns Whether the provider state indicates pending human approval.
+ */
 export function isWorkflowRunAwaitingApproval(
   provider: ProviderType,
   lifecycle: string,
@@ -12,7 +19,14 @@ export function isWorkflowRunAwaitingApproval(
   return state === 'waiting' || outcome === 'action_required';
 }
 
-/** Normalize provider lifecycle and conclusion values without discarding the raw provider value. */
+/**
+ * Normalize provider lifecycle and conclusion values without discarding the raw provider value.
+ *
+ * @param provider - Provider identity or persisted metadata associated with the operation.
+ * @param lifecycle - Raw provider lifecycle or execution state.
+ * @param conclusion - Optional terminal provider conclusion, taking precedence where supported.
+ * @returns The application workflow status corresponding to the provider state.
+ */
 export function normalizeWorkflowRunStatus(
   provider: ProviderType,
   lifecycle: string,

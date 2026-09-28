@@ -120,7 +120,13 @@ export class NotificationChannelDto {
   @ApiProperty()
   updatedAt!: Date;
 
-  /** Convert a database model without exposing encrypted credentials. */
+  /**
+   * Convert a database model without exposing encrypted credentials.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param canManage - Whether administrative channel details may be exposed.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: NotificationChannelWithRelations, canManage = false): NotificationChannelDto {
     return {
       id: model.id,

@@ -18,6 +18,12 @@ import { RepositoryMetadataService } from './repository-metadata.service.js';
 import type { RepositorySyncProgressReporter } from './sync-progress.js';
 import { WorkItemSyncService } from './work-item-sync.service.js';
 
+type SyncRepository = Awaited<ReturnType<PrismaService['repository']['findMany']>>[number] & {
+  providerAccount: { id: string; providerType: ProviderType; baseUrl: string | null; encryptedAccessToken: string };
+  workflowFilters: { mode: 'ALLOW' | 'DENY'; pattern: string }[];
+};
+type SyncProgress = { id: string; repositoriesCompleted: number; repositoriesTotal: number };
+
 const terminalWorkflowRunStatuses = ['SUCCESS', 'FAILED', 'CANCELLED', 'SKIPPED', 'UNKNOWN'] as const;
 const closedChangeRequestRefreshIntervalMs = 24 * 60 * 60 * 1000;
 const unknownChangeRequestRefreshIntervalMs = 60 * 60 * 1000;
@@ -26,6 +32,18 @@ const unknownChangeRequestRefreshIntervalMs = 60 * 60 * 1000;
 @Injectable()
 export class ProviderSyncService {
   private readonly logger = new Logger(ProviderSyncService.name);
+  /**
+   * Initialize ProviderSyncService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param adapters - Registry resolving the read-only adapter for each provider type.
+   * @param credentials - Service encrypting and decrypting persisted credentials.
+   * @param metadata - Service refreshing tracked repository identity and location.
+   * @param filters - Service determining whether a workflow name should be tracked.
+   * @param notifications - Service managing channels and idempotent notification events.
+   * @param status - Service broadcasting active synchronization progress and workflow counts.
+   * @param workItems - Optional service synchronizing issues, pull requests, and run associations.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly adapters: ProviderAdapterRegistry,
@@ -37,6 +55,17 @@ export class ProviderSyncService {
     @Optional() private readonly workItems?: WorkItemSyncService,
   ) {}
 
+  /**
+   * Synchronize enabled tracked repositories while reporting aggregate progress.
+   *
+   * @returns A promise that resolves when the operation completes.
+   * @throws NotFoundException - Provider repository not found.
+   * @throws ConflictException - Provider repository identity does not match the tracked repository.
+   * @throws Error - When no adapter is registered for the requested provider type.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async syncEnabledRepositories(): Promise<void> {
     const syncId = this.status.beginProviderSync();
     try {
@@ -63,7 +92,20 @@ export class ProviderSyncService {
     }
   }
 
-  /** Synchronize one enabled repository claimed by the durable sync queue. */
+  /**
+   * Synchronize one enabled repository claimed by the durable sync queue.
+   *
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param scopes - Repository domains requested for this synchronization.
+   * @param reportProgress - Optional asynchronous callback persisting per-repository progress.
+   * @returns Whether an enabled tracked repository was found and synchronized.
+   * @throws NotFoundException - Provider repository not found.
+   * @throws ConflictException - Provider repository identity does not match the tracked repository.
+   * @throws Error - When no adapter is registered for the requested provider type.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   async syncRepositoryById(
     repositoryId: string,
     scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
@@ -96,12 +138,24 @@ export class ProviderSyncService {
     }
   }
 
+  /**
+   * Coordinate repository metadata, requested domains, progress, and synchronization status.
+   *
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param progress - Aggregate synchronization identifier and repository counts.
+   * @param scopes - Repository domains requested for this synchronization.
+   * @param reportProgress - Optional asynchronous callback persisting per-repository progress.
+   * @returns A promise that resolves when the operation completes.
+   * @throws NotFoundException - Provider repository not found.
+   * @throws ConflictException - Provider repository identity does not match the tracked repository.
+   * @throws Error - When no adapter is registered for the requested provider type.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   private async syncRepository(
-    repository: Awaited<ReturnType<PrismaService['repository']['findMany']>>[number] & {
-      providerAccount: { id: string; providerType: ProviderType; baseUrl: string | null; encryptedAccessToken: string };
-      workflowFilters: { mode: 'ALLOW' | 'DENY'; pattern: string }[];
-    },
-    progress: { id: string; repositoriesCompleted: number; repositoriesTotal: number },
+    repository: SyncRepository,
+    progress: SyncProgress,
     scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
     reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
@@ -128,67 +182,119 @@ export class ProviderSyncService {
         return;
       }
       await reportProgress?.({ current: null, phase: 'FETCHING_WORKFLOWS', total: null });
-      const discoveredRuns = await adapter.listWorkflowRuns(
-        context,
-        refreshedRepository,
-        refreshedRepository.lastSyncAt ?? undefined,
-      );
-      const currentRuns = await this.prisma.workflowRun.findMany({
-        distinct: ['workflowId', 'scopeKey'],
-        orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
-        select: { awaitingApproval: true, providerRunId: true, status: true },
-        where: {
-          repositoryId: repository.id,
-        },
-      });
-      const runsToRefresh = currentRuns.filter(
-        (run) => run.awaitingApproval || run.status === 'FAILED' || run.status === 'QUEUED' || run.status === 'RUNNING',
-      );
-      const refreshedRuns: (ProviderWorkflowRun | null)[] = [];
-      for (const { providerRunId } of runsToRefresh)
-        refreshedRuns.push(await adapter.getWorkflowRun(context, refreshedRepository, providerRunId));
-      const runsByProviderId = new Map(discoveredRuns.map((run) => [run.providerRunId, run]));
-      for (const run of refreshedRuns) if (run) runsByProviderId.set(run.providerRunId, run);
-      const runs = [...runsByProviderId.values()];
-      await reportProgress?.({ current: 0, phase: 'PROCESSING_WORKFLOWS', total: runs.length });
-      this.status.updateProviderSync(progress.id, {
-        phase: 'PROCESSING_WORKFLOWS',
-        repositoriesCompleted: progress.repositoriesCompleted,
-        repositoriesTotal: progress.repositoriesTotal,
-        workflowRunsCompleted: 0,
-        workflowRunsTotal: runs.length,
-      });
-      for (const [index, run] of runs.entries()) {
-        if (this.filters.shouldTrack(run.workflowName, repository.workflowFilters))
-          await this.persistRunAndEvaluateEvents(repository.id, run, !repository.lastSyncAt);
-        await reportProgress?.({ current: index + 1, phase: 'PROCESSING_WORKFLOWS', total: runs.length });
-        this.status.updateProviderSync(progress.id, {
-          phase: 'PROCESSING_WORKFLOWS',
-          repositoriesCompleted: progress.repositoriesCompleted,
-          repositoriesTotal: progress.repositoriesTotal,
-          workflowRunsCompleted: index + 1,
-          workflowRunsTotal: runs.length,
-        });
-      }
+      const runs = await this.findWorkflowRuns(context, refreshedRepository, adapter);
+      await this.processWorkflowRuns(repository, runs, progress, reportProgress);
       await reportProgress?.({ current: null, phase: 'REFRESHING_CHANGE_REQUESTS', total: null });
       await this.workItems?.reconcileWorkflowRunChangeRequests(repository.id);
       await this.refreshChangeRequestStates(context, refreshedRepository, adapter);
       await this.markSynchronizationSuccess(repository, synchronizationStartedAt);
     } catch (error) {
-      await this.prisma.providerAccount.update({
-        where: { id: repository.providerAccount.id },
-        data: {
-          lastSyncAt: new Date(),
-          lastSyncError: 'Synchronization failed. Check provider connectivity and credentials.',
-        },
-      });
-      this.logger.warn(`Synchronization failed for provider account ${repository.providerAccount.id}.`);
+      await this.markSynchronizationFailure(repository.providerAccount.id);
       throw error;
     } finally {
       await this.status.refreshRunningWorkflowCount();
     }
   }
 
+  /**
+   * Merge newly discovered runs with refreshed current failed, queued, running, or approval-gated runs.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param adapter - Read-only provider adapter for the selected repository.
+   * @returns Discovered and refreshed runs deduplicated by provider run ID, with refreshed values taking precedence.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
+  private async findWorkflowRuns(
+    context: ProviderAccountContext,
+    repository: SyncRepository,
+    adapter: ProviderAdapter,
+  ): Promise<ProviderWorkflowRun[]> {
+    const discoveredRuns = await adapter.listWorkflowRuns(context, repository, repository.lastSyncAt ?? undefined);
+    const currentRuns = await this.prisma.workflowRun.findMany({
+      distinct: ['workflowId', 'scopeKey'],
+      orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
+      select: { awaitingApproval: true, providerRunId: true, status: true },
+      where: {
+        repositoryId: repository.id,
+      },
+    });
+    const runsToRefresh = currentRuns.filter(
+      (run) => run.awaitingApproval || run.status === 'FAILED' || run.status === 'QUEUED' || run.status === 'RUNNING',
+    );
+    const refreshedRuns: (ProviderWorkflowRun | null)[] = [];
+    for (const { providerRunId } of runsToRefresh)
+      refreshedRuns.push(await adapter.getWorkflowRun(context, repository, providerRunId));
+    const runsByProviderId = new Map(discoveredRuns.map((run) => [run.providerRunId, run]));
+    for (const run of refreshedRuns) if (run) runsByProviderId.set(run.providerRunId, run);
+    return [...runsByProviderId.values()];
+  }
+
+  /**
+   * Persist tracked runs and report progress for each discovered or refreshed run.
+   *
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param runs - Workflow runs to aggregate, associate, or persist.
+   * @param progress - Aggregate synchronization identifier and repository counts.
+   * @param reportProgress - Optional asynchronous callback persisting per-repository progress.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
+  private async processWorkflowRuns(
+    repository: SyncRepository,
+    runs: ProviderWorkflowRun[],
+    progress: SyncProgress,
+    reportProgress?: RepositorySyncProgressReporter,
+  ): Promise<void> {
+    await reportProgress?.({ current: 0, phase: 'PROCESSING_WORKFLOWS', total: runs.length });
+    this.status.updateProviderSync(progress.id, {
+      phase: 'PROCESSING_WORKFLOWS',
+      repositoriesCompleted: progress.repositoriesCompleted,
+      repositoriesTotal: progress.repositoriesTotal,
+      workflowRunsCompleted: 0,
+      workflowRunsTotal: runs.length,
+    });
+    for (const [index, run] of runs.entries()) {
+      if (this.filters.shouldTrack(run.workflowName, repository.workflowFilters))
+        await this.persistRunAndEvaluateEvents(repository.id, run, !repository.lastSyncAt);
+      await reportProgress?.({ current: index + 1, phase: 'PROCESSING_WORKFLOWS', total: runs.length });
+      this.status.updateProviderSync(progress.id, {
+        phase: 'PROCESSING_WORKFLOWS',
+        repositoriesCompleted: progress.repositoriesCompleted,
+        repositoriesTotal: progress.repositoriesTotal,
+        workflowRunsCompleted: index + 1,
+        workflowRunsTotal: runs.length,
+      });
+    }
+  }
+
+  /**
+   * Persist a sanitized account synchronization failure and log the account identifier.
+   *
+   * @param providerAccountId - Local identifier of the provider account.
+   * @returns A promise that resolves when the operation completes.
+   */
+  private async markSynchronizationFailure(providerAccountId: string): Promise<void> {
+    await this.prisma.providerAccount.update({
+      where: { id: providerAccountId },
+      data: {
+        lastSyncAt: new Date(),
+        lastSyncError: 'Synchronization failed. Check provider connectivity and credentials.',
+      },
+    });
+    this.logger.warn(`Synchronization failed for provider account ${providerAccountId}.`);
+  }
+
+  /**
+   * Clear the account error and advance the workflow cursor when requested.
+   *
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param lastSyncAt - Synchronization start time used as the next incremental cursor.
+   * @param updateWorkflowCursor - Whether workflow synchronization completed and its repository cursor may advance.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async markSynchronizationSuccess(
     repository: { id: string; providerAccount: { id: string } },
     lastSyncAt: Date,
@@ -202,7 +308,17 @@ export class ProviderSyncService {
     });
   }
 
-  /** Refresh lifecycle metadata for change requests whose current terminal workflow result still failed. */
+  /**
+   * Refresh lifecycle metadata for change requests whose current terminal workflow result still failed.
+   *
+   * @param context - Provider account credentials and instance configuration for this request.
+   * @param repository - Repository identity and metadata required by the operation.
+   * @param adapter - Read-only provider adapter for the selected repository.
+   * @returns A promise that resolves when the operation completes.
+   * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
+   * preserved.
+   * @throws TypeError - When the provider request fails at the network layer.
+   */
   private async refreshChangeRequestStates(
     context: ProviderAccountContext,
     repository: ProviderRepositoryReference & { id: string },
@@ -250,7 +366,13 @@ export class ProviderSyncService {
     }
   }
 
-  /** Decide whether cached change-request lifecycle metadata is old enough to refresh. */
+  /**
+   * Decide whether cached change-request lifecycle metadata is old enough to refresh.
+   *
+   * @param candidate - Candidate record whose eligibility is checked against current state.
+   * @param now - Reference time for deterministic time-dependent calculations.
+   * @returns Whether the cached lifecycle state is eligible for a provider refresh.
+   */
   private shouldRefreshChangeRequest(
     candidate: { changeRequestCheckedAt: Date | null; changeRequestState: 'UNKNOWN' | 'OPEN' | 'CLOSED' | 'MERGED' },
     now: Date,
@@ -264,6 +386,15 @@ export class ProviderSyncService {
     return now.getTime() - candidate.changeRequestCheckedAt.getTime() >= refreshInterval;
   }
 
+  /**
+   * Upsert workflow identity and run state before evaluating notifications and pull-request status.
+   *
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param run - Workflow run whose provider data or persisted state is being processed.
+   * @param baseline - Whether this is the initial synchronization, during which lifecycle notifications are suppressed.
+   * @returns A promise that resolves when the operation completes.
+   * @throws Error - When an event delivery lacks its repository, event type, or source work item.
+   */
   private async persistRunAndEvaluateEvents(
     repositoryId: string,
     run: ProviderWorkflowRun,
@@ -318,6 +449,14 @@ export class ProviderSyncService {
     if (workflowRun.pullRequestId) await this.workItems?.refreshPullRequestWorkflowStatus(workflowRun.pullRequestId);
   }
 
+  /**
+   * Move legacy workflow runs to the discovered identity before deleting the obsolete workflow.
+   *
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @param run - Workflow run whose provider data or persisted state is being processed.
+   * @param workflowId - Local workflow identity that should own the normalized runs.
+   * @returns A promise that resolves when the operation completes.
+   */
   private async consolidateLegacyWorkflow(
     repositoryId: string,
     run: ProviderWorkflowRun,

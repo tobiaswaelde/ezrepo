@@ -16,6 +16,10 @@ export class CaslAbilityFactory {
    * A global manager role grants configuration access only where a corresponding
    * manager membership also exists. This keeps system-wide and repository-level
    * authorization scopes explicit.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param memberships - Current repository assignments used to restrict access.
+   * @returns The CASL ability for the user role and current repository assignments.
    */
   createForUser(user: AuthenticatedUser, memberships: RepositoryAccess[]): AppAbility {
     const { build, can } = new AbilityBuilder<AppAbility>(createPrismaAbility);

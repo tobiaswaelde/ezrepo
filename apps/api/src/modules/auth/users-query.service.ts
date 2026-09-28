@@ -42,6 +42,12 @@ export class UsersQueryService extends QueryService<
   AppAbility,
   CaslSubject.User
 > {
+  /**
+   * Initialize UsersQueryService with its required dependencies.
+   *
+   * @param prisma - Database client used for persisted application state.
+   * @param abilityFactory - Factory for role- and membership-aware CASL abilities.
+   */
   constructor(
     prisma: PrismaService,
     private readonly abilityFactory: CaslAbilityFactory,
@@ -52,13 +58,24 @@ export class UsersQueryService extends QueryService<
     });
   }
 
-  /** Resolve the full user read ability for a system administrator. */
+  /**
+   * Resolve the full user read ability for a system administrator.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @returns The CASL ability used for resource queries and DTO projection.
+   * @throws ForbiddenException - System administrator access is required.
+   */
   getReadAbility(user: AuthenticatedUser): AppAbility {
     if (user.role !== 'SYSTEM_ADMIN') throw new ForbiddenException('System administrator access is required.');
     return this.abilityFactory.createForUser(user, []);
   }
 
-  /** Apply a stable default order when the table has no selected sort. */
+  /**
+   * Apply a stable default order when the table has no selected sort.
+   *
+   * @param query - Validated filters, sorting, pagination, or time-range options.
+   * @returns Query Kit options with explicit relation loading and stable default sorting.
+   */
   toQueryOptions(query: UserQueryDto): QueryOptionsMap<UserTypeMap>['query'] {
     return { ...query, orderBy: query.orderBy ?? [{ username: 'asc' }, { id: 'asc' }] };
   }

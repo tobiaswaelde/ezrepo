@@ -68,13 +68,26 @@ export interface McpPaginatedResult<T> {
 /** Executes MCP read tools through the existing permission-aware query services. */
 @Injectable()
 export class McpToolsService {
+  /**
+   * Initialize McpToolsService with its required dependencies.
+   *
+   * @param dashboard - Service for permission-scoped dashboard metrics.
+   * @param repositories - Ability-aware repository query service.
+   * @param workflowRuns - Ability-aware workflow-run query service.
+   */
   constructor(
     private readonly dashboard: DashboardService,
     private readonly repositories: RepositoriesQueryService,
     private readonly workflowRuns: WorkflowRunsQueryService,
   ) {}
 
-  /** List visible tracked repositories with bounded pagination. */
+  /**
+   * List visible tracked repositories with bounded pagination.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param input - Repository search, provider, enabled-state, and pagination filters.
+   * @returns A page of tracked repositories visible to the authenticated user.
+   */
   async listRepositories(
     user: AuthenticatedUser,
     input: McpRepositoryFilters,
@@ -101,7 +114,13 @@ export class McpToolsService {
     );
   }
 
-  /** Read one visible tracked repository by ID. */
+  /**
+   * Read one visible tracked repository by ID.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param repositoryId - Local identifier of the tracked repository.
+   * @returns The tracked repository visible or administratively accessible to the caller.
+   */
   async getRepository(user: AuthenticatedUser, repositoryId: string): Promise<RepositoryDto> {
     const ability = await this.repositories.getReadAbility(user);
     const repository = await this.repositories.findById<RepositoryResourceModel>(
@@ -112,7 +131,13 @@ export class McpToolsService {
     return RepositoryDto.fromModel(repository, ability);
   }
 
-  /** List visible workflow runs with bounded pagination and operational filters. */
+  /**
+   * List visible workflow runs with bounded pagination and operational filters.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param input - Workflow search, repository, status, provider, date-range, and pagination filters.
+   * @returns A page of normalized workflow runs visible to the authenticated user.
+   */
   async listWorkflowRuns(
     user: AuthenticatedUser,
     input: McpWorkflowRunFilters,
@@ -139,7 +164,13 @@ export class McpToolsService {
     );
   }
 
-  /** List visible workflow contexts whose newest terminal run failed. */
+  /**
+   * List visible workflow contexts whose newest terminal run failed.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param input - Workflow search, repository, status, provider, date-range, and pagination filters.
+   * @returns A page of current visible workflow failures.
+   */
   async listNeedsAttention(
     user: AuthenticatedUser,
     input: McpWorkflowRunFilters,
@@ -165,7 +196,13 @@ export class McpToolsService {
     );
   }
 
-  /** List visible current workflow runs waiting for provider approval. */
+  /**
+   * List visible current workflow runs waiting for provider approval.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param input - Workflow search, repository, status, provider, date-range, and pagination filters.
+   * @returns A page of current visible approval-gated workflow runs.
+   */
   async listAwaitingApproval(
     user: AuthenticatedUser,
     input: McpWorkflowRunFilters,
@@ -189,20 +226,52 @@ export class McpToolsService {
     return this.paginated(items.map(DashboardWorkflowRunDto.fromModel), totalItems.length, input);
   }
 
-  /** Return the visible workflow health summary for an inclusive period. */
+  /**
+   * Return the visible workflow health summary for an inclusive period.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param from - Inclusive start of the requested time range.
+   * @param to - Inclusive end of the requested time range.
+   * @returns Workflow health metrics restricted to repositories visible to the user.
+   * @throws BadRequestException - The dashboard start timestamp must not be after the end timestamp.
+   */
   getDashboardSummary(user: AuthenticatedUser, from: string, to: string) {
     return this.dashboard.getSummary(user, { from, to });
   }
 
-  /** Return visible workflow success and error trend buckets for an inclusive period. */
+  /**
+   * Return visible workflow success and error trend buckets for an inclusive period.
+   *
+   * @param user - Authenticated user whose identity and permissions apply to the operation.
+   * @param from - Inclusive start of the requested time range.
+   * @param to - Inclusive end of the requested time range.
+   * @param bucket - UTC aggregation interval for the workflow trend.
+   * @returns UTC buckets containing visible successful and failed workflow-run counts.
+   * @throws BadRequestException - When the requested range is invalid.
+   */
   getWorkflowTrend(user: AuthenticatedUser, from: string, to: string, bucket: TrendBucketSize) {
     return this.dashboard.getTrend(user, { bucket, from, to });
   }
 
+  /**
+   * Wrap MCP items with their total count and requested pagination metadata.
+   *
+   * @typeParam T - Result type preserved by this operation.
+   * @param items - Records used to build the result.
+   * @param total - Total number of matching records before pagination.
+   * @param input - Requested one-based page and bounded page size.
+   * @returns Items, total count, page number, and page size for the MCP response.
+   */
   private paginated<T>(items: T[], total: number, input: McpPaginationInput): McpPaginatedResult<T> {
     return { items, page: input.page, perPage: input.limit, total };
   }
 
+  /**
+   * Translate MCP repository filters into a Prisma predicate.
+   *
+   * @param input - Repository search, provider, enabled-state, and pagination filters.
+   * @returns The repository filter predicate; authorization is applied separately by the query service.
+   */
   private repositoryWhere(input: McpRepositoryFilters): Prisma.RepositoryWhereInput {
     const searchWhere: Prisma.RepositoryWhereInput | undefined = input.search
       ? {
@@ -222,6 +291,12 @@ export class McpToolsService {
     };
   }
 
+  /**
+   * Translate MCP workflow filters into a Prisma predicate.
+   *
+   * @param input - Workflow search, repository, status, provider, date-range, and pagination filters.
+   * @returns The workflow-run filter predicate; authorization is applied separately by the query service.
+   */
   private workflowRunWhere(input: McpWorkflowRunFilters): Prisma.WorkflowRunWhereInput {
     const searchWhere: Prisma.WorkflowRunWhereInput | undefined = input.search
       ? {

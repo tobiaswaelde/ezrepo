@@ -77,7 +77,14 @@ export class IssueDto {
   @ApiProperty({ isArray: true, type: WorkItemLabelDto })
   labels!: WorkItemLabelDto[];
 
-  /** Project one issue with optional detail-only body content. */
+  /**
+   * Project one issue with optional detail-only body content.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param includeBody - Whether to expose the body reserved for detail responses.
+   * @param ability - Optional cASL ability used to restrict resource access or exposed fields.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: IssueResourceModel, includeBody = false, ability?: AppAbility): IssueDto {
     return filterCaslFields(
       {
@@ -132,7 +139,14 @@ export class PullRequestDto {
   @ApiProperty({ isArray: true, type: WorkItemActorDto }) assignees!: WorkItemActorDto[];
   @ApiProperty({ isArray: true, type: WorkItemLabelDto }) labels!: WorkItemLabelDto[];
 
-  /** Project one pull request with optional detail-only body content. */
+  /**
+   * Project one pull request with optional detail-only body content.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @param includeBody - Whether to expose the body reserved for detail responses.
+   * @param ability - Optional cASL ability used to restrict resource access or exposed fields.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: PullRequestResourceModel, includeBody = false, ability?: AppAbility): PullRequestDto {
     return filterCaslFields(
       {

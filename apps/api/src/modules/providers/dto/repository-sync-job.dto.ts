@@ -54,7 +54,12 @@ export class RepositorySyncJobDto {
   @ApiPropertyOptional({ nullable: true })
   lastError!: string | null;
 
-  /** Convert a repository and its optional queue request to the public job representation. */
+  /**
+   * Convert a repository and its optional queue request to the public job representation.
+   *
+   * @param model - Loaded database record and relations required by the DTO mapping.
+   * @returns The explicit public DTO projected from the supplied record.
+   */
   static fromModel(model: RepositorySyncJobModel): RepositorySyncJobDto {
     const request = model.syncRequest;
     return {
