@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3
+
+### Patch Changes
+
+- b6705ee: Document API functions and methods with complete TSDoc, enforce documentation coverage during linting, and clarify avatar downloads, synchronization, and notification delivery with focused helper methods.
+- b1abd14: Reconcile legacy branch-scoped workflow runs with pull requests and hide completed change requests from Needs Attention.
+
 ## 0.5.2
 
 ### Patch Changes
