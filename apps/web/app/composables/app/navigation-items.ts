@@ -53,9 +53,9 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     {
       active: isActive('/workflows/awaiting-approval'),
       badge:
-        toValue(attentionCounts.awaitingApproval) === null || toValue(attentionCounts.awaitingApproval) === undefined
-          ? undefined
-          : { color: 'warning', label: toValue(attentionCounts.awaitingApproval)!, variant: 'soft' },
+        (toValue(attentionCounts.awaitingApproval) ?? 0) > 0
+          ? { color: 'warning', label: toValue(attentionCounts.awaitingApproval)!, variant: 'soft' }
+          : undefined,
       icon: 'i-lucide-shield-alert',
       label: t('awaitingApproval.title'),
       to: '/workflows/awaiting-approval',
@@ -63,9 +63,9 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     {
       active: isActive('/workflow-runs/needs-attention'),
       badge:
-        toValue(attentionCounts.needsAttention) === null || toValue(attentionCounts.needsAttention) === undefined
-          ? undefined
-          : { color: 'error', label: toValue(attentionCounts.needsAttention)!, variant: 'soft' },
+        (toValue(attentionCounts.needsAttention) ?? 0) > 0
+          ? { color: 'error', label: toValue(attentionCounts.needsAttention)!, variant: 'soft' }
+          : undefined,
       icon: 'i-lucide-triangle-alert',
       label: t('needsAttention.title'),
       to: '/workflow-runs/needs-attention',
@@ -95,12 +95,24 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     label: t('layout.pullRequests'),
     to: '/pull-requests',
   }));
-  const notifications = computed<AppNavigationItem>(() => ({
-    active: isActive('/notifications'),
-    icon: 'i-lucide-bell',
-    label: t('layout.notifications'),
-    to: '/notifications',
-  }));
+  const notifications = computed<AppNavigationItem[]>(() => [
+    {
+      active: isActive('/notifications', true),
+      icon: 'i-lucide-radio-tower',
+      label: t('notifications.tabs.channels'),
+      to: '/notifications',
+    },
+    ...(auth.user?.role === 'SYSTEM_ADMIN'
+      ? [
+          {
+            active: isActive('/notifications/history'),
+            icon: 'i-lucide-history',
+            label: t('notifications.tabs.history'),
+            to: '/notifications/history',
+          },
+        ]
+      : []),
+  ]);
   const administration = computed<AppNavigationItem[]>(() => {
     if (auth.user?.role !== 'SYSTEM_ADMIN') return [];
     return [
@@ -143,7 +155,15 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
       { label: t('layout.operations'), type: 'label' },
       toMenuItem(repositories.value),
       toMenuItem(jobs.value),
-      toMenuItem(notifications.value),
+      {
+        'aria-label': t('layout.notifications'),
+        active: notifications.value.some((item) => item.active),
+        children: notifications.value.map(toMenuItem),
+        defaultOpen: true,
+        icon: 'i-lucide-bell',
+        label: t('layout.notifications'),
+        type: 'trigger',
+      },
     ];
 
     if (administration.value.length > 0) {
@@ -160,7 +180,7 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     pullRequests.value,
     repositories.value,
     jobs.value,
-    notifications.value,
+    ...notifications.value,
     ...administration.value,
   ]);
 

@@ -47,6 +47,9 @@
     "searchPlaceholder": "Cerca o digita un comando",
     "title": "Palette dei comandi"
   },
+  "common": {
+    "save": "Salva"
+  },
   "dashboard": {
     "activeRuns": "Esecuzioni attive",
     "activeRunsContext": "{running} in corso · {queued} in coda",

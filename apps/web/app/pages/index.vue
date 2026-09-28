@@ -52,11 +52,6 @@
       <ModulesDashboardStatusDistribution class="xl:col-span-2" :loading="isHistoricalLoading" :summary="summary" />
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-2">
-      <ModulesDashboardRepositoryHealth :loading="isHistoricalLoading" :repositories="repositoryHealth" />
-      <ModulesDashboardFailingWorkflows :loading="isCurrentLoading" :runs="failures" />
-    </div>
-
     <ModulesDashboardLatestRuns :loading="isCurrentLoading" :runs="latestRuns" />
   </LayoutPage>
 </template>
@@ -72,7 +67,6 @@ import type {
   DashboardWorkflowRun,
   IssueSummary,
   PullRequestSummary,
-  RepositoryHealth,
   WorkflowRunTrendBucket,
 } from '~/types/api/resources';
 
@@ -82,7 +76,6 @@ const { t } = useI18n();
 const api = useEzRepoApi();
 const failures = ref<DashboardWorkflowRun[]>([]);
 const latestRuns = ref<DashboardWorkflowRun[]>([]);
-const repositoryHealth = ref<RepositoryHealth[]>([]);
 const summary = ref<DashboardSummary | null>(null);
 const issueSummary = ref<IssueSummary | null>(null);
 const pullRequestSummary = ref<PullRequestSummary | null>(null);
@@ -94,7 +87,6 @@ const errors = reactive({
   issues: false,
   latestRuns: false,
   pullRequests: false,
-  repositories: false,
   summary: false,
   trend: false,
 });
@@ -168,8 +160,7 @@ async function loadHistoricalDashboard(): Promise<void> {
   isHistoricalLoading.value = true;
   const days = Number(range.value.replace('d', ''));
   const query = createPeriodQuery(days);
-  const [repositoryResult, summaryResult, trendResult] = await Promise.allSettled([
-    api.dashboard.getRepositoryHealth(query),
+  const [summaryResult, trendResult] = await Promise.allSettled([
     api.dashboard.getSummary(query),
     api.dashboard.getTrend({
       ...query,
@@ -178,10 +169,8 @@ async function loadHistoricalDashboard(): Promise<void> {
   ]);
   if (requestId !== historicalRequestId) return;
 
-  errors.repositories = repositoryResult.status === 'rejected';
   errors.summary = summaryResult.status === 'rejected';
   errors.trend = trendResult.status === 'rejected';
-  if (repositoryResult.status === 'fulfilled') repositoryHealth.value = repositoryResult.value.data;
   if (summaryResult.status === 'fulfilled') summary.value = summaryResult.value.data;
   if (trendResult.status === 'fulfilled') trend.value = trendResult.value.data;
   isHistoricalLoading.value = false;

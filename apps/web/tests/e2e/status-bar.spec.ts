@@ -112,6 +112,25 @@ test('refreshes an open workflow-run table once after provider synchronization b
   await mockDashboardShell(page);
   let socket: WebSocketRoute | undefined;
   let workflowRunRequests = 0;
+  let attentionCount = 0;
+  await page.route('**/api/v1/dashboard/awaiting-approval', (route) =>
+    route.fulfill({ json: Array.from({ length: attentionCount }, (_, index) => ({ id: `run-${index}` })) }),
+  );
+  await page.route(/\/api\/v1\/workflow-runs\/needs-attention(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        meta: {
+          hasNextPage: false,
+          hasPrevPage: false,
+          itemCount: attentionCount,
+          page: 1,
+          pageCount: attentionCount > 0 ? 1 : 0,
+          perPage: 1,
+        },
+      },
+    }),
+  );
   await page.route('**/api/v1/repositories**', (route) =>
     route.fulfill({
       json: {
@@ -163,7 +182,12 @@ test('refreshes an open workflow-run table once after provider synchronization b
 
   await page.goto('/workflow-runs');
   await expect.poll(() => workflowRunRequests).toBe(1);
+  const workflowRunNavigation = page
+    .getByRole('navigation', { name: 'Primary navigation' })
+    .getByRole('region', { name: 'Workflow runs' });
+  await expect(workflowRunNavigation.locator('[data-slot="linkTrailingBadge"]')).toHaveCount(0);
 
+  attentionCount = 2;
   socket?.send(
     statusEvent({
       activity: {
@@ -197,4 +221,6 @@ test('refreshes an open workflow-run table once after provider synchronization b
 
   await expect(page.getByText('Webhook-triggered run')).toBeVisible();
   await expect.poll(() => workflowRunRequests).toBe(2);
+  await expect(workflowRunNavigation.getByRole('link', { name: 'Awaiting approval' })).toContainText('2');
+  await expect(workflowRunNavigation.getByRole('link', { name: 'Needs attention' })).toContainText('2');
 });

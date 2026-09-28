@@ -47,6 +47,9 @@
     "searchPlaceholder": "Search or type a command",
     "title": "Command palette"
   },
+  "common": {
+    "save": "Save"
+  },
   "dashboard": {
     "activeRuns": "Active runs",
     "activeRunsContext": "{running} running · {queued} queued",

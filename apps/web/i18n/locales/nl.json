@@ -47,6 +47,9 @@
     "searchPlaceholder": "Zoeken of een opdracht typen",
     "title": "Opdrachtpalet"
   },
+  "common": {
+    "save": "Opslaan"
+  },
   "dashboard": {
     "activeRuns": "Actieve uitvoeringen",
     "activeRunsContext": "{running} actief · {queued} in wachtrij",

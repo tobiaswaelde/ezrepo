@@ -93,6 +93,12 @@ test('uses the shared page shell without introductory banners', async ({ page })
   await expect(page.getByRole('link', { name: 'GitHub' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Documentation' })).toBeVisible();
   await expect(page.locator('[data-update-indicator]')).toBeVisible();
+  await expect(page.getByText('Update available', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open changelog: Update available' })).toBeVisible();
+  const workflowRunNavigation = page
+    .getByRole('navigation', { name: 'Primary navigation' })
+    .getByRole('region', { name: 'Workflow runs' });
+  await expect(workflowRunNavigation.locator('[data-slot="linkTrailingBadge"]')).toHaveCount(0);
   await expect(page.getByLabel('Collapse sidebar')).toBeVisible();
   await page.screenshot({
     path: resolve(process.cwd(), '../../docs/public/screenshots/dashboard.png'),
@@ -115,6 +121,35 @@ test('uses the shared page shell without introductory banners', async ({ page })
       fullPage: true,
     });
   }
+});
+
+test('refreshes and hides attention badges after navigation', async ({ page }) => {
+  await mockApplication(page);
+  let awaitingApprovalCount = 2;
+  let needsAttentionCount = 3;
+  await page.route('**/api/v1/dashboard/awaiting-approval', (route) =>
+    route.fulfill({ json: Array.from({ length: awaitingApprovalCount }, (_, index) => ({ id: `run-${index}` })) }),
+  );
+  await page.route(/\/api\/v1\/workflow-runs\/needs-attention(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        ...emptyPage,
+        meta: { ...emptyPage.meta, itemCount: needsAttentionCount },
+      },
+    }),
+  );
+
+  await page.goto('/');
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  const workflowRuns = navigation.getByRole('region', { name: 'Workflow runs' });
+  await expect(workflowRuns.getByRole('link', { name: 'Awaiting approval' })).toContainText('2');
+  await expect(workflowRuns.getByRole('link', { name: 'Needs attention' })).toContainText('3');
+
+  awaitingApprovalCount = 0;
+  needsAttentionCount = 0;
+  await navigation.getByRole('link', { name: 'Channels' }).click();
+  await expect(page).toHaveURL(/\/notifications$/);
+  await expect(workflowRuns.locator('[data-slot="linkTrailingBadge"]')).toHaveCount(0);
 });
 
 test('queues workflow retrieval from the repository details dialog', async ({ page }) => {

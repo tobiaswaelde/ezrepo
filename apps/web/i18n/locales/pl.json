@@ -47,6 +47,9 @@
     "searchPlaceholder": "Wyszukaj lub wpisz polecenie",
     "title": "Paleta poleceń"
   },
+  "common": {
+    "save": "Zapisz"
+  },
   "dashboard": {
     "activeRuns": "Aktywne uruchomienia",
     "activeRunsContext": "{running} w toku · {queued} w kolejce",

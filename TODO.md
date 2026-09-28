@@ -16,13 +16,13 @@ Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-
 
 ## 2. Small UI and localization fixes
 
-- [ ] Audit every locale for missing or inconsistent messages, including `common.save`.
-- [ ] Remove the Repository Health and Needs Attention cards from the dashboard.
-- [ ] Replace the Notifications page tab bar with Notifications subitems in the sidebar.
-- [ ] Replace the prominent version-update notice with a green dot beside the sidebar version number.
-- [ ] Keep the Awaiting Approval and Needs Attention sidebar badges current without reloading the application.
-  - [ ] Display each badge only when its value is greater than zero.
-  - [ ] Refresh the counts after relevant synchronization and navigation events.
+- [x] Audit every locale for missing or inconsistent messages, including `common.save`.
+- [x] Remove the Repository Health and Needs Attention cards from the dashboard.
+- [x] Replace the Notifications page tab bar with Notifications subitems in the sidebar.
+- [x] Replace the prominent version-update notice with a green dot beside the sidebar version number.
+- [x] Keep the Awaiting Approval and Needs Attention sidebar badges current without reloading the application.
+  - [x] Display each badge only when its value is greater than zero.
+  - [x] Refresh the counts after relevant synchronization and navigation events.
 
 ## 3. Persistent table state and filters
 

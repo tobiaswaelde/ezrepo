@@ -47,6 +47,9 @@
     "searchPlaceholder": "Suchen oder Befehl eingeben",
     "title": "Befehlspalette"
   },
+  "common": {
+    "save": "Speichern"
+  },
   "dashboard": {
     "activeRuns": "Aktive Ausführungen",
     "activeRunsContext": "{running} laufend · {queued} wartend",

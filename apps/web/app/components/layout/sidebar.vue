@@ -68,14 +68,16 @@
           data-sidebar-footer-item
           type="button"
           class="flex w-full items-center justify-center gap-1.5 rounded-md px-1.5 py-1 font-mono text-xs text-muted transition-colors hover:bg-elevated hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
-          :aria-label="t('changelog.open')"
+          :aria-label="updateAvailable ? `${t('changelog.open')}: ${t('changelog.update')}` : t('changelog.open')"
           @click="changelogOpen = true"
         >
           v{{ appVersion }}
-          <UBadge v-if="updateAvailable" color="neutral" variant="subtle" size="sm">
-            <span data-update-indicator class="size-1.5 rounded-full bg-success" aria-hidden="true" />
-            {{ t('changelog.update') }}
-          </UBadge>
+          <span
+            v-if="updateAvailable"
+            data-update-indicator
+            class="size-2 rounded-full bg-success"
+            aria-hidden="true"
+          />
         </button>
       </div>
     </template>
@@ -83,17 +85,20 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useModuleApi } from '~/composables/api/module-api';
+import { useSystemStatusState } from '~/composables/api/system-status';
 import { useNavigationItems } from '~/composables/app/navigation-items';
 import { useVersionCheck } from '~/composables/app/version-check';
 
 const { t } = useI18n();
+const route = useRoute();
 const api = useEzRepoApi();
 const changelogOpen = useState('changelog-open', () => false);
 const { current: appVersion, load: loadVersion, updateAvailable } = useVersionCheck();
+const { snapshot: systemStatus } = useSystemStatusState();
 const needsAttentionApi = useModuleApi('workflow-runs/needs-attention');
 const awaitingApprovalCount = ref<number | null>(null);
 const needsAttentionCount = ref<number | null>(null);
@@ -116,6 +121,21 @@ async function loadAttentionCounts(): Promise<void> {
 }
 
 onMounted(() => void loadAttentionCounts());
+watch(() => route.fullPath, loadAttentionCounts);
+
+let observedProviderSync = false;
+watch(
+  () => systemStatus.value.activity,
+  (activity) => {
+    if (activity) {
+      observedProviderSync = true;
+      return;
+    }
+    if (!observedProviderSync) return;
+    observedProviderSync = false;
+    void loadAttentionCounts();
+  },
+);
 
 onMounted(loadVersion);
 </script>

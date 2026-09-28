@@ -27,16 +27,6 @@ const dashboardSummary = {
   successRate: 50,
   totalRunDurationMs: 5_400_000,
 };
-const repositoryHealth = [
-  {
-    completedCount: 2,
-    failedCount: 1,
-    medianDurationMs: 90_000,
-    repository: dashboardRun.repository,
-    successRate: 50,
-  },
-];
-
 /** Configure the current authenticated user and dashboard endpoint responses. */
 async function mockDashboard(page: Page, role: 'SYSTEM_ADMIN' | 'VIEWER'): Promise<void> {
   await page.addInitScript((token) => window.localStorage.setItem('ezrepo.access-token', token), accessToken);
@@ -63,7 +53,6 @@ test('hides system administration navigation from viewers', async ({ page }) => 
   await mockDashboard(page, 'VIEWER');
   await page.route('**/api/v1/dashboard/failures', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/dashboard/latest-runs', (route) => route.fulfill({ json: [] }));
-  await page.route('**/api/v1/dashboard/repositories**', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/dashboard/summary**', (route) =>
     route.fulfill({
       json: {
@@ -83,17 +72,16 @@ test('hides system administration navigation from viewers', async ({ page }) => 
   await page.goto('/');
 
   await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Notifications' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Notifications' })).toBeVisible();
   await expect(page.getByText('Administration', { exact: true })).not.toBeVisible();
-  await expect(page.getByText('No workflows are currently failing.')).toBeVisible();
   await expect(page.getByText('No workflow runs are available yet.')).toBeVisible();
-  await expect(page.getByText('No repository health data is available for this period.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Needs attention' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Repository health' })).toHaveCount(0);
 });
 
 test('renders dashboard values, reloads for range filters, and presents request errors', async ({ page }, testInfo) => {
   await mockDashboard(page, 'SYSTEM_ADMIN');
   let failDashboardRequest = false;
-  const repositoryUrls: string[] = [];
   const summaryUrls: string[] = [];
   const trendUrls: string[] = [];
   const pullRequestUrls: string[] = [];
@@ -105,10 +93,6 @@ test('renders dashboard values, reloads for range filters, and presents request 
   await page.route('**/api/v1/dashboard/latest-runs', (route) =>
     route.fulfill({ contentType: 'application/json', json: [dashboardRun] }),
   );
-  await page.route('**/api/v1/dashboard/repositories**', (route) => {
-    repositoryUrls.push(route.request().url());
-    return route.fulfill({ contentType: 'application/json', json: repositoryHealth });
-  });
   await page.route('**/api/v1/dashboard/summary**', (route) => {
     summaryUrls.push(route.request().url());
     return route.fulfill({ contentType: 'application/json', json: dashboardSummary });
@@ -203,8 +187,8 @@ test('renders dashboard values, reloads for range filters, and presents request 
   await expect(page.getByText('Total runtime')).toBeVisible();
   await expect(page.getByText('90 min', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Status distribution' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Repository health' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'View all' })).toHaveAttribute('href', '/workflow-runs/needs-attention');
+  await expect(page.getByRole('heading', { name: 'Repository health' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Needs attention' })).toHaveCount(0);
   const trendChart = page.getByRole('img', { name: /3 successful and 2 failed runs/ });
   await expect(trendChart).toBeVisible();
   await expect(trendChart.locator('[data-series="success"]')).toHaveCount(2);
@@ -243,7 +227,6 @@ test('renders dashboard values, reloads for range filters, and presents request 
   await page.getByRole('option', { name: 'Last 7 days' }).click();
   await expect.poll(() => trendUrls.some((url) => new URL(url).searchParams.get('bucket') === 'hour')).toBe(true);
   await expect.poll(() => summaryUrls.length).toBe(2);
-  await expect.poll(() => repositoryUrls.length).toBe(2);
 
   failDashboardRequest = true;
   await page.getByRole('button', { name: 'Refresh' }).click();
@@ -253,7 +236,7 @@ test('renders dashboard values, reloads for range filters, and presents request 
 
   await page.setViewportSize({ height: 844, width: 390 });
   await expect(page.getByRole('heading', { name: 'Status distribution' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Repository health' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Repository health' })).toHaveCount(0);
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
     .toBe(true);

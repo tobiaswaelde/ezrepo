@@ -111,7 +111,17 @@ test('shows global channel events and system-wide delivery history', async ({ pa
   );
 
   await page.goto('/notifications');
-  await expect(page.getByRole('link', { name: 'Channels', exact: true })).toBeVisible();
+  const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  await expect(primaryNavigation.getByRole('button', { name: 'Notifications' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  const notificationNavigation = primaryNavigation.getByRole('region', { name: 'Notifications' });
+  await expect(notificationNavigation.getByRole('link', { name: 'Channels', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(page.locator('[data-page-navigation]')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Rules', exact: true })).toHaveCount(0);
   await expect(page.getByRole('cell', { name: 'Operations' })).toBeVisible();
   await expect(page.getByText('Workflow failed', { exact: true })).toBeVisible();
@@ -124,7 +134,7 @@ test('shows global channel events and system-wide delivery history', async ({ pa
   await expect(dialog.getByText('Workflow patterns')).toBeVisible();
   await page.keyboard.press('Escape');
 
-  await page.getByRole('link', { name: 'Delivery history', exact: true }).click();
+  await notificationNavigation.getByRole('link', { name: 'Delivery history', exact: true }).click();
   await expect(page.getByText('deploy-production')).toBeVisible();
   await page.getByRole('button', { name: 'View delivery details' }).click();
   await expect(page.getByRole('dialog', { name: 'Delivery details' })).toContainText(
