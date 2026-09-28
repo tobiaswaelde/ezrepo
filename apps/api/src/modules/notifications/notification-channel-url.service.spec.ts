@@ -37,4 +37,15 @@ describe('NotificationChannelUrlService', () => {
       BadRequestException,
     );
   });
+
+  it('rejects malformed email domains without ambiguous matching', () => {
+    expect(() =>
+      service.prepare(NotificationChannelType.EMAIL, {
+        from: `sender@${'domain.'.repeat(10_000)}`,
+        recipients: ['on-call@example.com'],
+        security: 'STARTTLS',
+        smtpHost: 'smtp.example.com',
+      }),
+    ).toThrow(BadRequestException);
+  });
 });

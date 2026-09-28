@@ -124,7 +124,8 @@ export class NotificationChannelUrlService {
 
   private requiredEmail(value: unknown, label: string): string {
     const email = this.requiredString(value, label);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException(`${label} must be an email address.`);
+    if (!/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email))
+      throw new BadRequestException(`${label} must be an email address.`);
     return email;
   }
 
