@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4
+
+### Patch Changes
+
+- be872b4: Refine the dashboard and sidebar with notification subitems, live attention badges, and a subtle update indicator.
+
 ## 0.5.3
 
 ### Patch Changes
