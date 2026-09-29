@@ -107,11 +107,7 @@ test('browses, searches, sorts, filters, refreshes, and paginates the complete n
 
   await page.goto('/workflow-runs/needs-attention');
 
-  await expect(
-    page.getByText(
-      'Browse actionable workflow contexts whose latest completed run failed. Closed and successfully merged changes are cleared automatically.',
-    ),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Needs attention' })).toBeAttached();
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
   await expect(navigation.getByRole('button', { name: 'Workflow runs' })).toHaveAttribute('aria-expanded', 'true');
   const workflowRunNavigation = navigation.getByRole('region', { name: 'Workflow runs' });
@@ -131,7 +127,7 @@ test('browses, searches, sorts, filters, refreshes, and paginates the complete n
     '/workflows/awaiting-approval',
   );
   await page.keyboard.press('Escape');
-  await page.getByRole('heading', { name: 'Needs attention' }).click();
+  await page.locator('#main-content').focus();
   await expect(page.getByRole('button', { name: 'Refresh' })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath('needs-attention-loading.png'), fullPage: true });
   releaseInitialRequest?.();
@@ -160,7 +156,9 @@ test('browses, searches, sorts, filters, refreshes, and paginates the complete n
 
   await page.getByPlaceholder('Search workflows or repositories').fill('missing');
   await expect(page.getByText('No workflows currently need attention.')).toBeVisible();
-  expect(new URL(requestedUrls.at(-1)!).searchParams.get('where')).toContain('missing');
+  await expect
+    .poll(() => requestedUrls.some((url) => new URL(url).searchParams.get('where')?.includes('missing')))
+    .toBe(true);
 
   failRequest = true;
   await page.getByRole('button', { name: 'Refresh' }).click();

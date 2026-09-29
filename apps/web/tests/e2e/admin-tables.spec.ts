@@ -383,7 +383,10 @@ test('repository dialog loads retention, filters, and members', async ({ page })
 
   const repositoryDialog = page.getByRole('dialog', { name: 'twaelde/ezrepo' });
   await expect(repositoryDialog).toBeVisible();
-  await expect(repositoryDialog.locator('input[type=number]')).toHaveValue('30');
+  const workflowRunRetention = repositoryDialog.getByRole('spinbutton', {
+    name: 'Workflow-run retention (days)',
+  });
+  await expect(workflowRunRetention).toHaveValue('30');
   await expect(repositoryDialog.getByText('draft-*', { exact: true })).toBeVisible();
   await expect(repositoryDialog.getByText('maintainer', { exact: true })).toBeVisible();
   await expect(repositoryDialog.getByRole('button', { name: 'Add workflow filter' })).toBeDisabled();
@@ -393,9 +396,18 @@ test('repository dialog loads retention, filters, and members', async ({ page })
   await expectActionTooltip(page, repositoryDialog.getByRole('button', { name: 'Delete' }), 'Delete');
   await expectActionTooltip(page, repositoryDialog.getByRole('button', { name: 'Remove member' }), 'Remove member');
 
-  await repositoryDialog.locator('input[type=number]').fill('45');
+  await workflowRunRetention.fill('45');
   await repositoryDialog.getByRole('button', { name: 'Save' }).click();
-  await expect.poll(() => repositoryUpdates).toEqual([{ enabled: true, workflowRunRetentionDays: 45 }]);
+  await expect
+    .poll(() => repositoryUpdates)
+    .toEqual([
+      {
+        enabled: true,
+        issueRetentionDays: null,
+        pullRequestRetentionDays: null,
+        workflowRunRetentionDays: 45,
+      },
+    ]);
 
   await repositoryDialog.getByPlaceholder('e.g. build-*').fill('release-*');
   await repositoryDialog.getByRole('button', { name: 'Add workflow filter' }).click();

@@ -162,24 +162,19 @@ test('updates personal details and refreshes the visible user identity', async (
     }
     await route.fulfill({ contentType: 'application/json', json: currentUser });
   });
-  await page.addInitScript(() => window.localStorage.setItem('ezrepo.access-token', 'old-access-token'));
-  await page.route('**/api/v1/auth/me', (route) => route.fulfill({ json: user }));
-
   await page.goto('/admin/settings');
-  await expect(page.getByRole('heading', { name: 'Change password' })).toBeVisible();
-  await page.getByLabel('Current password').last().fill('current-password');
-  await page.getByLabel('New password').fill('replacement-password');
-  await page.getByLabel('Confirm password').fill('replacement-password');
-  const saveButton = page.getByRole('button', { name: 'Change password' });
+  await page.getByLabel('First name').fill('Vera');
+  await page.getByLabel('Last name').fill('Viewer');
+  await page.getByLabel('Username').fill('vera');
+  await page.getByLabel('Current password').first().fill('current-password');
+  const saveButton = page.getByRole('button', { name: 'Save profile' });
   await saveButton.click();
   await expect(saveButton).toBeDisabled();
-  await page.screenshot({ path: testInfo.outputPath('password-settings-saving.png'), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('profile-settings-saving.png'), fullPage: true });
   releaseUpdate?.();
 
-  await expect(page.getByText('Password changed. Other sessions have been signed out.')).toBeVisible();
-  await expect
-    .poll(() => page.evaluate(() => window.localStorage.getItem('ezrepo.access-token')))
-    .toBe('replacement-access-token');
+  await expect(page.getByText('Personal details saved.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Vera Viewer' })).toBeVisible();
 });
 
 /** Upload, crop, and remove the current user's profile picture without exposing the original source. */
@@ -192,7 +187,7 @@ test('manages a cropped personal avatar from upload and HTTPS import', async ({ 
     role: 'VIEWER',
     username: 'viewer',
   };
-  const uploadCount = 0;
+  let uploadCount = 0;
   await page.addInitScript(() => window.localStorage.setItem('ezrepo.access-token', 'playwright-access-token'));
   await page.route('**/api/v1/auth/me', (route) =>
     route.fulfill({ contentType: 'application/json', json: currentUser }),
@@ -200,6 +195,13 @@ test('manages a cropped personal avatar from upload and HTTPS import', async ({ 
   await page.route('**/api/v1/auth/me/avatar/remote-preview', async (route) => {
     expect(route.request().postDataJSON()).toEqual({ url: 'https://example.com/avatar.png' });
     await route.fulfill({ body: nonSquarePng, contentType: 'image/png' });
+  });
+  await page.route('**/api/v1/auth/me/avatar', async (route) => {
+    if (route.request().method() === 'PUT') {
+      uploadCount += 1;
+      currentUser.avatarUpdatedAt = `2026-09-29T04:00:0${uploadCount}.000Z`;
+    } else if (route.request().method() === 'DELETE') currentUser.avatarUpdatedAt = null;
+    await route.fulfill({ contentType: 'application/json', json: currentUser });
   });
   await page.route('**/api/v1/users/playwright-viewer/avatar**', (route) =>
     route.fulfill({ body: nonSquarePng, contentType: 'image/webp' }),

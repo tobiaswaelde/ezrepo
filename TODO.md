@@ -56,10 +56,12 @@ Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-
 
 ## 7. UI and accessibility review
 
-- [ ] Review the application with Playwright and record reproducible visual or interaction problems.
-- [ ] Verify the sidebar, wide tables, dialogs, detail pages, and navigation at desktop and narrow viewport sizes.
-- [ ] Verify keyboard navigation, dialog focus handling, accessible names for icon buttons, and color contrast.
-- [ ] Add focused browser coverage for each corrected regression instead of broad snapshot coverage.
+- [x] Review the application with Playwright and record reproducible visual or interaction problems.
+  - [x] Prevent empty wide workflow tables from collapsing and bleeding content through the pinned action column at
+        390-pixel viewport widths.
+- [x] Verify the sidebar, wide tables, dialogs, detail pages, and navigation at desktop and narrow viewport sizes.
+- [x] Verify keyboard navigation, dialog focus handling, accessible names for icon buttons, and color contrast.
+- [x] Add focused browser coverage for each corrected regression instead of broad snapshot coverage.
 
 ## 8. Reconcile stale active workflow runs
 

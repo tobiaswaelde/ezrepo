@@ -120,6 +120,11 @@ test('shows repository freshness, activity, provider links, and a partial sectio
   await expect(page.getByRole('link', { name: 'Open in provider' }).first()).toHaveAttribute('href', repository.url);
   await expect(page.getByRole('heading', { name: 'Repository settings' })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('repository-detail-desktop.png'), fullPage: true });
+  await page.setViewportSize({ height: 844, width: 390 });
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
+    .toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('repository-detail-narrow.png'), fullPage: true });
 });
 
 test('shows never-synchronized and empty states', async ({ page }) => {

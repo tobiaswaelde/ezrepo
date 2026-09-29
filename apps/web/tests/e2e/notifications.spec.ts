@@ -146,9 +146,11 @@ test('shows global channel events and system-wide delivery history', async ({ pa
   await expect(page.getByRole('cell', { name: 'Operations' })).toBeVisible();
   await expect(page.getByText('Workflow failed', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Add channel' }).click();
+  const addChannel = page.getByRole('button', { name: 'Add channel' });
+  await addChannel.click();
   const dialog = page.getByRole('dialog', { name: 'Add notification channel' });
   await expect(dialog.getByText('Events', { exact: true })).toBeVisible();
+  await expect(dialog.locator(':focus')).toHaveCount(1);
   await dialog.getByRole('checkbox', { name: 'Workflow failed' }).check();
   await expect(dialog.getByText('Repository filters')).toBeVisible();
   await expect(dialog.getByText('Workflow patterns')).toBeVisible();
@@ -160,6 +162,7 @@ test('shows global channel events and system-wide delivery history', async ({ pa
     'https://example.com/run/1',
   );
   await page.keyboard.press('Escape');
+  await expect(addChannel).toBeFocused();
 
   await notificationNavigation.getByRole('link', { name: 'Delivery history', exact: true }).click();
   await expect(page.getByText('deploy-production')).toBeVisible();

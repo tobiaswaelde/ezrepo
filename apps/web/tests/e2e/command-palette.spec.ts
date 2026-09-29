@@ -88,6 +88,11 @@ async function mockCommandPaletteShell(page: Page, role: 'SYSTEM_ADMIN' | 'VIEWE
   await page.route(/\/api\/v1\/users(?:\?.*)?$/, (route) => route.fulfill({ json: emptyPage }));
 }
 
+/** Return the platform shortcut rendered by Nuxt UI's meta key. */
+async function commandPaletteShortcut(page: Page): Promise<'Meta+K' | 'Control+K'> {
+  return (await page.evaluate(() => /Macintosh|Mac OS X/.test(navigator.userAgent))) ? 'Meta+K' : 'Control+K';
+}
+
 test('opens globally, restores focus, supports keyboard navigation, and opens resource results', async ({
   page,
 }, testInfo) => {
@@ -98,6 +103,7 @@ test('opens globally, restores focus, supports keyboard navigation, and opens re
   const globalSearch = page.getByRole('combobox', { name: 'Search' });
   const palette = page.getByRole('dialog', { name: 'Command palette' });
   const paletteSearch = page.getByPlaceholder('Search or type a command');
+  const shortcut = await commandPaletteShortcut(page);
 
   await trigger.click();
   await expect(palette).toBeVisible();
@@ -112,12 +118,12 @@ test('opens globally, restores focus, supports keyboard navigation, and opens re
   await expect(trigger).toBeFocused();
 
   await globalSearch.focus();
-  await page.keyboard.press('Control+K');
+  await page.keyboard.press(shortcut);
   await expect(palette).not.toBeVisible();
   await globalSearch.press('Escape');
 
   await page.keyboard.press('Tab');
-  await page.keyboard.press('Control+K');
+  await page.keyboard.press(shortcut);
   await expect(palette).toBeVisible();
   await expect(paletteSearch).toBeFocused();
   await expect(palette.getByRole('option', { name: 'Dashboard', exact: true })).toHaveAttribute('data-highlighted');
@@ -126,7 +132,7 @@ test('opens globally, restores focus, supports keyboard navigation, and opens re
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/workflow-runs$/);
 
-  await page.keyboard.press('Control+K');
+  await page.keyboard.press(shortcut);
   await paletteSearch.fill('flow');
   await expect(palette.getByRole('option', { name: /ezRepo GitHub/ })).toBeVisible();
   await expect(palette.getByRole('option', { name: /ezRepo deployment/ })).toBeVisible();
@@ -141,7 +147,7 @@ test('opens globally, restores focus, supports keyboard navigation, and opens re
   await expect(repositoryDialog).not.toBeVisible();
 
   await page.setViewportSize({ height: 844, width: 390 });
-  await page.keyboard.press('Control+K');
+  await page.keyboard.press(shortcut);
   await expect(palette).toBeVisible();
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
