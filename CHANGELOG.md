@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+### Minor Changes
+
+- 8063e88: Track read-only dependency, code scanning, and secret scanning alerts across supported providers.
+
 ## 0.7.1
 
 ### Patch Changes
