@@ -227,8 +227,12 @@ describe('ProviderSyncService', () => {
     expect(prisma.workflowRun.findMany).toHaveBeenCalledWith({
       distinct: ['workflowId', 'scopeKey'],
       orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
-      select: { awaitingApproval: true, providerRunId: true, status: true },
+      select: { awaitingApproval: true, id: true, providerRunId: true, pullRequestId: true, status: true },
       where: { repositoryId: repository.id },
+    });
+    expect(prisma.workflowRun.findMany).toHaveBeenCalledWith({
+      select: { awaitingApproval: true, id: true, providerRunId: true, pullRequestId: true, status: true },
+      where: { repositoryId: repository.id, status: { in: ['QUEUED', 'RUNNING'] } },
     });
     expect(adapter.getWorkflowRun).toHaveBeenCalledTimes(2);
     expect(adapter.getWorkflowRun).toHaveBeenCalledWith(expect.anything(), repository, 'current-approval');
@@ -239,6 +243,140 @@ describe('ProviderSyncService', () => {
         update: expect.objectContaining({ providerRunId: 'current-failure', status: 'SUCCESS' }),
       }),
     );
+  });
+
+  it('refreshes every active run while reusing runs returned by the incremental listing', async () => {
+    const repository = createRepository('repository');
+    const listedRun = { ...createWorkflowRun(), providerRunId: 'active-new', status: 'SUCCESS' as const };
+    const refreshedRun = { ...createWorkflowRun(), providerRunId: 'active-old', status: 'CANCELLED' as const };
+    const activeRuns = [
+      {
+        awaitingApproval: false,
+        id: 'active-new-id',
+        providerRunId: 'active-new',
+        pullRequestId: null,
+        status: 'RUNNING',
+      },
+      {
+        awaitingApproval: false,
+        id: 'active-old-id',
+        providerRunId: 'active-old',
+        pullRequestId: null,
+        status: 'QUEUED',
+      },
+    ];
+    const prisma = {
+      providerAccount: { update: jest.fn().mockResolvedValue(undefined) },
+      repository: {
+        findMany: jest.fn().mockResolvedValue([repository]),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      workflow: {
+        delete: jest.fn().mockResolvedValue(undefined),
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockResolvedValue({ id: 'workflow-id' }),
+      },
+      workflowRun: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([activeRuns[0]])
+          .mockResolvedValueOnce(activeRuns)
+          .mockResolvedValueOnce([]),
+        findUnique: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        upsert: jest.fn(({ create }) => Promise.resolve({ id: 'run-id', ...create })),
+      },
+    };
+    const adapter = {
+      getWorkflowRun: jest.fn().mockResolvedValue(refreshedRun),
+      listWorkflowRuns: jest.fn().mockResolvedValue([listedRun]),
+    };
+    const service = new ProviderSyncService(
+      prisma as unknown as PrismaService,
+      { get: jest.fn().mockReturnValue(adapter) } as unknown as ProviderAdapterRegistry,
+      { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
+      { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
+      { shouldTrack: jest.fn().mockReturnValue(false) } as unknown as WorkflowFilterService,
+      { evaluateWorkflowRun: jest.fn().mockResolvedValue(undefined) } as unknown as NotificationsService,
+      {
+        beginProviderSync: jest.fn().mockReturnValue('sync-id'),
+        finishProviderSync: jest.fn(),
+        refreshRunningWorkflowCount: jest.fn(),
+        updateProviderSync: jest.fn(),
+      } as unknown as SystemStatusService,
+    );
+
+    await service.syncEnabledRepositories();
+
+    expect(adapter.getWorkflowRun).toHaveBeenCalledTimes(1);
+    expect(adapter.getWorkflowRun).toHaveBeenCalledWith(expect.anything(), repository, 'active-old');
+    expect(prisma.workflowRun.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.workflowRun.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ providerRunId: 'active-new', status: 'SUCCESS' }) }),
+    );
+    expect(prisma.workflowRun.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ providerRunId: 'active-old', status: 'CANCELLED' }),
+      }),
+    );
+  });
+
+  it('marks missing active runs unknown and refreshes linked pull requests', async () => {
+    const repository = createRepository('repository');
+    const activeRun = {
+      awaitingApproval: true,
+      id: 'active-run-id',
+      providerRunId: 'missing-active',
+      pullRequestId: 'pull-request-id',
+      status: 'RUNNING',
+    };
+    const prisma = {
+      providerAccount: { update: jest.fn().mockResolvedValue(undefined) },
+      repository: {
+        findMany: jest.fn().mockResolvedValue([repository]),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      workflowRun: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([activeRun])
+          .mockResolvedValueOnce([activeRun])
+          .mockResolvedValueOnce([]),
+        update: jest.fn().mockResolvedValue({ ...activeRun, awaitingApproval: false, status: 'UNKNOWN' }),
+      },
+    };
+    const adapter = {
+      getWorkflowRun: jest.fn().mockResolvedValue(null),
+      listWorkflowRuns: jest.fn().mockResolvedValue([]),
+    };
+    const workItems = {
+      reconcileWorkflowRunChangeRequests: jest.fn().mockResolvedValue(undefined),
+      refreshPullRequestWorkflowStatus: jest.fn().mockResolvedValue(undefined),
+      synchronize: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = new ProviderSyncService(
+      prisma as unknown as PrismaService,
+      { get: jest.fn().mockReturnValue(adapter) } as unknown as ProviderAdapterRegistry,
+      { decrypt: jest.fn().mockReturnValue('access-token') } as unknown as ProviderCredentialService,
+      { refresh: jest.fn((value) => Promise.resolve(value)) } as never,
+      { shouldTrack: jest.fn() } as unknown as WorkflowFilterService,
+      { evaluateWorkflowRun: jest.fn() } as unknown as NotificationsService,
+      {
+        beginProviderSync: jest.fn().mockReturnValue('sync-id'),
+        finishProviderSync: jest.fn(),
+        refreshRunningWorkflowCount: jest.fn(),
+        updateProviderSync: jest.fn(),
+      } as unknown as SystemStatusService,
+      workItems as never,
+    );
+
+    await service.syncEnabledRepositories();
+
+    expect(prisma.workflowRun.update).toHaveBeenCalledWith({
+      data: { awaitingApproval: false, status: 'UNKNOWN' },
+      where: { id: activeRun.id },
+    });
+    expect(workItems.refreshPullRequestWorkflowStatus).toHaveBeenCalledWith(activeRun.pullRequestId);
   });
 
   it('refreshes current failed pull-request runs missing their change-request context', async () => {
@@ -272,6 +410,7 @@ describe('ProviderSyncService', () => {
               status: 'FAILED',
             },
           ])
+          .mockResolvedValueOnce([])
           .mockResolvedValueOnce([]),
         findUnique: jest.fn().mockResolvedValue(null),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -318,6 +457,7 @@ describe('ProviderSyncService', () => {
       workflowRun: {
         findMany: jest
           .fn()
+          .mockResolvedValueOnce([])
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce([
             {
@@ -386,6 +526,7 @@ describe('ProviderSyncService', () => {
       workflowRun: {
         findMany: jest
           .fn()
+          .mockResolvedValueOnce([])
           .mockResolvedValueOnce([])
           .mockResolvedValueOnce([
             {

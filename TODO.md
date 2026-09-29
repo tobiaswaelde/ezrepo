@@ -67,10 +67,10 @@ Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-
 
 Plan: [Reconcile stale active workflow runs](plans/stale-active-workflow-runs.md)
 
-- [ ] Refresh every stored queued or running workflow run during repository synchronization.
-- [ ] Mark active runs missing from the provider as unknown without deleting their history.
-- [ ] Avoid duplicate provider reads and refresh linked pull-request workflow aggregates.
-- [ ] Add focused tests and a patch Changeset.
+- [x] Refresh every stored queued or running workflow run during repository synchronization.
+- [x] Mark active runs missing from the provider as unknown without deleting their history.
+- [x] Avoid duplicate provider reads and refresh linked pull-request workflow aggregates.
+- [x] Add focused tests and a patch Changeset.
 
 ## 9. Dependency updates
 

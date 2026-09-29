@@ -182,8 +182,8 @@ export class ProviderSyncService {
         return;
       }
       await reportProgress?.({ current: null, phase: 'FETCHING_WORKFLOWS', total: null });
-      const runs = await this.findWorkflowRuns(context, refreshedRepository, adapter);
-      await this.processWorkflowRuns(repository, runs, progress, reportProgress);
+      const { existingProviderRunIds, runs } = await this.findWorkflowRuns(context, refreshedRepository, adapter);
+      await this.processWorkflowRuns(repository, runs, existingProviderRunIds, progress, reportProgress);
       await reportProgress?.({ current: null, phase: 'REFRESHING_CHANGE_REQUESTS', total: null });
       await this.workItems?.reconcileWorkflowRunChangeRequests(repository.id);
       await this.refreshChangeRequestStates(context, refreshedRepository, adapter);
@@ -202,7 +202,7 @@ export class ProviderSyncService {
    * @param context - Provider account credentials and instance configuration for this request.
    * @param repository - Repository identity and metadata required by the operation.
    * @param adapter - Read-only provider adapter for the selected repository.
-   * @returns Discovered and refreshed runs deduplicated by provider run ID, with refreshed values taking precedence.
+   * @returns Discovered and refreshed runs plus the provider IDs of existing runs that must bypass current filters.
    * @throws ProviderRequestError - When a provider read fails, including rate limiting; status and retry metadata are
    * preserved.
    * @throws TypeError - When the provider request fails at the network layer.
@@ -211,25 +211,44 @@ export class ProviderSyncService {
     context: ProviderAccountContext,
     repository: SyncRepository,
     adapter: ProviderAdapter,
-  ): Promise<ProviderWorkflowRun[]> {
+  ): Promise<{ existingProviderRunIds: Set<string>; runs: ProviderWorkflowRun[] }> {
     const discoveredRuns = await adapter.listWorkflowRuns(context, repository, repository.lastSyncAt ?? undefined);
     const currentRuns = await this.prisma.workflowRun.findMany({
       distinct: ['workflowId', 'scopeKey'],
       orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
-      select: { awaitingApproval: true, providerRunId: true, status: true },
+      select: { awaitingApproval: true, id: true, providerRunId: true, pullRequestId: true, status: true },
       where: {
         repositoryId: repository.id,
       },
     });
-    const runsToRefresh = currentRuns.filter(
-      (run) => run.awaitingApproval || run.status === 'FAILED' || run.status === 'QUEUED' || run.status === 'RUNNING',
+    const activeRuns = await this.prisma.workflowRun.findMany({
+      select: { awaitingApproval: true, id: true, providerRunId: true, pullRequestId: true, status: true },
+      where: { repositoryId: repository.id, status: { in: ['QUEUED', 'RUNNING'] } },
+    });
+    const runsToRefresh = new Map(
+      [...currentRuns, ...activeRuns]
+        .filter(
+          (run) =>
+            run.awaitingApproval || run.status === 'FAILED' || run.status === 'QUEUED' || run.status === 'RUNNING',
+        )
+        .map((run) => [run.providerRunId, run]),
     );
-    const refreshedRuns: (ProviderWorkflowRun | null)[] = [];
-    for (const { providerRunId } of runsToRefresh)
-      refreshedRuns.push(await adapter.getWorkflowRun(context, repository, providerRunId));
     const runsByProviderId = new Map(discoveredRuns.map((run) => [run.providerRunId, run]));
-    for (const run of refreshedRuns) if (run) runsByProviderId.set(run.providerRunId, run);
-    return [...runsByProviderId.values()];
+    for (const run of runsToRefresh.values()) {
+      if (runsByProviderId.has(run.providerRunId)) continue;
+      const refreshedRun = await adapter.getWorkflowRun(context, repository, run.providerRunId);
+      if (refreshedRun) {
+        runsByProviderId.set(refreshedRun.providerRunId, refreshedRun);
+        continue;
+      }
+      if (run.status !== 'QUEUED' && run.status !== 'RUNNING') continue;
+      await this.prisma.workflowRun.update({
+        data: { awaitingApproval: false, status: 'UNKNOWN' },
+        where: { id: run.id },
+      });
+      if (run.pullRequestId) await this.workItems?.refreshPullRequestWorkflowStatus(run.pullRequestId);
+    }
+    return { existingProviderRunIds: new Set(runsToRefresh.keys()), runs: [...runsByProviderId.values()] };
   }
 
   /**
@@ -237,6 +256,7 @@ export class ProviderSyncService {
    *
    * @param repository - Repository identity and metadata required by the operation.
    * @param runs - Workflow runs to aggregate, associate, or persist.
+   * @param existingProviderRunIds - Existing runs that remain tracked even when filters changed after persistence.
    * @param progress - Aggregate synchronization identifier and repository counts.
    * @param reportProgress - Optional asynchronous callback persisting per-repository progress.
    * @returns A promise that resolves when the operation completes.
@@ -245,6 +265,7 @@ export class ProviderSyncService {
   private async processWorkflowRuns(
     repository: SyncRepository,
     runs: ProviderWorkflowRun[],
+    existingProviderRunIds: Set<string>,
     progress: SyncProgress,
     reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
@@ -257,7 +278,10 @@ export class ProviderSyncService {
       workflowRunsTotal: runs.length,
     });
     for (const [index, run] of runs.entries()) {
-      if (this.filters.shouldTrack(run.workflowName, repository.workflowFilters))
+      if (
+        existingProviderRunIds.has(run.providerRunId) ||
+        this.filters.shouldTrack(run.workflowName, repository.workflowFilters)
+      )
         await this.persistRunAndEvaluateEvents(repository.id, run, !repository.lastSyncAt);
       await reportProgress?.({ current: index + 1, phase: 'PROCESSING_WORKFLOWS', total: runs.length });
       this.status.updateProviderSync(progress.id, {
