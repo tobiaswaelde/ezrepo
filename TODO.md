@@ -61,7 +61,16 @@ Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-
 - [ ] Verify keyboard navigation, dialog focus handling, accessible names for icon buttons, and color contrast.
 - [ ] Add focused browser coverage for each corrected regression instead of broad snapshot coverage.
 
-## 8. Dependency updates
+## 8. Reconcile stale active workflow runs
+
+Plan: [Reconcile stale active workflow runs](plans/stale-active-workflow-runs.md)
+
+- [ ] Refresh every stored queued or running workflow run during repository synchronization.
+- [ ] Mark active runs missing from the provider as unknown without deleting their history.
+- [ ] Avoid duplicate provider reads and refresh linked pull-request workflow aggregates.
+- [ ] Add focused tests and a patch Changeset.
+
+## 9. Dependency updates
 
 - [ ] Update Node.js packages in separate, reviewable groups.
   - [ ] Update workspace tooling and linting packages.
