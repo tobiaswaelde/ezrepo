@@ -39,7 +39,7 @@ describe('NotificationsService', () => {
       },
       repository: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn() },
       user: { count: jest.fn().mockResolvedValue(0) },
-      workflowRun: { findFirst: jest.fn() },
+      workflowRun: { findFirst: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     };
     const delivery = { deliverPending: jest.fn() };
     return {
@@ -181,5 +181,117 @@ describe('NotificationsService', () => {
     await service.evaluateWorkflowRun({ ...failedRun, status: 'FAILED' }, 'RUNNING', false);
 
     expect(prisma.notificationDelivery.createMany).not.toHaveBeenCalled();
+  });
+
+  it('previews matching workflow runs without creating a delivery', async () => {
+    const { delivery, prisma, service } = createService();
+    prisma.repository.count.mockResolvedValue(1);
+    prisma.repository.findMany.mockResolvedValue([
+      { id: 'repository-a', lastSyncAt: new Date(), name: 'ezrepo', owner: 'tobiaswaelde', syncRequest: null },
+    ]);
+    prisma.workflowRun.findMany.mockResolvedValue([
+      {
+        id: 'run-a',
+        providerCreatedAt: new Date(),
+        repository: { name: 'ezrepo', owner: 'tobiaswaelde' },
+        repositoryId: 'repository-a',
+        scopeKey: 'refs/heads/main',
+        status: 'FAILED',
+        url: 'https://example.com/run-a',
+        workflowId: 'workflow-a',
+        workflowName: 'Deploy production',
+      },
+    ]);
+
+    await expect(
+      service.previewRules(admin, [{ eventType: 'WORKFLOW_RUN_FAILED', workflowPatterns: ['Deploy*'] }]),
+    ).resolves.toEqual({
+      matches: [
+        expect.objectContaining({ eventType: 'WORKFLOW_RUN_FAILED', id: 'run-a', workflowName: 'Deploy production' }),
+      ],
+      status: 'MATCHES',
+    });
+    expect(prisma.notificationDelivery.createMany).not.toHaveBeenCalled();
+    expect(delivery.deliverPending).not.toHaveBeenCalled();
+  });
+
+  it('shows the recovered event when a success subscription matches a recovered run', async () => {
+    const { prisma, service } = createService();
+    prisma.repository.findMany.mockResolvedValue([
+      { id: 'repository-a', lastSyncAt: new Date(), name: 'ezrepo', owner: 'owner', syncRequest: null },
+    ]);
+    prisma.workflowRun.findMany.mockResolvedValue([
+      {
+        id: 'run-a',
+        providerCreatedAt: new Date(),
+        repository: { name: 'ezrepo', owner: 'owner' },
+        repositoryId: 'repository-a',
+        scopeKey: 'refs/heads/main',
+        status: 'SUCCESS',
+        url: 'https://example.com/run-a',
+        workflowId: 'workflow-a',
+        workflowName: 'Deploy production',
+      },
+    ]);
+    prisma.workflowRun.findFirst.mockResolvedValue({ status: 'FAILED' });
+
+    const result = await service.previewRules(admin, [{ eventType: 'WORKFLOW_RUN_SUCCEEDED' }]);
+
+    expect(result.matches[0]?.eventType).toBe('WORKFLOW_RUN_RECOVERED');
+  });
+
+  it.each([
+    [{ id: 'repository-a', lastSyncAt: null, name: 'one', owner: 'owner', syncRequest: null }, 'NEVER_SYNCHRONIZED'],
+    [
+      {
+        id: 'repository-a',
+        lastSyncAt: null,
+        name: 'one',
+        owner: 'owner',
+        syncRequest: { lastError: 'Provider credentials were rejected.' },
+      },
+      'SYNCHRONIZATION_FAILED',
+    ],
+  ])('reports unavailable preview data as %s', async (repository, status) => {
+    const { prisma, service } = createService();
+    prisma.repository.findMany.mockResolvedValue([repository]);
+
+    await expect(service.previewRules(admin, [{ eventType: 'WORKFLOW_RUN_FAILED' }])).resolves.toEqual({
+      matches: [],
+      status,
+    });
+  });
+
+  it('reports partial data when only some repositories are synchronized', async () => {
+    const { prisma, service } = createService();
+    prisma.repository.findMany.mockResolvedValue([
+      { id: 'repository-a', lastSyncAt: new Date(), name: 'one', owner: 'owner', syncRequest: null },
+      { id: 'repository-b', lastSyncAt: null, name: 'two', owner: 'owner', syncRequest: null },
+    ]);
+
+    await expect(service.previewRules(admin, [{ eventType: 'WORKFLOW_RUN_FAILED' }])).resolves.toEqual({
+      matches: [],
+      status: 'PARTIAL',
+    });
+  });
+
+  it('reports no results when synchronized workflow data does not match', async () => {
+    const { prisma, service } = createService();
+    prisma.repository.findMany.mockResolvedValue([
+      { id: 'repository-a', lastSyncAt: new Date(), name: 'one', owner: 'owner', syncRequest: null },
+    ]);
+
+    await expect(service.previewRules(admin, [{ eventType: 'WORKFLOW_RUN_FAILED' }])).resolves.toEqual({
+      matches: [],
+      status: 'NO_RESULTS',
+    });
+  });
+
+  it('requires administrator permission for previews', async () => {
+    const { service } = createService();
+
+    await expect(service.previewRules(viewer, [{ eventType: 'WORKFLOW_RUN_FAILED' }])).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 });

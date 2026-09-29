@@ -66,6 +66,26 @@ test('shows global channel events and system-wide delivery history', async ({ pa
       },
     }),
   );
+  await page.route('**/api/v1/notification-channels/preview', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      eventSubscriptions: [{ eventType: 'WORKFLOW_RUN_FAILED', repositoryIds: [], workflowPatterns: ['deploy-*'] }],
+    });
+    await route.fulfill({
+      json: {
+        matches: [
+          {
+            eventType: 'WORKFLOW_RUN_FAILED',
+            id: 'run-1',
+            repositoryName: 'ezrepo',
+            repositoryOwner: 'tobiaswaelde',
+            url: 'https://example.com/run/1',
+            workflowName: 'deploy-production',
+          },
+        ],
+        status: 'MATCHES',
+      },
+    });
+  });
   await page.route('**/api/v1/notification-deliveries/query**', (route) =>
     route.fulfill({
       json: {
@@ -132,6 +152,13 @@ test('shows global channel events and system-wide delivery history', async ({ pa
   await dialog.getByRole('checkbox', { name: 'Workflow failed' }).check();
   await expect(dialog.getByText('Repository filters')).toBeVisible();
   await expect(dialog.getByText('Workflow patterns')).toBeVisible();
+  await dialog.getByRole('textbox', { name: 'Workflow patterns' }).fill('deploy-*');
+  await dialog.getByRole('button', { name: 'Preview matching runs' }).click();
+  await expect(dialog.getByText('1 recent workflow runs match this rule.')).toBeVisible();
+  await expect(dialog.getByRole('link', { name: /tobiaswaelde\/ezrepo · deploy-production/ })).toHaveAttribute(
+    'href',
+    'https://example.com/run/1',
+  );
   await page.keyboard.press('Escape');
 
   await notificationNavigation.getByRole('link', { name: 'Delivery history', exact: true }).click();

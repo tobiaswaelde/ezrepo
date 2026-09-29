@@ -492,6 +492,22 @@ export interface NotificationEventSubscription {
   workflowPatterns: string[];
 }
 
+export type NotificationRulePreviewStatus =
+  'MATCHES' | 'NO_RESULTS' | 'NEVER_SYNCHRONIZED' | 'SYNCHRONIZATION_FAILED' | 'PARTIAL';
+
+/** Existing workflow runs matched by a draft notification subscription. */
+export interface NotificationRulePreview {
+  matches: Array<{
+    eventType: NotificationEventType;
+    id: string;
+    repositoryName: string;
+    repositoryOwner: string;
+    url: string;
+    workflowName: string;
+  }>;
+  status: NotificationRulePreviewStatus;
+}
+
 /** Safe global notification channel. Secrets are never returned by the API. */
 export interface NotificationChannel {
   browserRecipients: Array<{ id: string; username: string }>;

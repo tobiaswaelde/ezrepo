@@ -10,6 +10,8 @@ import type { AuthenticatedUser } from '../auth/types.js';
 import {
   CreateNotificationChannelDto,
   NotificationChannelDto,
+  NotificationRulePreviewDto,
+  NotificationRulePreviewInputDto,
   UpdateNotificationChannelDto,
 } from './dto/notification-channel.dto.js';
 import { NotificationDeliveryDto } from './dto/notification-delivery.dto.js';
@@ -48,6 +50,24 @@ export class NotificationsController {
   @ApiOkResponse({ isArray: true })
   async manageableRepositories(@Req() request: AuthenticatedRequest) {
     return this.notifications.listFilterRepositories(request.user);
+  }
+
+  /**
+   * Preview workflow subscriptions against existing synchronized runs without sending a notification.
+   *
+   * @param request - Incoming request with the authenticated administrator.
+   * @param input - Draft event subscriptions to evaluate.
+   * @returns Matching workflow runs and the completeness of the available data.
+   * @throws ForbiddenException - System administrator access is required.
+   */
+  @Post('preview')
+  @ApiOperation({ summary: 'Preview workflow notification subscriptions' })
+  @ApiOkResponse({ type: NotificationRulePreviewDto })
+  async preview(
+    @Req() request: AuthenticatedRequest,
+    @Body() input: NotificationRulePreviewInputDto,
+  ): Promise<NotificationRulePreviewDto> {
+    return this.notifications.previewRules(request.user, input.eventSubscriptions);
   }
 
   /**

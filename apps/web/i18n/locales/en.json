@@ -181,6 +181,13 @@
     },
     "description": "Synchronize workflows, issues, and pull requests from configured providers.",
     "empty": "No enabled repository synchronization jobs are available.",
+    "errors": {
+      "invalidCredentials": "The provider rejected the configured credentials.",
+      "missingPermissions": "The provider credentials do not have the required read permissions.",
+      "network": "The provider could not be reached because of a network failure.",
+      "rateLimit": "The provider rate limit was reached. Synchronization will resume automatically.",
+      "unknown": "Repository synchronization failed."
+    },
     "loadError": "Repository synchronization jobs could not be loaded.",
     "phases": {
       "FETCHING_WORKFLOWS": "Fetching workflows",
@@ -656,6 +663,31 @@
       "requestedBy": "Requested by"
     },
     "loadError": "Notification data could not be loaded.",
+    "preview": {
+      "action": "Preview matching runs",
+      "ERROR": { "description": "The preview could not be loaded.", "title": "Preview failed" },
+      "INSUFFICIENT_PERMISSION": {
+        "description": "System administrator permission is required to preview notification rules.",
+        "title": "Insufficient permission"
+      },
+      "MATCHES": {
+        "description": "{count} recent workflow runs match this rule.",
+        "title": "Matching runs"
+      },
+      "NEVER_SYNCHRONIZED": {
+        "description": "The selected repositories have not been synchronized yet.",
+        "title": "No synchronized data"
+      },
+      "NO_RESULTS": { "description": "No recent workflow runs match this rule.", "title": "No results" },
+      "PARTIAL": {
+        "description": "{count} matches are shown, but some repository data is unavailable or stale.",
+        "title": "Partial data"
+      },
+      "SYNCHRONIZATION_FAILED": {
+        "description": "Synchronization failed for the selected repositories.",
+        "title": "Synchronization failed"
+      }
+    },
     "push": {
       "description": "{count} browser devices are registered for your account.",
       "disable": "Disable on this device",

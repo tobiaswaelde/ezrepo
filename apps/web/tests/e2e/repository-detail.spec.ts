@@ -19,7 +19,7 @@ const repository = {
   syncIntervalSeconds: 1_800,
   syncState: {
     attempt: 2,
-    lastError: 'Provider rate limit exceeded.',
+    lastError: 'Provider rate limit reached.',
     progressCurrent: 2,
     progressPhase: 'SYNCING_ISSUES',
     progressTotal: 3,
@@ -110,7 +110,9 @@ test('shows repository freshness, activity, provider links, and a partial sectio
 
   await expect(page).toHaveTitle('twaelde/ezrepo · ezRepo');
   await expect(page.getByText('Repository data is stale')).toBeVisible();
-  await expect(page.getByText('Provider rate limit exceeded.')).toBeVisible();
+  await expect(
+    page.getByText('The provider rate limit was reached. Synchronization will resume automatically.'),
+  ).toBeVisible();
   await expect(page.getByText('Active synchronization: Workflows, Issues, Pull requests')).toBeVisible();
   await expect(page.getByText('Build main')).toBeVisible();
   await expect(page.getByText('Improve repository details')).toBeVisible();

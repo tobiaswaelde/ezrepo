@@ -181,6 +181,13 @@
     },
     "description": "Sincronizza workflow, issue e pull request dai provider configurati.",
     "empty": "Non sono disponibili job di sincronizzazione abilitati.",
+    "errors": {
+      "invalidCredentials": "The provider rejected the configured credentials.",
+      "missingPermissions": "The provider credentials do not have the required read permissions.",
+      "network": "The provider could not be reached because of a network failure.",
+      "rateLimit": "The provider rate limit was reached. Synchronization will resume automatically.",
+      "unknown": "Repository synchronization failed."
+    },
     "loadError": "Impossibile caricare i job di sincronizzazione.",
     "phases": {
       "FETCHING_WORKFLOWS": "Recupero dei workflow",
@@ -680,6 +687,28 @@
     "disabled": "Disabilitato",
     "enabled": "Abilitato",
     "loadError": "Impossibile caricare i dati delle notifiche.",
+    "preview": {
+      "action": "Preview matching runs",
+      "ERROR": { "description": "The preview could not be loaded.", "title": "Preview failed" },
+      "INSUFFICIENT_PERMISSION": {
+        "description": "System administrator permission is required to preview notification rules.",
+        "title": "Insufficient permission"
+      },
+      "MATCHES": { "description": "{count} recent workflow runs match this rule.", "title": "Matching runs" },
+      "NEVER_SYNCHRONIZED": {
+        "description": "The selected repositories have not been synchronized yet.",
+        "title": "No synchronized data"
+      },
+      "NO_RESULTS": { "description": "No recent workflow runs match this rule.", "title": "No results" },
+      "PARTIAL": {
+        "description": "{count} matches are shown, but some repository data is unavailable or stale.",
+        "title": "Partial data"
+      },
+      "SYNCHRONIZATION_FAILED": {
+        "description": "Synchronization failed for the selected repositories.",
+        "title": "Synchronization failed"
+      }
+    },
     "requiresReconfiguration": "Richiede una riconfigurazione",
     "tabs": {
       "channels": "Canali",

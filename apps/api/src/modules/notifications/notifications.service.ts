@@ -22,6 +22,7 @@ import { BrowserPushService } from './browser-push.service.js';
 import type {
   CreateNotificationChannelDto,
   NotificationEventSubscriptionInputDto,
+  NotificationRulePreviewDto,
   UpdateNotificationChannelDto,
 } from './dto/notification-channel.dto.js';
 import { NotificationChannelUrlService } from './notification-channel-url.service.js';
@@ -115,6 +116,128 @@ export class NotificationsService {
       orderBy: [{ owner: 'asc' }, { name: 'asc' }],
       select: { id: true, name: true, owner: true },
     });
+  }
+
+  /**
+   * Preview workflow subscriptions against recent persisted runs without creating deliveries.
+   *
+   * @param user - Authenticated user whose permissions apply to the preview.
+   * @param inputs - Draft notification event subscriptions.
+   * @returns Up to 20 recent matches and the completeness of the synchronized data.
+   * @throws ForbiddenException - System administrator access is required.
+   * @throws BadRequestException - The subscriptions are invalid or contain no workflow event.
+   */
+  async previewRules(
+    user: AuthenticatedUser,
+    inputs: NotificationEventSubscriptionInputDto[],
+  ): Promise<NotificationRulePreviewDto> {
+    this.assertAdmin(user);
+    await this.prepareSubscriptions(inputs);
+    const subscriptions = inputs
+      .filter(({ eventType }) => workflowEvents.has(eventType))
+      .map((input) => ({
+        ...input,
+        workflowPatterns: [...new Set((input.workflowPatterns ?? []).map((pattern) => pattern.trim()).filter(Boolean))],
+      }));
+    if (subscriptions.length === 0)
+      throw new BadRequestException('At least one workflow event is required for a preview.');
+
+    const global = subscriptions.some(({ repositoryIds }) => !repositoryIds?.length);
+    const repositoryIds = global
+      ? undefined
+      : [...new Set(subscriptions.flatMap(({ repositoryIds: ids }) => ids ?? []))];
+    const repositories = await this.prisma.repository.findMany({
+      select: {
+        id: true,
+        lastSyncAt: true,
+        name: true,
+        owner: true,
+        syncRequest: { select: { lastError: true } },
+      },
+      where: repositoryIds ? { id: { in: repositoryIds } } : undefined,
+    });
+    const synchronized = repositories.filter(({ lastSyncAt }) => lastSyncAt);
+    const failed = repositories.filter(({ syncRequest }) => syncRequest?.lastError);
+    const neverSynchronized = repositories.filter(
+      ({ lastSyncAt, syncRequest }) => !lastSyncAt && !syncRequest?.lastError,
+    );
+    const incomplete = failed.length + neverSynchronized.length;
+
+    let incompleteStatus: NotificationRulePreviewDto['status'] | null = null;
+    if (repositories.length > 0 && synchronized.length === 0) {
+      if (failed.length === repositories.length) incompleteStatus = 'SYNCHRONIZATION_FAILED';
+      else if (neverSynchronized.length === repositories.length) incompleteStatus = 'NEVER_SYNCHRONIZED';
+      else incompleteStatus = 'PARTIAL';
+    } else if (incomplete > 0) incompleteStatus = 'PARTIAL';
+
+    if (synchronized.length === 0) return { matches: [], status: incompleteStatus ?? 'NO_RESULTS' };
+    const statuses: WorkflowRunStatus[] = [];
+    if (subscriptions.some(({ eventType }) => eventType === NotificationEventType.WORKFLOW_RUN_FAILED))
+      statuses.push('FAILED');
+    if (subscriptions.some(({ eventType }) => eventType !== NotificationEventType.WORKFLOW_RUN_FAILED))
+      statuses.push('SUCCESS');
+    const runs = await this.prisma.workflowRun.findMany({
+      orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true,
+        providerCreatedAt: true,
+        repository: { select: { name: true, owner: true } },
+        repositoryId: true,
+        scopeKey: true,
+        status: true,
+        url: true,
+        workflowId: true,
+        workflowName: true,
+      },
+      take: 50,
+      where: { repositoryId: { in: synchronized.map(({ id }) => id) }, status: { in: statuses } },
+    });
+    const matches: NotificationRulePreviewDto['matches'] = [];
+    for (const run of runs) {
+      let eventType: NotificationEventType = NotificationEventType.WORKFLOW_RUN_FAILED;
+      let matchingEventTypes: NotificationEventType[] = [eventType];
+      if (run.status === 'SUCCESS') {
+        const previous = await this.prisma.workflowRun.findFirst({
+          orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
+          select: { status: true },
+          where: {
+            id: { not: run.id },
+            providerCreatedAt: { lte: run.providerCreatedAt },
+            scopeKey: run.scopeKey,
+            status: { in: ['SUCCESS', 'FAILED', 'CANCELLED', 'SKIPPED', 'UNKNOWN'] },
+            workflowId: run.workflowId,
+          },
+        });
+        eventType =
+          previous?.status === 'FAILED'
+            ? NotificationEventType.WORKFLOW_RUN_RECOVERED
+            : NotificationEventType.WORKFLOW_RUN_SUCCEEDED;
+        matchingEventTypes =
+          eventType === NotificationEventType.WORKFLOW_RUN_RECOVERED
+            ? [eventType, NotificationEventType.WORKFLOW_RUN_SUCCEEDED]
+            : [eventType];
+      }
+      const matchesSubscription = subscriptions.some(
+        (subscription) =>
+          matchingEventTypes.includes(subscription.eventType) &&
+          (!subscription.repositoryIds?.length || subscription.repositoryIds.includes(run.repositoryId)) &&
+          (!subscription.workflowPatterns?.length ||
+            subscription.workflowPatterns.some((pattern) =>
+              picomatch.isMatch(run.workflowName, pattern, { bash: true }),
+            )),
+      );
+      if (!matchesSubscription) continue;
+      matches.push({
+        eventType,
+        id: run.id,
+        repositoryName: run.repository.name,
+        repositoryOwner: run.repository.owner,
+        url: run.url,
+        workflowName: run.workflowName,
+      });
+      if (matches.length === 20) break;
+    }
+    return { matches, status: incompleteStatus ?? (matches.length > 0 ? 'MATCHES' : 'NO_RESULTS') };
   }
 
   /**

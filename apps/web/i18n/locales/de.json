@@ -181,6 +181,13 @@
     },
     "description": "Synchronisiert Workflows, Issues und Pull Requests von den konfigurierten Anbietern.",
     "empty": "Es sind keine aktivierten Repository-Synchronisierungsjobs verfügbar.",
+    "errors": {
+      "invalidCredentials": "Der Anbieter hat die konfigurierten Zugangsdaten abgelehnt.",
+      "missingPermissions": "Die Anbieter-Zugangsdaten haben nicht die erforderlichen Leseberechtigungen.",
+      "network": "Der Anbieter konnte wegen eines Netzwerkfehlers nicht erreicht werden.",
+      "rateLimit": "Das Rate-Limit des Anbieters wurde erreicht. Die Synchronisierung wird automatisch fortgesetzt.",
+      "unknown": "Die Repository-Synchronisierung ist fehlgeschlagen."
+    },
     "loadError": "Repository-Synchronisierungsjobs konnten nicht geladen werden.",
     "phases": {
       "FETCHING_WORKFLOWS": "Workflows abrufen",
@@ -656,6 +663,34 @@
       "requestedBy": "Angefordert von"
     },
     "loadError": "Die Benachrichtigungsdaten konnten nicht geladen werden.",
+    "preview": {
+      "action": "Passende Läufe anzeigen",
+      "ERROR": { "description": "Die Vorschau konnte nicht geladen werden.", "title": "Vorschau fehlgeschlagen" },
+      "INSUFFICIENT_PERMISSION": {
+        "description": "Zum Anzeigen der Regelvorschau ist die Systemadministration erforderlich.",
+        "title": "Fehlende Berechtigung"
+      },
+      "MATCHES": {
+        "description": "{count} aktuelle Workflow-Läufe entsprechen dieser Regel.",
+        "title": "Passende Läufe"
+      },
+      "NEVER_SYNCHRONIZED": {
+        "description": "Die ausgewählten Repositories wurden noch nicht synchronisiert.",
+        "title": "Keine synchronisierten Daten"
+      },
+      "NO_RESULTS": {
+        "description": "Keine aktuellen Workflow-Läufe entsprechen dieser Regel.",
+        "title": "Keine Ergebnisse"
+      },
+      "PARTIAL": {
+        "description": "{count} Treffer werden angezeigt, aber einige Repository-Daten fehlen oder sind veraltet.",
+        "title": "Unvollständige Daten"
+      },
+      "SYNCHRONIZATION_FAILED": {
+        "description": "Die Synchronisierung der ausgewählten Repositories ist fehlgeschlagen.",
+        "title": "Synchronisierung fehlgeschlagen"
+      }
+    },
     "push": {
       "description": "{count} Browser-Geräte sind für dein Konto registriert.",
       "disable": "Auf diesem Gerät deaktivieren",

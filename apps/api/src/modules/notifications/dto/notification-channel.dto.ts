@@ -82,6 +82,40 @@ export class NotificationEventSubscriptionInputDto {
   workflowPatterns?: string[];
 }
 
+/** Input accepted when previewing workflow notification subscriptions. */
+export class NotificationRulePreviewInputDto {
+  @ApiProperty({ type: [NotificationEventSubscriptionInputDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => NotificationEventSubscriptionInputDto)
+  eventSubscriptions!: NotificationEventSubscriptionInputDto[];
+}
+
+/** One existing workflow run matched by a notification-rule preview. */
+export class NotificationRulePreviewMatchDto {
+  @ApiProperty({ enum: NotificationEventType })
+  eventType!: NotificationEventType;
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+  @ApiProperty()
+  repositoryName!: string;
+  @ApiProperty()
+  repositoryOwner!: string;
+  @ApiProperty({ format: 'uri' })
+  url!: string;
+  @ApiProperty()
+  workflowName!: string;
+}
+
+/** Read-only preview result for workflow notification subscriptions. */
+export class NotificationRulePreviewDto {
+  @ApiProperty({ type: [NotificationRulePreviewMatchDto] })
+  matches!: NotificationRulePreviewMatchDto[];
+  @ApiProperty({ enum: ['MATCHES', 'NO_RESULTS', 'NEVER_SYNCHRONIZED', 'SYNCHRONIZATION_FAILED', 'PARTIAL'] })
+  status!: 'MATCHES' | 'NO_RESULTS' | 'NEVER_SYNCHRONIZED' | 'SYNCHRONIZATION_FAILED' | 'PARTIAL';
+}
+
 export interface NotificationChannelWithRelations extends NotificationChannel {
   eventSubscriptions: Array<{
     eventType: NotificationEventType;

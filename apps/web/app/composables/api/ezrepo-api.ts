@@ -17,6 +17,8 @@ import type {
   McpAccessToken,
   NotificationChannel,
   NotificationDelivery,
+  NotificationEventSubscription,
+  NotificationRulePreview,
   PaginatedResource,
   ProviderAccount,
   ProviderAuthenticationOptions,
@@ -99,6 +101,8 @@ export function useEzRepoApi() {
       list: (): Promise<AxiosResponse<NotificationChannel[]>> => api.get(apiEndpoints.notificationChannels),
       manageableRepositories: (): Promise<AxiosResponse<Array<{ id: string; name: string; owner: string }>>> =>
         api.get(`${apiEndpoints.notificationChannels}/manageable-repositories`),
+      preview: (eventSubscriptions: NotificationEventSubscription[]): Promise<AxiosResponse<NotificationRulePreview>> =>
+        api.post(`${apiEndpoints.notificationChannels}/preview`, { eventSubscriptions }),
       test: (id: string): Promise<AxiosResponse<NotificationDelivery>> =>
         api.post(`${apiEndpoints.notificationChannels}/${id}/test`),
       update: (id: string, input: UpdateNotificationChannel): Promise<AxiosResponse<NotificationChannel>> =>

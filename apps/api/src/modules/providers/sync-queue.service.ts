@@ -529,6 +529,8 @@ export class ProviderSyncQueueService {
    */
   private failureMessage(error: unknown): string {
     if (error instanceof ProviderRequestError && error.rateLimited) return 'Provider rate limit reached.';
+    if (error instanceof ProviderRequestError && error.status === 401) return 'Provider credentials were rejected.';
+    if (error instanceof ProviderRequestError && error.status === 403) return 'Provider permissions are insufficient.';
     if (error instanceof ProviderRequestError) return `Provider request failed with status ${error.status}.`;
     if (error instanceof TypeError) return 'Provider network request failed.';
     return 'Repository synchronization failed.';

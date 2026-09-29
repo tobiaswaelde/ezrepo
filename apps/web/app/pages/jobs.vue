@@ -109,7 +109,7 @@
       </template>
       <template #lastError-cell="{ row }">
         <p v-if="row.original.lastError" class="max-w-72 whitespace-normal text-xs text-error">
-          {{ row.original.lastError }}
+          {{ $t(`jobs.errors.${syncErrorKind(row.original.lastError)}`) }}
         </p>
         <span v-else class="text-sm text-muted">—</span>
       </template>
@@ -153,6 +153,7 @@ import { useDateTime } from '~/composables/use-date-time';
 import { usePendingActions } from '~/composables/use-pending-actions';
 import { useAuthStore } from '~/store/auth';
 import type { RepositorySyncJob, RepositorySyncJobStatus, RepositorySyncJobSummary } from '~/types/api/resources';
+import { syncErrorKind } from '~/util/sync-error';
 
 const refreshIntervalMs = 5_000;
 const { t } = useI18n();

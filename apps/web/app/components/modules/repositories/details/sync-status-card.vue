@@ -51,7 +51,7 @@
       color="error"
       icon="i-lucide-circle-alert"
       variant="subtle"
-      :description="repository.syncState.lastError"
+      :description="$t(`jobs.errors.${syncErrorKind(repository.syncState.lastError)}`)"
       :title="$t('repositoryDetails.syncStatus.latestError')"
     />
     <p v-if="activeJob" class="mt-4 text-sm text-muted">
@@ -66,6 +66,7 @@ import { computed } from 'vue';
 
 import { useDateTime } from '~/composables/use-date-time';
 import type { RepositoryDetail } from '~/types/api/resources';
+import { syncErrorKind } from '~/util/sync-error';
 
 const props = defineProps<{ repository: RepositoryDetail }>();
 const { t } = useI18n();

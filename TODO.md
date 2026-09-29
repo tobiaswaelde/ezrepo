@@ -50,9 +50,9 @@ Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-
 
 ## 6. Notification and provider feedback
 
-- [ ] Add a notification-rule preview against existing workflow runs without sending a notification.
-- [ ] Distinguish no results, never synchronized, insufficient permission, synchronization failure, and partial data.
-- [ ] Present rate limits, invalid credentials, missing provider permissions, and network failures as distinct errors.
+- [x] Add a notification-rule preview against existing workflow runs without sending a notification.
+- [x] Distinguish no results, never synchronized, insufficient permission, synchronization failure, and partial data.
+- [x] Present rate limits, invalid credentials, missing provider permissions, and network failures as distinct errors.
 
 ## 7. UI and accessibility review
 

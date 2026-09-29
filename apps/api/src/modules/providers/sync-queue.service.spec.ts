@@ -81,6 +81,23 @@ describe('ProviderSyncQueueService', () => {
     );
   });
 
+  it.each([
+    [new ProviderRequestError('GitHub', 429, new Date(Date.now() + 60_000)), 'Provider rate limit reached.'],
+    [new ProviderRequestError('GitHub', 401, null), 'Provider credentials were rejected.'],
+    [new ProviderRequestError('GitHub', 403, null), 'Provider permissions are insufficient.'],
+    [new TypeError('fetch failed'), 'Provider network request failed.'],
+  ])('persists a distinct safe provider failure for %s', async (error, message) => {
+    const mocks = processingMocks({ error });
+    const service = createService(mocks.prisma, mocks.sync);
+
+    await service.processDueRequests();
+
+    expect(mocks.transaction.repositorySyncRequest.update).toHaveBeenCalledWith({
+      data: expect.objectContaining({ lastError: message }),
+      where: { id: mocks.candidate.id },
+    });
+  });
+
   it('enqueues only idle or failed repositories for a manual run-all request', async () => {
     const repository = { id: '00000000-0000-0000-0000-000000000001' };
     const service = createService({

@@ -169,7 +169,41 @@
           </div>
         </div>
 
-        <div class="flex justify-end border-t border-default pt-4">
+        <UAlert
+          v-if="previewStatus"
+          variant="subtle"
+          :color="previewStatus === 'MATCHES' ? 'success' : previewStatus === 'NO_RESULTS' ? 'neutral' : 'warning'"
+          :icon="previewStatus === 'MATCHES' ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
+          :description="
+            $t(`notifications.preview.${previewStatus}.description`, { count: preview?.matches.length ?? 0 })
+          "
+          :title="$t(`notifications.preview.${previewStatus}.title`)"
+        />
+        <ul v-if="preview?.matches.length" class="space-y-1 text-sm">
+          <li v-for="match in preview.matches" :key="match.id" class="flex min-w-0 items-center gap-2">
+            <UIcon class="size-4 shrink-0 text-muted" name="i-lucide-git-branch" aria-hidden="true" />
+            <a
+              class="truncate text-primary hover:underline"
+              rel="noopener noreferrer"
+              target="_blank"
+              :href="match.url"
+            >
+              {{ match.repositoryOwner }}/{{ match.repositoryName }} · {{ match.workflowName }}
+            </a>
+            <span class="shrink-0 text-xs text-muted">{{ $t(`notifications.events.${match.eventType}`) }}</span>
+          </li>
+        </ul>
+
+        <div class="flex justify-between gap-3 border-t border-default pt-4">
+          <UButton
+            type="button"
+            color="neutral"
+            variant="soft"
+            :disabled="!canPreview"
+            :label="$t('notifications.preview.action')"
+            :loading="previewing"
+            @click="runPreview"
+          />
           <UButton type="submit" :disabled="!canSave" :label="$t('common.save')" :loading="submitting" />
         </div>
       </UForm>
@@ -178,6 +212,7 @@
 </template>
 
 <script setup lang="ts">
+import { isAxiosError } from 'axios';
 import { computed, reactive, ref, watch } from 'vue';
 
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
@@ -187,6 +222,7 @@ import type {
   NotificationChannelType,
   NotificationEventSubscription,
   NotificationEventType,
+  NotificationRulePreview,
 } from '~/types/api/resources';
 
 const props = defineProps<{
@@ -202,6 +238,9 @@ const api = useEzRepoApi();
 const submitting = ref(false);
 const saveError = ref(false);
 const replaceConfiguration = ref(false);
+const preview = ref<NotificationRulePreview | null>(null);
+const previewStatus = ref<NotificationRulePreview['status'] | 'INSUFFICIENT_PERMISSION' | 'ERROR' | null>(null);
+const previewing = ref(false);
 const eventTypes: NotificationEventType[] = [
   'WORKFLOW_RUN_SUCCEEDED',
   'WORKFLOW_RUN_FAILED',
@@ -269,6 +308,9 @@ const canSave = computed(
     eventTypes.some((eventType) => eventStates[eventType].selected) &&
     (form.type !== 'BROWSER_PUSH' || form.browserRecipientUserIds.length > 0),
 );
+const canPreview = computed(() =>
+  eventTypes.some((eventType) => eventType.startsWith('WORKFLOW_RUN_') && eventStates[eventType].selected),
+);
 
 watch(open, (isOpen) => {
   if (!isOpen) return;
@@ -301,8 +343,48 @@ watch(open, (isOpen) => {
     });
   }
   replaceConfiguration.value = false;
+  preview.value = null;
+  previewStatus.value = null;
   saveError.value = false;
 });
+
+watch(
+  eventStates,
+  () => {
+    preview.value = null;
+    previewStatus.value = null;
+  },
+  { deep: true },
+);
+
+function eventSubscriptions(): NotificationEventSubscription[] {
+  return eventTypes
+    .filter((eventType) => eventStates[eventType].selected)
+    .map((eventType) => ({
+      eventType,
+      repositoryIds: eventStates[eventType].repositoryIds,
+      workflowPatterns: eventType.startsWith('WORKFLOW_RUN_')
+        ? eventStates[eventType].workflowPatterns
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : [],
+    }));
+}
+
+async function runPreview(): Promise<void> {
+  previewing.value = true;
+  preview.value = null;
+  previewStatus.value = null;
+  try {
+    preview.value = (await api.notificationChannels.preview(eventSubscriptions())).data;
+    previewStatus.value = preview.value.status;
+  } catch (error) {
+    previewStatus.value = isAxiosError(error) && error.response?.status === 403 ? 'INSUFFICIENT_PERMISSION' : 'ERROR';
+  } finally {
+    previewing.value = false;
+  }
+}
 
 function configuration(): NotificationChannelConfiguration | undefined {
   if (!showConfiguration.value) return undefined;
@@ -340,24 +422,13 @@ async function save(): Promise<void> {
   submitting.value = true;
   saveError.value = false;
   try {
-    const eventSubscriptions: NotificationEventSubscription[] = eventTypes
-      .filter((eventType) => eventStates[eventType].selected)
-      .map((eventType) => ({
-        eventType,
-        repositoryIds: eventStates[eventType].repositoryIds,
-        workflowPatterns: eventType.startsWith('WORKFLOW_RUN_')
-          ? eventStates[eventType].workflowPatterns
-              .split(',')
-              .map((value) => value.trim())
-              .filter(Boolean)
-          : [],
-      }));
+    const subscriptions = eventSubscriptions();
     if (props.channel) {
       await api.notificationChannels.update(props.channel.id, {
         browserRecipientUserIds: form.type === 'BROWSER_PUSH' ? form.browserRecipientUserIds : [],
         configuration: configuration(),
         enabled: form.enabled,
-        eventSubscriptions,
+        eventSubscriptions: subscriptions,
         name: form.name.trim(),
       });
     } else {
@@ -365,7 +436,7 @@ async function save(): Promise<void> {
         browserRecipientUserIds: form.type === 'BROWSER_PUSH' ? form.browserRecipientUserIds : [],
         configuration: configuration(),
         enabled: form.enabled,
-        eventSubscriptions,
+        eventSubscriptions: subscriptions,
         name: form.name.trim(),
         type: form.type,
       });
