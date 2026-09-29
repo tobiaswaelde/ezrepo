@@ -18,16 +18,16 @@
     "@playwright/test": "^1.63.0",
     "@vite-pwa/assets-generator": "^1.0.4",
     "typescript": "6.0.3",
-    "vitest": "^5.0.0",
+    "vitest": "^5.0.2",
     "vue-tsc": "^3.3.11"
   },
   "dependencies": {
-    "@iconify-json/lucide": "^1.2.129",
-    "@iconify-json/simple-icons": "^1.2.95",
-    "@iconify-json/tabler": "^1.2.38",
+    "@iconify-json/lucide": "^1.2.137",
+    "@iconify-json/simple-icons": "^1.2.97",
+    "@iconify-json/tabler": "^1.2.40",
     "@nuxt/fonts": "^0.14.0",
     "@nuxt/icon": "^2.5.1",
-    "@nuxt/ui": "^4.11.1",
+    "@nuxt/ui": "^4.11.2",
     "@nuxtjs/color-mode": "^4.0.1",
     "@nuxtjs/i18n": "^10.6.0",
     "@pinia/nuxt": "^1.0.2",
@@ -39,13 +39,14 @@
     "@vueuse/router": "^14.4.0",
     "axios": "1.20.0",
     "cropperjs": "^2.2.0",
-    "dompurify": "^3.4.15",
-    "marked": "^17.0.6",
+    "dompurify": "^3.4.16",
+    "marked": "^18.0.14",
     "nuxt": "^4.5.2",
     "pinia": "^4.0.3",
-    "socket.io-client": "^4.8.3",
-    "vue": "^3.5.42",
+    "socket.io-client": "^4.8.4",
+    "vue": "^3.5.43",
+    "vue-i18n": "11.4.10",
     "vue-router": "^5.3.1",
-    "zod": "^4.6.2"
+    "zod": "^4.6.5"
   }
 }

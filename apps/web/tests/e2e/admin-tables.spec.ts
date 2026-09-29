@@ -257,7 +257,7 @@ test('adds multiple repositories selected from an enabled provider account', asy
   await page.goto('/repositories');
   await page.getByRole('button', { name: 'Add repository' }).click();
   await expect(page.getByRole('heading', { name: 'Add repositories' })).toBeVisible();
-  await page.getByRole('dialog').getByRole('button', { name: 'Show popup' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Provider account' }).click();
   await page.getByRole('option', { name: 'Production GitHub (GitHub)' }).click();
   const nextButton = page.getByRole('button', { name: 'Next' });
   await expect(nextButton).toBeDisabled();
@@ -414,7 +414,7 @@ test('repository dialog loads retention, filters, and members', async ({ page })
   await expect(repositoryDialog.getByText('release-*', { exact: true })).toBeVisible();
   expect(createdFilters).toEqual([{ mode: 'ALLOW', pattern: 'release-*' }]);
 
-  await repositoryDialog.getByRole('button', { name: 'Show popup' }).click();
+  await repositoryDialog.getByRole('button', { name: 'User' }).click();
   await page.getByRole('option', { name: 'viewer' }).click();
   await repositoryDialog.getByRole('button', { name: 'Add member' }).click();
   await expect(repositoryDialog.getByText('viewer', { exact: true })).toBeVisible();

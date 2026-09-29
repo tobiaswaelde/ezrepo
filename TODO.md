@@ -74,13 +74,13 @@ Plan: [Reconcile stale active workflow runs](plans/stale-active-workflow-runs.md
 
 ## 9. Dependency updates
 
-- [ ] Update Node.js packages in separate, reviewable groups.
-  - [ ] Update workspace tooling and linting packages.
-  - [ ] Update Nuxt, Vue, Nuxt UI, and frontend packages.
-  - [ ] Update NestJS, Prisma, and API packages.
-- [ ] Keep TypeScript pinned exactly to `6.0.3` unless separately requested and compatibility-tested.
-- [ ] Run focused tests first, then lint, type checking, tests, and builds after each dependency group.
-- [ ] Verify browser, Docker image, migration, and production-startup behavior after relevant major updates.
+- [x] Update Node.js packages in separate, reviewable groups.
+  - [x] Update workspace tooling and linting packages.
+  - [x] Update Nuxt, Vue, Nuxt UI, and frontend packages.
+  - [x] Update NestJS, Prisma, and API packages.
+- [x] Keep TypeScript pinned exactly to `6.0.3` unless separately requested and compatibility-tested.
+- [x] Run focused tests first, then lint, type checking, tests, and builds after each dependency group.
+- [x] Verify browser, Docker image, migration, and production-startup behavior after relevant major updates.
 
 ## 10. Security alert tracking
 
