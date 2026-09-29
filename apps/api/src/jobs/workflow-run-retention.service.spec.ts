@@ -131,7 +131,7 @@ describe('record retention', () => {
     const prisma = createPrisma();
     prisma.repository.findMany.mockReset().mockResolvedValue([]);
     prisma.workflowRun.groupBy.mockResolvedValue([
-      { _sum: { durationMs: 120_000 }, repositoryId: 'repository-a' },
+      { _sum: { durationMs: 2_592_164_000n }, repositoryId: 'repository-a' },
       { _sum: { durationMs: null }, repositoryId: 'repository-b' },
     ]);
     const service = new WorkflowRunRetentionService(prisma as unknown as PrismaService, {} as JobRunnerService);
@@ -143,7 +143,7 @@ describe('record retention', () => {
 
     expect(prisma.repository.update).toHaveBeenCalledTimes(1);
     expect(prisma.repository.update).toHaveBeenCalledWith({
-      data: { retainedRunDurationMs: { increment: 120_000n } },
+      data: { retainedRunDurationMs: { increment: 2_592_164_000n } },
       where: { id: 'repository-a' },
     });
     expect(prisma.issue.deleteMany).toHaveBeenCalledTimes(2);

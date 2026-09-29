@@ -10,7 +10,7 @@ describe('WorkflowRunsController', () => {
       completedAt: new Date('2026-09-08T08:02:30.000Z'),
       createdAt: new Date('2026-09-08T08:00:00.000Z'),
       displayTitle: 'Build on main',
-      durationMs: 150_000,
+      durationMs: 150_000n,
       event: 'push',
       headBranch: 'main',
       headSha: '0123456789abcdef',

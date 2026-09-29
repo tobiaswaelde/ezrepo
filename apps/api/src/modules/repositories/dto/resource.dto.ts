@@ -266,7 +266,7 @@ export class WorkflowRunDto {
         providerCreatedAt: model.providerCreatedAt,
         startedAt: model.startedAt,
         completedAt: model.completedAt,
-        durationMs: model.durationMs,
+        durationMs: model.durationMs === null ? null : Number(model.durationMs),
         status: model.status,
         repositoryId: model.repositoryId,
         repositoryName: model.repository.name,

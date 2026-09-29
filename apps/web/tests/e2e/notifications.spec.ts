@@ -42,8 +42,10 @@ async function mockShell(page: Page): Promise<void> {
 
 test('shows global channel events and system-wide delivery history', async ({ page }) => {
   await mockShell(page);
-  await page.route('**/api/v1/notification-channels/query**', (route) =>
-    route.fulfill({
+  let channelQueryUrl: URL | undefined;
+  await page.route('**/api/v1/notification-channels/query**', (route) => {
+    channelQueryUrl = new URL(route.request().url());
+    return route.fulfill({
       json: {
         items: [
           {
@@ -64,8 +66,8 @@ test('shows global channel events and system-wide delivery history', async ({ pa
         ],
         meta: pageMeta,
       },
-    }),
-  );
+    });
+  });
   await page.route('**/api/v1/notification-channels/preview', async (route) => {
     expect(route.request().postDataJSON()).toEqual({
       eventSubscriptions: [{ eventType: 'WORKFLOW_RUN_FAILED', repositoryIds: [], workflowPatterns: ['deploy-*'] }],
@@ -145,6 +147,12 @@ test('shows global channel events and system-wide delivery history', async ({ pa
   await expect(page.getByRole('link', { name: 'Rules', exact: true })).toHaveCount(0);
   await expect(page.getByRole('cell', { name: 'Operations' })).toBeVisible();
   await expect(page.getByText('Workflow failed', { exact: true })).toBeVisible();
+  const channelFields = channelQueryUrl?.searchParams.get('fields')?.split(',') ?? [];
+  expect(channelFields).toEqual(
+    expect.arrayContaining(['urlScheme', 'browserRecipients', 'eventSubscriptions']),
+  );
+  expect(channelFields).not.toContain('target');
+  expect(channelFields).not.toContain('events');
 
   const addChannel = page.getByRole('button', { name: 'Add channel' });
   await addChannel.click();

@@ -156,7 +156,7 @@ describe('resource DTO mappings', () => {
       providerCreatedAt: new Date(),
       startedAt: null,
       completedAt: null,
-      durationMs: null,
+      durationMs: 2_592_164_000n,
       status: 'RUNNING',
       rawStatus: 'in_progress',
       repositoryId: 'repo',
@@ -173,6 +173,7 @@ describe('resource DTO mappings', () => {
     expect(dto.status).toBe('RUNNING');
     expect(dto).toMatchObject({
       displayTitle: 'Build on main',
+      durationMs: 2_592_164_000,
       providerType: 'GITHUB',
       repositoryName: 'ezrepo',
       repositoryOwner: 'twaelde',

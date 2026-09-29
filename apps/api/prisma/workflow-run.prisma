@@ -10,7 +10,7 @@ model WorkflowRun {
   providerCreatedAt         DateTime
   startedAt                 DateTime?
   completedAt               DateTime?
-  durationMs                Int?
+  durationMs                BigInt?
   status                    WorkflowRunStatus
   rawStatus                 String?            @db.VarChar(255)
   awaitingApproval          Boolean            @default(false)

@@ -56,7 +56,8 @@ describe('ProviderSyncService', () => {
     await service.syncEnabledRepositories();
     await service.syncEnabledRepositories();
 
-    const { providerWorkflowId, workflowKind, workflowPath, ...persistedRun } = createWorkflowRun();
+    const { durationMs, providerWorkflowId, workflowKind, workflowPath, ...persistedRun } = createWorkflowRun();
+    const persistedRunData = { ...persistedRun, durationMs: BigInt(durationMs) };
     expect(mocks.prisma.workflow.upsert).toHaveBeenCalledTimes(4);
     expect(mocks.prisma.workflow.upsert).toHaveBeenNthCalledWith(1, {
       create: {
@@ -85,8 +86,8 @@ describe('ProviderSyncService', () => {
     expect(mocks.prisma.workflow.delete).not.toHaveBeenCalled();
     expect(mocks.adapter.getWorkflowRun).not.toHaveBeenCalled();
     expect(mocks.prisma.workflowRun.upsert).toHaveBeenNthCalledWith(1, {
-      create: { ...persistedRun, repositoryId: firstRepository.id, workflowId: 'workflow-id' },
-      update: { ...persistedRun, workflowId: 'workflow-id' },
+      create: { ...persistedRunData, repositoryId: firstRepository.id, workflowId: 'workflow-id' },
+      update: { ...persistedRunData, workflowId: 'workflow-id' },
       where: {
         repositoryId_providerRunId: {
           providerRunId: '12345',
@@ -95,8 +96,8 @@ describe('ProviderSyncService', () => {
       },
     });
     expect(mocks.prisma.workflowRun.upsert).toHaveBeenNthCalledWith(2, {
-      create: { ...persistedRun, repositoryId: secondRepository.id, workflowId: 'workflow-id' },
-      update: { ...persistedRun, workflowId: 'workflow-id' },
+      create: { ...persistedRunData, repositoryId: secondRepository.id, workflowId: 'workflow-id' },
+      update: { ...persistedRunData, workflowId: 'workflow-id' },
       where: {
         repositoryId_providerRunId: {
           providerRunId: '12345',
@@ -775,7 +776,7 @@ function createWorkflowRun() {
     changeRequestNumber: null,
     completedAt: new Date('2026-08-26T09:10:00.000Z'),
     displayTitle: 'Test on main',
-    durationMs: 60_000,
+    durationMs: 2_592_164_000,
     event: 'push',
     headBranch: 'main',
     headSha: '0123456789abcdef',

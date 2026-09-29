@@ -429,7 +429,8 @@ export class ProviderSyncService {
     run: ProviderWorkflowRun,
     baseline: boolean,
   ): Promise<void> {
-    const { providerWorkflowId, workflowKind, workflowPath, ...runData } = run;
+    const { durationMs, providerWorkflowId, workflowKind, workflowPath, ...runData } = run;
+    const persistedRunData = { ...runData, durationMs: durationMs === null ? null : BigInt(durationMs) };
     const lastSeenAt = new Date();
     const workflow = await this.prisma.workflow.upsert({
       where: { repositoryId_providerWorkflowId: { repositoryId, providerWorkflowId } },
@@ -463,13 +464,13 @@ export class ProviderSyncService {
     const workflowRun = await this.prisma.workflowRun.upsert({
       where: { repositoryId_providerRunId: { repositoryId, providerRunId: run.providerRunId } },
       create: {
-        ...runData,
+        ...persistedRunData,
         ...(this.workItems ? { pullRequestId: pullRequest?.id ?? null } : {}),
         repositoryId,
         workflowId: workflow.id,
       },
       update: {
-        ...runData,
+        ...persistedRunData,
         ...(this.workItems ? { pullRequestId: pullRequest?.id ?? null } : {}),
         workflowId: workflow.id,
       },

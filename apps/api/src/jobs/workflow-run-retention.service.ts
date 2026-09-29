@@ -193,7 +193,7 @@ export class WorkflowRunRetentionService {
           if (_sum.durationMs === null) return [];
           return [
             transaction.repository.update({
-              data: { retainedRunDurationMs: { increment: BigInt(_sum.durationMs) } },
+              data: { retainedRunDurationMs: { increment: _sum.durationMs } },
               where: { id: repositoryId },
             }),
           ];

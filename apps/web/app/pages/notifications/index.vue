@@ -82,7 +82,7 @@
       <template #type-cell="{ row }">
         <UBadge color="neutral" variant="subtle">{{ typeLabel(row.original.type) }}</UBadge>
       </template>
-      <template #target-cell="{ row }">
+      <template #urlScheme-cell="{ row }">
         <span class="text-sm text-muted">
           {{
             row.original.browserRecipients.length > 0
@@ -91,7 +91,7 @@
           }}
         </span>
       </template>
-      <template #events-cell="{ row }">
+      <template #eventSubscriptions-cell="{ row }">
         <div class="flex max-w-96 flex-wrap gap-1">
           <UBadge
             v-for="event in row.original.eventSubscriptions"
@@ -211,8 +211,8 @@ const channelTypes: NotificationChannelType[] = [
 const columnDefinition = computed<ChannelColumn[]>(() => [
   { accessorKey: 'name', header: t('notifications.columns.name'), id: 'name' },
   { accessorKey: 'type', header: t('notifications.columns.type'), id: 'type' },
-  { header: t('notifications.columns.target'), id: 'target' },
-  { header: t('notifications.columns.events'), id: 'events' },
+  { header: t('notifications.columns.target'), id: 'urlScheme' },
+  { header: t('notifications.columns.events'), id: 'eventSubscriptions' },
   { accessorKey: 'enabled', header: t('notifications.columns.status'), id: 'enabled' },
   { accessorKey: 'updatedAt', header: t('notifications.columns.updatedAt'), id: 'updatedAt' },
   { enableHiding: false, header: t('notifications.columns.actions'), id: 'actions' },

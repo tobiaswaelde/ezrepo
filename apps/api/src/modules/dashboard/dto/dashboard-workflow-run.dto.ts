@@ -90,7 +90,7 @@ export class DashboardWorkflowRunDto {
       providerCreatedAt: model.providerCreatedAt,
       startedAt: model.startedAt,
       completedAt: model.completedAt,
-      durationMs: model.durationMs,
+      durationMs: model.durationMs === null ? null : Number(model.durationMs),
       reviewUrl: model.reviewUrl,
       status: model.status,
       repository: {

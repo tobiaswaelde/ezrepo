@@ -6,7 +6,7 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import { WorkflowRunsQueryService } from '../workflow-runs/workflow-runs-query.service.js';
 import { DashboardService } from './dashboard.service.js';
 
-function prisma(retainedRunDurationMs = 0n, currentRunDurationMs = 0): PrismaService {
+function prisma(retainedRunDurationMs = 0n, currentRunDurationMs = 0n): PrismaService {
   return {
     repository: { aggregate: jest.fn().mockResolvedValue({ _sum: { retainedRunDurationMs } }) },
     workflowRun: { aggregate: jest.fn().mockResolvedValue({ _sum: { durationMs: currentRunDurationMs } }) },
@@ -152,27 +152,27 @@ describe('DashboardService', () => {
         { awaitingApproval: false, durationMs: null, status: 'RUNNING' },
       ]),
       findMany: jest.fn().mockResolvedValue([
-        { awaitingApproval: false, durationMs: 100_000, status: 'SUCCESS' },
-        { awaitingApproval: false, durationMs: 300_000, status: 'FAILED' },
+        { awaitingApproval: false, durationMs: 2_592_164_000n, status: 'SUCCESS' },
+        { awaitingApproval: false, durationMs: 2_592_304_000n, status: 'FAILED' },
         { awaitingApproval: false, durationMs: null, status: 'SKIPPED' },
       ]),
       getReadAbility: jest.fn().mockResolvedValue(ability),
     } as unknown as WorkflowRunsQueryService;
 
     await expect(
-      new DashboardService(workflowRuns, prisma(600_000n, 400_000)).getSummary(
+      new DashboardService(workflowRuns, prisma(600_000n, 5_184_468_000n)).getSummary(
         { id: 'viewer', role: 'VIEWER', username: 'viewer' },
         { from: '2026-08-01T00:00:00.000Z', to: '2026-08-31T23:59:59.999Z' },
       ),
     ).resolves.toEqual({
       awaitingApprovalCount: 1,
       completedCount: 3,
-      medianDurationMs: 200_000,
+      medianDurationMs: 2_592_234_000,
       queuedCount: 1,
       runningCount: 1,
       statuses: { cancelled: 0, failed: 1, skipped: 1, success: 1, unknown: 0 },
       successRate: 50,
-      totalRunDurationMs: 1_000_000,
+      totalRunDurationMs: 5_185_068_000,
     });
     expect(workflowRuns.getReadAbility).toHaveBeenCalledTimes(1);
     expect(workflowRuns.findMany).toHaveBeenCalledTimes(1);
@@ -191,11 +191,11 @@ describe('DashboardService', () => {
     const repositoryB = { id: 'repository-b', name: 'beta', owner: 'ezrepo', url: 'https://example.test/beta' };
     const workflowRuns = {
       findMany: jest.fn().mockResolvedValue([
-        { durationMs: 100_000, repository: repositoryA, status: 'SUCCESS' },
-        { durationMs: 300_000, repository: repositoryA, status: 'FAILED' },
+        { durationMs: 2_592_164_000n, repository: repositoryA, status: 'SUCCESS' },
+        { durationMs: 2_592_304_000n, repository: repositoryA, status: 'FAILED' },
         { durationMs: null, repository: repositoryA, status: 'SKIPPED' },
-        { durationMs: 120_000, repository: repositoryB, status: 'SUCCESS' },
-        { durationMs: 180_000, repository: repositoryB, status: 'SUCCESS' },
+        { durationMs: 120_000n, repository: repositoryB, status: 'SUCCESS' },
+        { durationMs: 180_000n, repository: repositoryB, status: 'SUCCESS' },
       ]),
       getReadAbility: jest.fn().mockResolvedValue(ability),
     } as unknown as WorkflowRunsQueryService;
@@ -209,7 +209,7 @@ describe('DashboardService', () => {
       {
         completedCount: 3,
         failedCount: 1,
-        medianDurationMs: 200_000,
+        medianDurationMs: 2_592_234_000,
         repository: repositoryA,
         successRate: 50,
       },
@@ -314,7 +314,7 @@ function run(input: {
     completedAt: input.completedAt ? new Date(input.completedAt) : null,
     createdAt: new Date(providerCreatedAt),
     displayTitle: input.workflowName,
-    durationMs: 60_000,
+    durationMs: 60_000n,
     event: 'push',
     headBranch: 'main',
     headSha: '0123456789abcdef',

@@ -163,7 +163,9 @@ export class DashboardService {
     return {
       awaitingApprovalCount: activeRuns.filter((run) => run.awaitingApproval).length,
       completedCount: completedRuns.length,
-      medianDurationMs: this.median(completedRuns.flatMap((run) => (run.durationMs === null ? [] : [run.durationMs]))),
+      medianDurationMs: this.median(
+        completedRuns.flatMap((run) => (run.durationMs === null ? [] : [Number(run.durationMs)])),
+      ),
       queuedCount: activeRuns.filter((run) => run.status === 'QUEUED').length,
       runningCount: activeRuns.filter((run) => run.status === 'RUNNING').length,
       statuses,
@@ -250,7 +252,7 @@ export class DashboardService {
           completedCount: repositoryRuns.length,
           failedCount: statuses.failed,
           medianDurationMs: this.median(
-            repositoryRuns.flatMap((run) => (run.durationMs === null ? [] : [run.durationMs])),
+            repositoryRuns.flatMap((run) => (run.durationMs === null ? [] : [Number(run.durationMs)])),
           ),
           repository: repositoryRuns[0]!.repository,
           successRate: decidedCount === 0 ? 0 : this.roundPercentage((statuses.success / decidedCount) * 100),
