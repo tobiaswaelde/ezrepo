@@ -81,3 +81,13 @@ Plan: [Reconcile stale active workflow runs](plans/stale-active-workflow-runs.md
 - [ ] Keep TypeScript pinned exactly to `6.0.3` unless separately requested and compatibility-tested.
 - [ ] Run focused tests first, then lint, type checking, tests, and builds after each dependency group.
 - [ ] Verify browser, Docker image, migration, and production-startup behavior after relevant major updates.
+
+## 10. Security alert tracking
+
+Plan: [Track security alerts across repositories](plans/security-alert-tracking.md)
+
+- [ ] Track Dependency, Code Scanning, and Secret Scanning alerts from GitHub and GitLab.
+- [ ] Add permission-aware alert APIs, navigation, list and detail views, repository activity, and dashboard metrics.
+- [ ] Keep partial provider support visible without failing unrelated repository synchronization.
+- [ ] Add opened and resolved notification events for every alert kind without persisting secret values.
+- [ ] Add focused provider, synchronization, authorization, notification, frontend, and browser coverage.
