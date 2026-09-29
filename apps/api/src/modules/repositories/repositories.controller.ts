@@ -23,12 +23,14 @@ import {
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
+import { ENV } from '../../config/env.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { Authenticated } from '../auth/authenticated.decorator.js';
 import type { AuthenticatedUser } from '../auth/types.js';
 import { RepositoryQueryDto } from './dto/repository-query.dto.js';
 import { RepositoryWebhookConfigurationDto } from './dto/repository-webhook-configuration.dto.js';
 import {
+  RepositoryDetailDto,
   RepositoryDto,
   RepositoryMembershipDto,
   WorkflowFilterDto,
@@ -148,13 +150,15 @@ export class RepositoriesController {
    * @throws NotFoundException - When the resource is missing or not visible to the authenticated user.
    */
   @Get(':id')
-  async findById(@Req() request: { user: AuthenticatedUser }, @Param('id') id: string): Promise<RepositoryDto> {
+  @ApiOkResponse({ type: RepositoryDetailDto })
+  async findById(@Req() request: { user: AuthenticatedUser }, @Param('id') id: string): Promise<RepositoryDetailDto> {
     const ability = await this.repositories.getReadAbility(request.user);
-    return RepositoryDto.fromModel(
+    return RepositoryDetailDto.fromDetailModel(
       await this.repositories.findById<RepositoryResourceModel>(
         id,
         {
           include: {
+            _count: { select: { workflowRuns: true } },
             memberships: {
               orderBy: { user: { username: 'asc' } },
               select: {
@@ -164,10 +168,12 @@ export class RepositoriesController {
                 },
               },
             },
+            syncRequest: true,
           },
         },
         ability,
       ),
+      ENV.SCHEDULER_SYNC_INTERVAL_SECONDS,
       ability,
     );
   }

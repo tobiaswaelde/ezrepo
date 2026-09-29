@@ -8,6 +8,7 @@ import type {
   ProviderAccount,
   Repository,
   RepositoryMembership,
+  RepositorySyncRequest,
   User,
   WorkflowFilter,
   WorkflowRun,
@@ -126,6 +127,73 @@ export class RepositoryDto {
   }
 }
 
+/** Safe synchronization state displayed on one repository detail page. */
+export class RepositorySyncStateDto {
+  @ApiProperty()
+  attempt!: number;
+  @ApiPropertyOptional({ nullable: true })
+  lastError!: string | null;
+  @ApiPropertyOptional({ nullable: true })
+  progressCurrent!: number | null;
+  @ApiPropertyOptional({ nullable: true })
+  progressPhase!: RepositorySyncRequest['progressPhase'];
+  @ApiPropertyOptional({ nullable: true })
+  progressTotal!: number | null;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  requestedAt!: Date | null;
+  @ApiProperty({ enum: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'], isArray: true })
+  scopes!: Array<'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS'>;
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  startedAt!: Date | null;
+  @ApiProperty({ enum: ['IDLE', 'PENDING', 'RUNNING', 'FAILED'] })
+  status!: 'IDLE' | RepositorySyncRequest['status'];
+}
+
+/** Permission-filtered repository detail with safe synchronization metadata. */
+export class RepositoryDetailDto extends RepositoryDto {
+  @ApiProperty({ minimum: 1 })
+  syncIntervalSeconds!: number;
+  @ApiProperty({ type: RepositorySyncStateDto })
+  syncState!: RepositorySyncStateDto;
+
+  /**
+   * Convert a visible repository and its queue request into the detail response.
+   *
+   * @param model - Loaded repository and optional synchronization request.
+   * @param syncIntervalSeconds - Configured fallback polling interval.
+   * @param ability - Ability used to restrict repository fields.
+   * @returns The safe repository detail representation.
+   */
+  static fromDetailModel(
+    model: RepositoryResourceModel,
+    syncIntervalSeconds: number,
+    ability?: AppAbility,
+  ): RepositoryDetailDto {
+    const request = model.syncRequest;
+    return {
+      ...RepositoryDto.fromModel(model, ability),
+      syncIntervalSeconds,
+      syncState: {
+        attempt: request?.attempt ?? 0,
+        lastError: request?.lastError ?? null,
+        progressCurrent: request?.progressCurrent ?? null,
+        progressPhase: request?.progressPhase ?? null,
+        progressTotal: request?.progressTotal ?? null,
+        requestedAt: request?.requestedAt ?? null,
+        scopes: request
+          ? [
+              ...(request.syncWorkflows ? ['WORKFLOWS' as const] : []),
+              ...(request.syncIssues ? ['ISSUES' as const] : []),
+              ...(request.syncPullRequests ? ['PULL_REQUESTS' as const] : []),
+            ]
+          : ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+        startedAt: request?.startedAt ?? null,
+        status: request?.status ?? 'IDLE',
+      },
+    };
+  }
+}
+
 /** Repository model with an optional workflow-run aggregate used by list endpoints. */
 export type RepositoryResourceModel = Repository & {
   _count?: { workflowRuns: number };
@@ -133,6 +201,7 @@ export type RepositoryResourceModel = Repository & {
     user: { avatar: { updatedAt: Date } | null; firstName: string | null; lastName: string | null; username: string };
     userId: string;
   }>;
+  syncRequest?: RepositorySyncRequest | null;
 };
 
 /** Public workflow-run representation used by dashboard and history endpoints. */

@@ -4,10 +4,23 @@ const repository = {
   enabled: true,
   id: 'repository-1',
   lastSyncAt: null,
+  members: [],
   name: 'ezrepo',
   owner: 'twaelde',
   providerAccountId: 'provider-1',
   providerRepositoryId: 'repository-1',
+  syncIntervalSeconds: 1_800,
+  syncState: {
+    attempt: 0,
+    lastError: null,
+    progressCurrent: null,
+    progressPhase: null,
+    progressTotal: null,
+    requestedAt: null,
+    scopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+    startedAt: null,
+    status: 'IDLE',
+  },
   url: 'https://github.com/tobiaswaelde/ezrepo',
   workflowRunCount: 12,
   workflowRunRetentionDays: 30,
@@ -29,6 +42,14 @@ async function mockViewerRepositories(page: Page): Promise<void> {
     });
   });
   await page.route('**/api/v1/repositories/repository-1', (route) => route.fulfill({ json: repository }));
+  await page.route(/\/api\/v1\/(?:issues|pull-requests|workflow-runs)(?:\?.*)?$/, (route) =>
+    route.fulfill({
+      json: {
+        items: [],
+        meta: { hasNextPage: false, hasPrevPage: false, itemCount: 0, page: 1, pageCount: 0, perPage: 5 },
+      },
+    }),
+  );
   await page.route('**/api/v1/dashboard/awaiting-approval', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/v1/workflow-runs/needs-attention**', (route) =>
     route.fulfill({
@@ -55,7 +76,7 @@ test('viewer browses assigned repositories without administration actions', asyn
   await page.goto('/repositories');
 
   await expect(page).toHaveTitle('Repositories · ezRepo');
-  const brandLink = page.getByRole('link', { name: 'ezRepo' });
+  const brandLink = page.getByRole('link', { name: 'ezRepo', exact: true });
   await expect(brandLink).toHaveText('ezRepo');
   await expect(brandLink).toHaveAttribute('href', '/');
   await expect(page.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
@@ -69,6 +90,10 @@ test('viewer browses assigned repositories without administration actions', asyn
   await expect(navigation.getByText('Administration', { exact: true })).toHaveCount(0);
   await expect(page.getByText('twaelde', { exact: true })).toBeVisible();
   await expect(page.getByText('ezrepo', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'ezrepo', exact: true })).toHaveAttribute(
+    'href',
+    '/repositories/repository-1',
+  );
   await expect(page.getByRole('button', { name: 'Add repository' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Disable' })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'Webhook' })).toHaveCount(0);
@@ -113,20 +138,20 @@ test('viewer browses assigned repositories without administration actions', asyn
   await expect
     .poll(() => {
       const url = new URL(page.url());
-      return `${url.pathname}|${url.searchParams.get('repository')}|${url.searchParams.get('source')}|${url.hash}`;
+      return `${url.pathname}|${url.searchParams.get('source')}|${url.hash}`;
     })
-    .toBe('/repositories|repository-1|detail|#settings');
-  await expect(repositoryDialog).toBeVisible();
+    .toBe('/repositories/repository-1|detail|#settings');
+  await expect(page.getByRole('heading', { name: 'Synchronization' })).toBeVisible();
 
   await page.goto('/admin/repositories/repository-1?source=legacy#details');
   await expect
     .poll(() => {
       const url = new URL(page.url());
-      return `${url.pathname}|${url.searchParams.get('repository')}|${url.searchParams.get('source')}|${url.hash}`;
+      return `${url.pathname}|${url.searchParams.get('source')}|${url.hash}`;
     })
-    .toBe('/repositories|repository-1|legacy|#details');
+    .toBe('/repositories/repository-1|legacy|#details');
   await page.setViewportSize({ height: 844, width: 390 });
-  await expect(repositoryDialog).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Synchronization' })).toBeVisible();
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
     .toBe(true);

@@ -780,6 +780,28 @@
     }
   },
   "repositoryDetails": {
+    "activity": { "issues": "Issues", "pullRequests": "Pull Requests", "workflowRuns": "Workflow-Runs" },
+    "activityEmpty": "Für dieses Repository wurden keine {resource} gefunden.",
+    "activityLoadError": "{resource} konnten nicht geladen werden.",
+    "settings": "Repository-Einstellungen",
+    "syncStatus": {
+      "activeJob": "Aktive Synchronisierung: {scopes}",
+      "ageDays": "{count} Tage alt",
+      "ageHours": "{count} Stunden alt",
+      "ageMinutes": "{count} Minuten alt",
+      "dataAge": "Datenalter",
+      "description": "Aktualität und Status der lokal angezeigten Providerdaten.",
+      "job": "Synchronisierungsjob",
+      "lastSuccess": "Letzte erfolgreiche Synchronisierung",
+      "latestError": "Letzter Synchronisierungsfehler",
+      "neverSynced": "Dieses Repository wurde noch nie synchronisiert.",
+      "stale": "Repository-Daten sind veraltet",
+      "staleDescription": "Die letzte erfolgreiche Synchronisierung liegt außerhalb des konfigurierten Abfrageintervalls von {interval} Minuten.",
+      "status": { "FAILED": "Fehlgeschlagen", "IDLE": "Inaktiv", "PENDING": "Ausstehend", "RUNNING": "Läuft" },
+      "title": "Synchronisierung"
+    },
+    "unauthorized": "Dieses Repository wurde nicht gefunden oder ist für dich nicht verfügbar.",
+    "viewAll": "Alle anzeigen",
     "addFilter": "Workflow-Filter hinzufügen",
     "addMember": "Mitglied hinzufügen",
     "actions": "Aktionen",

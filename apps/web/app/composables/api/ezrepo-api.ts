@@ -25,6 +25,7 @@ import type {
   PullRequest,
   PullRequestSummary,
   Repository,
+  RepositoryDetail,
   RepositoryHealth,
   RepositoryMembership,
   RepositorySyncJobSummary,
@@ -35,6 +36,7 @@ import type {
   UpdateProviderAccount,
   User,
   WorkflowFilter,
+  WorkflowRun,
   WorkflowRunTrendBucket,
   WorkflowRunTrendQuery,
   WorkItemFilterOptions,
@@ -63,6 +65,16 @@ export function useEzRepoApi() {
       filterOptions: (): Promise<AxiosResponse<WorkItemFilterOptions>> =>
         api.get(`${apiEndpoints.issues}/filter-options`),
       get: (id: string): Promise<AxiosResponse<Issue>> => api.get(`${apiEndpoints.issues}/${id}`),
+      listForRepository: (repositoryId: string): Promise<AxiosResponse<PaginatedResource<Issue>>> =>
+        api.get(apiEndpoints.issues, {
+          params: {
+            fields: 'id,number,title,state,providerUpdatedAt,url',
+            orderBy: JSON.stringify([{ providerUpdatedAt: 'desc' }, { id: 'desc' }]),
+            page: 1,
+            perPage: 5,
+            where: JSON.stringify({ repositoryId }),
+          },
+        }),
       summary: (): Promise<AxiosResponse<IssueSummary>> => api.get(`${apiEndpoints.issues}/summary`),
     },
     jobs: {
@@ -129,6 +141,16 @@ export function useEzRepoApi() {
       filterOptions: (): Promise<AxiosResponse<WorkItemFilterOptions>> =>
         api.get(`${apiEndpoints.pullRequests}/filter-options`),
       get: (id: string): Promise<AxiosResponse<PullRequest>> => api.get(`${apiEndpoints.pullRequests}/${id}`),
+      listForRepository: (repositoryId: string): Promise<AxiosResponse<PaginatedResource<PullRequest>>> =>
+        api.get(apiEndpoints.pullRequests, {
+          params: {
+            fields: 'id,number,title,state,providerUpdatedAt,url',
+            orderBy: JSON.stringify([{ providerUpdatedAt: 'desc' }, { id: 'desc' }]),
+            page: 1,
+            perPage: 5,
+            where: JSON.stringify({ repositoryId }),
+          },
+        }),
       summary: (): Promise<AxiosResponse<PullRequestSummary>> => api.get(`${apiEndpoints.pullRequests}/summary`),
     },
     repositories: {
@@ -143,7 +165,7 @@ export function useEzRepoApi() {
         api.delete(`${apiEndpoints.repositories}/${id}/memberships/${userId}`),
       deleteWorkflowFilter: (id: string, filterId: string): Promise<AxiosResponse<void>> =>
         api.delete(`${apiEndpoints.repositories}/${id}/workflow-filters/${filterId}`),
-      get: (id: string): Promise<AxiosResponse<Repository>> => api.get(`${apiEndpoints.repositories}/${id}`),
+      get: (id: string): Promise<AxiosResponse<RepositoryDetail>> => api.get(`${apiEndpoints.repositories}/${id}`),
       list: (page: number): Promise<AxiosResponse<PaginatedResource<Pick<Repository, 'id' | 'name' | 'owner'>>>> =>
         api.get(apiEndpoints.repositories, {
           params: {
@@ -174,6 +196,18 @@ export function useEzRepoApi() {
         input: Pick<RepositoryMembership, 'role'>,
       ): Promise<AxiosResponse<RepositoryMembership>> =>
         api.put(`${apiEndpoints.repositories}/${id}/memberships/${userId}`, input),
+    },
+    workflowRuns: {
+      listForRepository: (repositoryId: string): Promise<AxiosResponse<PaginatedResource<WorkflowRun>>> =>
+        api.get(apiEndpoints.workflowRuns, {
+          params: {
+            fields: 'id,displayTitle,workflowName,status,completedAt,providerCreatedAt,url',
+            orderBy: JSON.stringify([{ providerCreatedAt: 'desc' }, { id: 'desc' }]),
+            page: 1,
+            perPage: 5,
+            where: JSON.stringify({ repositoryId }),
+          },
+        }),
     },
     settings: {
       get: (): Promise<AxiosResponse<ApplicationSettings>> => api.get(apiEndpoints.settings.base),

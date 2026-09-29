@@ -112,7 +112,10 @@ test('repository and user administration render full-page Query Kit tables', asy
   await expect(memberTooltip).toBeVisible();
   await page.mouse.move(0, 0);
   await expect(memberTooltip).toBeHidden();
-  await expect(page.locator('tbody').getByRole('link', { name: 'ezrepo', exact: true })).toHaveCount(0);
+  await expect(page.locator('tbody').getByRole('link', { name: 'ezrepo', exact: true })).toHaveAttribute(
+    'href',
+    '/repositories/repository-1',
+  );
   await expect(page.getByRole('link', { name: 'Open in provider' })).toHaveAttribute(
     'href',
     'https://github.com/tobiaswaelde/ezrepo',

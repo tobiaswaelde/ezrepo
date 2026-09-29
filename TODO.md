@@ -33,12 +33,12 @@ Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-
 
 ## 4. Repository detail page
 
-- [ ] Replace the empty repository detail route with a permission-aware page that reuses existing detail components.
-- [ ] Show repository information, workflow runs, issues, and pull requests in focused sections.
-- [ ] Show the last successful synchronization, latest error, active job, and age of the displayed data.
-- [ ] Mark repository data as stale when it exceeds the configured polling interval.
-- [ ] Provide consistent links from repositories, runs, issues, and pull requests to the provider resource.
-- [ ] Cover loading, empty, partial-error, unauthorized, and never-synchronized states.
+- [x] Replace the empty repository detail route with a permission-aware page that reuses existing detail components.
+- [x] Show repository information, workflow runs, issues, and pull requests in focused sections.
+- [x] Show the last successful synchronization, latest error, active job, and age of the displayed data.
+- [x] Mark repository data as stale when it exceeds the configured polling interval.
+- [x] Provide consistent links from repositories, runs, issues, and pull requests to the provider resource.
+- [x] Cover loading, empty, partial-error, unauthorized, and never-synchronized states.
 
 ## 5. Issue and pull-request retention
 

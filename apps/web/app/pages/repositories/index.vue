@@ -45,7 +45,9 @@
       }"
     >
       <template #name-cell="{ row }">
-        <span class="font-medium">{{ row.original.name }}</span>
+        <NuxtLink class="font-medium hover:underline" :to="`/repositories/${row.original.id}`">
+          {{ row.original.name }}
+        </NuxtLink>
       </template>
       <template #enabled-cell="{ row }">
         <UBadge variant="subtle" :color="row.original.enabled ? 'success' : 'neutral'">

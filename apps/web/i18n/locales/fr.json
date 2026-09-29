@@ -780,6 +780,28 @@
     }
   },
   "repositoryDetails": {
+    "activity": { "issues": "Issues", "pullRequests": "Pull requests", "workflowRuns": "Workflow runs" },
+    "activityEmpty": "No {resource} found for this repository.",
+    "activityLoadError": "{resource} could not be loaded.",
+    "settings": "Repository settings",
+    "syncStatus": {
+      "activeJob": "Active synchronization: {scopes}",
+      "ageDays": "{count} days old",
+      "ageHours": "{count} hours old",
+      "ageMinutes": "{count} minutes old",
+      "dataAge": "Data age",
+      "description": "Freshness and state of the locally displayed provider data.",
+      "job": "Synchronization job",
+      "lastSuccess": "Last successful synchronization",
+      "latestError": "Latest synchronization error",
+      "neverSynced": "This repository has never been synchronized.",
+      "stale": "Repository data is stale",
+      "staleDescription": "The last successful synchronization is older than the configured {interval}-minute polling interval.",
+      "status": { "FAILED": "Failed", "IDLE": "Idle", "PENDING": "Pending", "RUNNING": "Running" },
+      "title": "Synchronization"
+    },
+    "unauthorized": "This repository was not found or is not available to you.",
+    "viewAll": "View all",
     "actions": "Actions",
     "addFilter": "Ajouter un filtre de flux",
     "addMember": "Ajouter un membre",

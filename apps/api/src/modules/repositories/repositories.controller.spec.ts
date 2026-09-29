@@ -92,6 +92,27 @@ describe('RepositoriesController', () => {
       owner: 'twaelde',
       providerAccountId: 'provider-1',
       providerRepositoryId: '42',
+      syncRequest: {
+        attempt: 2,
+        createdAt: new Date('2026-09-29T08:00:00.000Z'),
+        generation: 1,
+        id: 'request-1',
+        lastError: 'Provider request failed.',
+        leaseExpiresAt: null,
+        leaseToken: null,
+        progressCurrent: null,
+        progressPhase: null,
+        progressTotal: null,
+        repositoryId: 'repository-1',
+        requestedAt: new Date('2026-09-29T08:00:00.000Z'),
+        runAfter: new Date('2026-09-29T08:00:00.000Z'),
+        startedAt: null,
+        status: 'FAILED',
+        syncIssues: true,
+        syncPullRequests: true,
+        syncWorkflows: true,
+        updatedAt: new Date('2026-09-29T08:01:00.000Z'),
+      },
       url: 'https://github.com/tobiaswaelde/ezrepo',
       workflowRunRetentionDays: null,
     } as RepositoryResourceModel;
@@ -109,11 +130,18 @@ describe('RepositoriesController', () => {
     await expect(controller.findById({ user: viewer }, repository.id)).resolves.toMatchObject({
       id: repository.id,
       name: repository.name,
+      syncIntervalSeconds: 1_800,
+      syncState: {
+        attempt: 2,
+        lastError: 'Provider request failed.',
+        scopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+        status: 'FAILED',
+      },
     });
     expect(repositories.getReadAbility).toHaveBeenCalledWith(viewer);
     expect(repositories.findById).toHaveBeenCalledWith(
       repository.id,
-      { include: { memberships: expect.anything() } },
+      { include: { _count: expect.anything(), memberships: expect.anything(), syncRequest: true } },
       ability,
     );
   });

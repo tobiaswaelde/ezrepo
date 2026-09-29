@@ -205,6 +205,23 @@ export interface Repository {
   workflowRunRetentionDays: number | null;
 }
 
+/** Repository detail with safe synchronization status and polling configuration. */
+export interface RepositoryDetail extends Repository {
+  syncIntervalSeconds: number;
+  syncState: Pick<
+    RepositorySyncJob,
+    | 'attempt'
+    | 'lastError'
+    | 'progressCurrent'
+    | 'progressPhase'
+    | 'progressTotal'
+    | 'requestedAt'
+    | 'scopes'
+    | 'startedAt'
+    | 'status'
+  >;
+}
+
 /** Safe user identity rendered in one repository's member avatar group. */
 export interface RepositoryMemberSummary {
   avatarUpdatedAt: ApiTimestamp | null;
