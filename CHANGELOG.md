@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0
+
+### Minor Changes
+
+- 958b7b7: Add configurable global and repository retention for closed issues and pull requests.
+- 1dfc8bb: Preview workflow notification rules and show distinct provider synchronization failures.
+
+### Patch Changes
+
+- 0cb6e37: Reconcile every active workflow run during repository synchronization and mark provider-missing runs as unknown.
+- 0d7bd35: Prevent wide workflow-run tables from collapsing at narrow viewport widths and expand focused browser accessibility
+  coverage.
+- e38c427: Update supported tooling, frontend, and API dependencies while preserving compatibility pins.
+
 ## 0.6.0
 
 ### Minor Changes
