@@ -26,10 +26,10 @@ Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-
 
 ## 3. Persistent table state and filters
 
-- [ ] Persist each table's selected page size in local storage under its existing table persistence key.
-- [ ] Allow useful table-filter selections to be saved locally and restored per table.
-- [ ] Consider a global repository selector that filters the dashboard, workflow runs, issues, and pull requests.
-  - [ ] Keep this optional until the repository detail page and local table persistence have been completed.
+- [x] Persist each table's selected page size in local storage under its existing table persistence key.
+- [x] Allow useful table-filter selections to be saved locally and restored per table.
+- [x] Consider a global repository selector that filters the dashboard, workflow runs, issues, and pull requests.
+  - [x] Keep this optional until the repository detail page and local table persistence have been completed.
 
 ## 4. Repository detail page
 

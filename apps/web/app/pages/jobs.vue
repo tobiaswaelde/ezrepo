@@ -144,6 +144,7 @@
 
 <script setup lang="ts">
 import type { TableColumn } from '#ui/types';
+import { useLocalStorage } from '@vueuse/core';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
@@ -166,7 +167,7 @@ const summary = ref<RepositorySyncJobSummary | null>(null);
 const loading = ref(true);
 const loadError = ref(false);
 const page = ref(1);
-const itemsPerPage = ref(10);
+const itemsPerPage = useLocalStorage('table:jobs:items-per-page', 10);
 const totalItems = ref(0);
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 

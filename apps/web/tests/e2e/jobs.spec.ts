@@ -39,7 +39,7 @@ const jobs = [
   },
 ] as const;
 
-async function mockJobsPage(page: Page, onQuery: () => void = () => undefined): Promise<void> {
+async function mockJobsPage(page: Page, onQuery: (url: string) => void = () => undefined): Promise<void> {
   await page.addInitScript(() => window.localStorage.setItem('ezrepo.access-token', 'playwright-access-token'));
   await page.route('**/api/v1/auth/me', (route) =>
     route.fulfill({ json: { id: 'admin-id', role: 'SYSTEM_ADMIN', username: 'admin' } }),
@@ -61,7 +61,7 @@ async function mockJobsPage(page: Page, onQuery: () => void = () => undefined): 
     route.fulfill({ json: { failed: 0, idle: 1, pending: 0, running: 1, total: 2 } }),
   );
   await page.route(/\/api\/v1\/jobs\/repository-sync(?:\?.*)?$/, (route) => {
-    onQuery();
+    onQuery(route.request().url());
     return route.fulfill({
       json: {
         items: jobs,
@@ -129,4 +129,26 @@ test('polls every five seconds only while the jobs page is mounted', async ({ pa
   const unmountedQueryCount = queryCount;
   await page.waitForTimeout(5_250);
   expect(queryCount).toBe(unmountedQueryCount);
+});
+
+test('restores the selected page size across visits', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!window.localStorage.getItem('table:jobs:items-per-page')) {
+      window.localStorage.setItem('table:jobs:items-per-page', '25');
+    }
+  });
+  const requestedUrls: string[] = [];
+  await mockJobsPage(page, (url) => requestedUrls.push(url));
+
+  await page.goto('/jobs');
+  await expect.poll(() => requestedUrls.some((url) => new URL(url).searchParams.get('perPage') === '25')).toBe(true);
+
+  await page.locator('footer').getByRole('combobox').click();
+  await page.getByRole('option', { name: '50', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('table:jobs:items-per-page'))).toBe('50');
+
+  const requestCountBeforeReload = requestedUrls.length;
+  await page.reload();
+  await expect.poll(() => requestedUrls.length).toBeGreaterThan(requestCountBeforeReload);
+  await expect.poll(() => new URL(requestedUrls.at(-1)!).searchParams.get('perPage')).toBe('50');
 });

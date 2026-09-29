@@ -410,30 +410,35 @@ test('repository dialog loads retention, filters, and members', async ({ page })
 test('workflow runs render in a filterable and sortable full-page table', async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('ezrepo.access-token', 'playwright-access-token');
-    window.localStorage.setItem(
-      'table:workflow-runs:filtering',
-      JSON.stringify({
-        filters: [
-          {
-            field: 'repositoryId',
-            id: 'repository-filter',
-            operator: 'in',
-            type: 'enum',
-            value: ['repository-1'],
-          },
-          {
-            field: 'repository.providerAccount.providerType',
-            id: 'provider-filter',
-            operator: 'in',
-            type: 'enum',
-            value: ['GITHUB'],
-          },
-          { field: 'durationMs', id: 'duration-filter', operator: 'gte', type: 'number', value: 90_000 },
-          { field: 'status', id: 'status-filter', operator: 'in', type: 'enum', value: ['SUCCESS'] },
-        ],
-        operator: 'AND',
-      }),
-    );
+    if (!window.localStorage.getItem('table:workflow-runs:filtering')) {
+      window.localStorage.setItem(
+        'table:workflow-runs:filtering',
+        JSON.stringify({
+          filters: [
+            {
+              field: 'repositoryId',
+              id: 'repository-filter',
+              operator: 'in',
+              type: 'enum',
+              value: ['repository-1'],
+            },
+            {
+              field: 'repository.providerAccount.providerType',
+              id: 'provider-filter',
+              operator: 'in',
+              type: 'enum',
+              value: ['GITHUB'],
+            },
+            { field: 'durationMs', id: 'duration-filter', operator: 'gte', type: 'number', value: 90_000 },
+            { field: 'status', id: 'status-filter', operator: 'in', type: 'enum', value: ['SUCCESS'] },
+          ],
+          operator: 'AND',
+        }),
+      );
+    }
+    if (!window.localStorage.getItem('table:workflow-runs:items-per-page')) {
+      window.localStorage.setItem('table:workflow-runs:items-per-page', '50');
+    }
   });
   const workflowRunRequestUrls: string[] = [];
   let repositoryFilterRequestFails = false;
@@ -530,6 +535,7 @@ test('workflow runs render in a filterable and sortable full-page table', async 
       { status: { in: ['SUCCESS'] } },
     ],
   });
+  expect(new URL(workflowRunRequestUrls.at(-1)!).searchParams.get('perPage')).toBe('50');
   await page.keyboard.press('Shift+F');
   const filteringPopover = page.locator('.qk-table-filtering-popover');
   await expect(filteringPopover.getByText('Repository', { exact: true })).toBeVisible();
@@ -544,7 +550,22 @@ test('workflow runs render in a filterable and sortable full-page table', async 
   await expect
     .poll(() => new URL(workflowRunRequestUrls.at(-1)!).searchParams.get('where'))
     .toContain('"durationMs":{"gte":120000}');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const filtering = JSON.parse(window.localStorage.getItem('table:workflow-runs:filtering') ?? '{}') as {
+          filters?: Array<{ field?: string; value?: unknown }>;
+        };
+        return filtering.filters?.find((filter) => filter.field === 'durationMs')?.value;
+      }),
+    )
+    .toBe(120_000);
   await page.keyboard.press('Shift+F');
+  await page.locator('footer').getByRole('combobox').click();
+  await page.getByRole('option', { name: '100', exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.localStorage.getItem('table:workflow-runs:items-per-page')))
+    .toBe('100');
   await page.keyboard.press('Shift+O');
   await expect(page.getByText('Table options', { exact: true })).toBeVisible();
   await expect(page.locator('.qk-table-options-popover').getByText('Workflow', { exact: true })).toBeVisible();
@@ -554,7 +575,13 @@ test('workflow runs render in a filterable and sortable full-page table', async 
   await expect(page.getByRole('option', { name: 'Workflow', exact: true })).toBeVisible();
 
   repositoryFilterRequestFails = true;
+  const requestCountBeforeReload = workflowRunRequestUrls.length;
   await page.reload();
   await expect(page.getByText('Repository filter options could not be loaded.', { exact: true })).toBeVisible();
   await expect(page.getByText('twaelde/ezrepo', { exact: true })).toBeVisible();
+  await expect.poll(() => workflowRunRequestUrls.length).toBeGreaterThan(requestCountBeforeReload);
+  await expect.poll(() => new URL(workflowRunRequestUrls.at(-1)!).searchParams.get('perPage')).toBe('100');
+  await expect
+    .poll(() => new URL(workflowRunRequestUrls.at(-1)!).searchParams.get('where'))
+    .toContain('"durationMs":{"gte":120000}');
 });
