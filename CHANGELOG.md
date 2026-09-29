@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+### Minor Changes
+
+- d8c532f: Add permission-aware repository detail pages with synchronization freshness, recent activity, and provider links.
+
+### Patch Changes
+
+- 2f2ecfc: Persist the Jobs table page size alongside the existing per-table filters and pagination preferences.
+
 ## 0.5.4
 
 ### Patch Changes
