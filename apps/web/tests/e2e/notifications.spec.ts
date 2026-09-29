@@ -148,9 +148,7 @@ test('shows global channel events and system-wide delivery history', async ({ pa
   await expect(page.getByRole('cell', { name: 'Operations' })).toBeVisible();
   await expect(page.getByText('Workflow failed', { exact: true })).toBeVisible();
   const channelFields = channelQueryUrl?.searchParams.get('fields')?.split(',') ?? [];
-  expect(channelFields).toEqual(
-    expect.arrayContaining(['urlScheme', 'browserRecipients', 'eventSubscriptions']),
-  );
+  expect(channelFields).toEqual(expect.arrayContaining(['urlScheme', 'browserRecipients', 'eventSubscriptions']));
   expect(channelFields).not.toContain('target');
   expect(channelFields).not.toContain('events');
 
