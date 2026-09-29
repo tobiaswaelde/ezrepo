@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1
+
+### Patch Changes
+
+- 4393654: Persist long-running workflow durations without integer overflow and restore notification channel table loading.
+
 ## 0.8.0
 
 ### Minor Changes
