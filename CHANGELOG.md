@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+### Patch Changes
+
+- eaa4dfe: Expand workflow-run tables to fill the available page width.
+
 ## 0.7.0
 
 ### Minor Changes
