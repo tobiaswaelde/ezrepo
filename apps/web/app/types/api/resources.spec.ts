@@ -68,12 +68,22 @@ describe('web API contracts', () => {
   });
 
   it('validates the complete global settings payload', () => {
-    expect(applicationSettingsSchema.safeParse({ dateTimeFormat: 'ISO', workflowRunRetentionDays: 3650 }).success).toBe(
-      true,
-    );
-    expect(applicationSettingsSchema.safeParse({ dateTimeFormat: 'CUSTOM', workflowRunRetentionDays: 0 }).success).toBe(
-      false,
-    );
+    expect(
+      applicationSettingsSchema.safeParse({
+        dateTimeFormat: 'ISO',
+        issueRetentionDays: 1,
+        pullRequestRetentionDays: 90,
+        workflowRunRetentionDays: 3650,
+      }).success,
+    ).toBe(true);
+    expect(
+      applicationSettingsSchema.safeParse({
+        dateTimeFormat: 'CUSTOM',
+        issueRetentionDays: 0,
+        pullRequestRetentionDays: 3651,
+        workflowRunRetentionDays: 0,
+      }).success,
+    ).toBe(false);
   });
 
   it('requires a personal access token only for PAT provider forms', () => {

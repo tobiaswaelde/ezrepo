@@ -8,12 +8,14 @@ const emptyPage = {
 const repository = {
   enabled: true,
   id: 'repository-1',
+  issueRetentionDays: 14,
   lastSyncAt: '2020-01-01T00:00:00.000Z',
   members: [],
   name: 'ezrepo',
   owner: 'twaelde',
   providerAccountId: 'provider-1',
   providerRepositoryId: '42',
+  pullRequestRetentionDays: null,
   syncIntervalSeconds: 1_800,
   syncState: {
     attempt: 2,
@@ -32,13 +34,20 @@ const repository = {
 };
 
 /** Mock the authenticated viewer shell and sidebar counters. */
-async function mockViewerShell(page: Page): Promise<void> {
+async function mockViewerShell(page: Page, role: 'SYSTEM_ADMIN' | 'VIEWER' = 'VIEWER'): Promise<void> {
   await page.addInitScript(() => window.localStorage.setItem('ezrepo.access-token', 'playwright-access-token'));
   await page.route('**/api/v1/auth/me', (route) =>
-    route.fulfill({ json: { id: 'viewer-1', role: 'VIEWER', username: 'viewer' } }),
+    route.fulfill({ json: { id: 'viewer-1', role, username: 'viewer' } }),
   );
   await page.route(/\/api\/v1\/settings$/, (route) =>
-    route.fulfill({ json: { dateTimeFormat: 'LOCALE_MEDIUM', workflowRunRetentionDays: 90 } }),
+    route.fulfill({
+      json: {
+        dateTimeFormat: 'LOCALE_MEDIUM',
+        issueRetentionDays: 90,
+        pullRequestRetentionDays: 90,
+        workflowRunRetentionDays: 90,
+      },
+    }),
   );
   await page.route('**/api/v1/dashboard/awaiting-approval', (route) => route.fulfill({ json: [] }));
   await page.route(/\/api\/v1\/workflow-runs\/needs-attention(?:\?.*)?$/, (route) =>
@@ -130,6 +139,45 @@ test('shows never-synchronized and empty states', async ({ page }) => {
 
   await expect(page.getByText('This repository has never been synchronized.')).toBeVisible();
   await expect(page.getByText(/No .* found for this repository\./)).toHaveCount(3);
+});
+
+test('updates repository-specific retention overrides', async ({ page }, testInfo) => {
+  await mockViewerShell(page, 'SYSTEM_ADMIN');
+  let releaseUpdate: (() => void) | undefined;
+  const updateGate = new Promise<void>((resolve) => {
+    releaseUpdate = resolve;
+  });
+  await page.route('**/api/v1/repositories/repository-1', async (route) => {
+    if (route.request().method() === 'PATCH') {
+      expect(route.request().postDataJSON()).toEqual({
+        enabled: true,
+        issueRetentionDays: 21,
+        pullRequestRetentionDays: 45,
+        workflowRunRetentionDays: null,
+      });
+      await updateGate;
+    }
+    await route.fulfill({ json: repository });
+  });
+  await page.route(/\/api\/v1\/(?:workflow-runs|issues|pull-requests)\?.*$/, (route) =>
+    route.fulfill({ json: emptyPage }),
+  );
+
+  await page.goto('/repositories/repository-1');
+  await expect(page.getByRole('heading', { name: 'Repository settings' })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Workflow-run retention (days)' })).toHaveValue('30');
+  await expect(page.getByRole('spinbutton', { name: 'Closed issue retention (days)' })).toHaveValue('14');
+  await expect(page.getByRole('spinbutton', { name: 'Closed pull request retention (days)' })).toHaveValue('');
+
+  await page.getByRole('spinbutton', { name: 'Workflow-run retention (days)' }).fill('');
+  await page.getByRole('spinbutton', { name: 'Closed issue retention (days)' }).fill('21');
+  await page.getByRole('spinbutton', { name: 'Closed pull request retention (days)' }).fill('45');
+  const saveButton = page.getByRole('button', { name: 'Save' });
+  await saveButton.click();
+  await expect(saveButton).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath('repository-retention-saving.png'), fullPage: true });
+  releaseUpdate?.();
+  await expect(saveButton).toBeEnabled();
 });
 
 test('shows the permission error without loading repository activity', async ({ page }) => {

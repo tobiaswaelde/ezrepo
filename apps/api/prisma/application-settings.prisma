@@ -5,6 +5,8 @@ model ApplicationSettings {
 
   key                      String                @unique @default("global") @db.VarChar(64)
   dateTimeFormat           DefaultDateTimeFormat @default(LOCALE_MEDIUM)
+  issueRetentionDays       Int                   @default(90)
+  pullRequestRetentionDays Int                   @default(90)
   workflowRunRetentionDays Int                   @default(90)
 
   @@map("application_settings")

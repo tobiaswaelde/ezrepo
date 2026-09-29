@@ -29,11 +29,13 @@ const workflowRunFiltersSchema = z.object({
 const repositorySchema = z.object({
   enabled: z.boolean(),
   id: z.string(),
+  issueRetentionDays: z.number().nullable(),
   lastSyncAt: z.string().nullable(),
   name: z.string(),
   owner: z.string(),
   providerAccountId: z.string(),
   providerRepositoryId: z.string(),
+  pullRequestRetentionDays: z.number().nullable(),
   url: z.string(),
   workflowRunCount: z.number().optional(),
   workflowRunRetentionDays: z.number().nullable(),

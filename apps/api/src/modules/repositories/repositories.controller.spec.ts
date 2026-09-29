@@ -1,11 +1,55 @@
+import { ForbiddenException } from '@nestjs/common';
+import { validate } from 'class-validator';
+
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { RepositoryQueryDto } from './dto/repository-query.dto.js';
 import type { RepositoryResourceModel } from './dto/resource.dto.js';
 import type { RepositoriesQueryService } from './repositories-query.service.js';
-import { RepositoriesController } from './repositories.controller.js';
+import { RepositoriesController, UpdateRepositoryDto } from './repositories.controller.js';
 import type { RepositoryConfigurationService } from './repository-configuration.service.js';
 
 describe('RepositoriesController', () => {
+  it('validates bounded repository retention overrides while allowing global defaults', async () => {
+    await expect(
+      validate(
+        Object.assign(new UpdateRepositoryDto(), {
+          issueRetentionDays: null,
+          pullRequestRetentionDays: 3650,
+          workflowRunRetentionDays: 1,
+        }),
+      ),
+    ).resolves.toHaveLength(0);
+
+    const errors = await validate(
+      Object.assign(new UpdateRepositoryDto(), {
+        issueRetentionDays: 0,
+        pullRequestRetentionDays: 3651,
+        workflowRunRetentionDays: 1.5,
+      }),
+    );
+    expect(errors.map((error) => error.property)).toEqual([
+      'issueRetentionDays',
+      'pullRequestRetentionDays',
+      'workflowRunRetentionDays',
+    ]);
+  });
+
+  it('rejects repository retention updates from non-administrators', async () => {
+    const prisma = { repository: { update: jest.fn() } };
+    const controller = new RepositoriesController(
+      prisma as unknown as PrismaService,
+      {} as RepositoryConfigurationService,
+      {} as RepositoriesQueryService,
+    );
+
+    await expect(
+      controller.update({ user: { id: 'viewer', role: 'VIEWER', username: 'viewer' } }, 'repository-1', {
+        issueRetentionDays: 30,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.repository.update).not.toHaveBeenCalled();
+  });
+
   it('loads and projects the workflow-run count required by the administration table', async () => {
     const repository = {
       _count: { workflowRuns: 12 },
@@ -13,6 +57,7 @@ describe('RepositoriesController', () => {
       enabled: true,
       encryptedWebhookSecret: null,
       id: 'repository-1',
+      issueRetentionDays: null,
       lastSyncAt: null,
       memberships: [
         {
@@ -29,6 +74,7 @@ describe('RepositoriesController', () => {
       owner: 'twaelde',
       providerAccountId: 'provider-1',
       providerRepositoryId: '42',
+      pullRequestRetentionDays: null,
       updatedAt: new Date('2026-09-09T08:00:00.000Z'),
       url: 'https://github.com/tobiaswaelde/ezrepo',
       retainedRunDurationMs: 0n,

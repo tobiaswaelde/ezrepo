@@ -42,11 +42,11 @@ Context: [Needs-attention run analysis](codex://threads/01a0e5c8-d160-7280-9d56-
 
 ## 5. Issue and pull-request retention
 
-- [ ] Add global retention settings for closed issues and closed or merged pull requests.
-- [ ] Add optional repository-specific overrides following the existing workflow-run retention behavior.
-- [ ] Delete only expired terminal records and preserve related data required by retained workflow runs or notifications.
-- [ ] Enforce authorization, validate retention ranges, and never expose provider credentials.
-- [ ] Test global defaults, repository overrides, active work items, relationship handling, and idempotent cleanup.
+- [x] Add global retention settings for closed issues and closed or merged pull requests.
+- [x] Add optional repository-specific overrides following the existing workflow-run retention behavior.
+- [x] Delete only expired terminal records and preserve related data required by retained workflow runs or notifications.
+- [x] Enforce authorization, validate retention ranges, and never expose provider credentials.
+- [x] Test global defaults, repository overrides, active work items, relationship handling, and idempotent cleanup.
 
 ## 6. Notification and provider feedback
 

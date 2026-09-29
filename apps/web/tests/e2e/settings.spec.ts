@@ -7,7 +7,12 @@ const nonSquarePng = Buffer.from(
 
 /** Configure global defaults and apply the selected timestamp format across administration pages. */
 test('updates global retention and date-time formatting with visible request progress', async ({ page }, testInfo) => {
-  let settings = { dateTimeFormat: 'LOCALE_MEDIUM', workflowRunRetentionDays: 90 };
+  let settings = {
+    dateTimeFormat: 'LOCALE_MEDIUM',
+    issueRetentionDays: 90,
+    pullRequestRetentionDays: 90,
+    workflowRunRetentionDays: 90,
+  };
   let releaseSettingsUpdate: (() => void) | undefined;
   const settingsUpdateResponse = new Promise<void>((resolve) => {
     releaseSettingsUpdate = resolve;
@@ -29,7 +34,12 @@ test('updates global retention and date-time formatting with visible request pro
   await page.route('**/api/v1/settings', async (route) => {
     if (route.request().method() === 'PATCH') {
       const input = route.request().postDataJSON() as typeof settings;
-      expect(input).toEqual({ dateTimeFormat: 'ISO', workflowRunRetentionDays: 30 });
+      expect(input).toEqual({
+        dateTimeFormat: 'ISO',
+        issueRetentionDays: 45,
+        pullRequestRetentionDays: 60,
+        workflowRunRetentionDays: 30,
+      });
       await settingsUpdateResponse;
       settings = input;
     }
@@ -76,6 +86,8 @@ test('updates global retention and date-time formatting with visible request pro
     .toBe(true);
   await expect(page.getByRole('spinbutton', { name: 'Workflow run retention' })).toHaveValue('90');
   await page.getByRole('spinbutton', { name: 'Workflow run retention' }).fill('30');
+  await page.getByRole('spinbutton', { name: 'Closed issue retention' }).fill('45');
+  await page.getByRole('spinbutton', { name: 'Closed pull request retention' }).fill('60');
   await page.getByRole('combobox', { name: 'Default date and time format' }).click();
   await page.getByRole('option', { name: 'ISO style' }).click();
   await expect(page.getByText('2026-09-09 13:05', { exact: true })).toBeVisible();

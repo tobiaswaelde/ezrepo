@@ -188,7 +188,9 @@ export function useEzRepoApi() {
         api.put(`${apiEndpoints.repositories}/${id}/webhook-configuration`, { webhookSecret }),
       update: (
         id: string,
-        input: { enabled: boolean; workflowRunRetentionDays: number | null },
+        input: Partial<
+          Pick<Repository, 'enabled' | 'issueRetentionDays' | 'pullRequestRetentionDays' | 'workflowRunRetentionDays'>
+        >,
       ): Promise<AxiosResponse<void>> => api.patch(`${apiEndpoints.repositories}/${id}`, input),
       upsertMembership: (
         id: string,

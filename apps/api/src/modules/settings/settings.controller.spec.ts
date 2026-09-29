@@ -5,7 +5,12 @@ import { SettingsController } from './settings.controller.js';
 import type { SettingsService } from './settings.service.js';
 
 describe('SettingsController', () => {
-  const persisted = { dateTimeFormat: DefaultDateTimeFormat.ISO, workflowRunRetentionDays: 180 };
+  const persisted = {
+    dateTimeFormat: DefaultDateTimeFormat.ISO,
+    issueRetentionDays: 30,
+    pullRequestRetentionDays: 60,
+    workflowRunRetentionDays: 180,
+  };
   const settings = {
     get: jest.fn().mockResolvedValue(persisted),
     update: jest.fn().mockResolvedValue(persisted),

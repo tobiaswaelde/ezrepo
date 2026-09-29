@@ -12,6 +12,8 @@ export type DefaultDateTimeFormat = (typeof defaultDateTimeFormats)[number];
 /** Global application settings shared by every authenticated client. */
 export interface ApplicationSettings {
   dateTimeFormat: DefaultDateTimeFormat;
+  issueRetentionDays: number;
+  pullRequestRetentionDays: number;
   workflowRunRetentionDays: number;
 }
 
@@ -48,6 +50,8 @@ export interface CreateMcpAccessToken {
 /** Validate global settings before sending an administrative update. */
 export const applicationSettingsSchema = z.object({
   dateTimeFormat: z.enum(defaultDateTimeFormats),
+  issueRetentionDays: z.number().int().min(1).max(3650),
+  pullRequestRetentionDays: z.number().int().min(1).max(3650),
   workflowRunRetentionDays: z.number().int().min(1).max(3650),
 });
 
@@ -195,11 +199,13 @@ export interface UpdateProviderAccount {
 export interface Repository {
   enabled: boolean;
   id: string;
+  issueRetentionDays: number | null;
   lastSyncAt: ApiTimestamp | null;
   members: RepositoryMemberSummary[];
   name: string;
   owner: string;
   providerAccountId: string;
+  pullRequestRetentionDays: number | null;
   url: string;
   workflowRunCount?: number;
   workflowRunRetentionDays: number | null;

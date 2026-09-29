@@ -6,6 +6,8 @@ import type { ApplicationSettings, UpdateApplicationSettings } from '~/types/api
 
 export const defaultApplicationSettings: ApplicationSettings = {
   dateTimeFormat: 'LOCALE_MEDIUM',
+  issueRetentionDays: 90,
+  pullRequestRetentionDays: 90,
   workflowRunRetentionDays: 90,
 };
 

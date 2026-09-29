@@ -21,7 +21,7 @@ import {
   ResourceQuery,
 } from '@querry-kit/nest';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 import { ENV } from '../../config/env.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -39,9 +39,11 @@ import {
 import { RepositoriesQueryService } from './repositories-query.service.js';
 import { RepositoryConfigurationService } from './repository-configuration.service.js';
 
-class UpdateRepositoryDto {
+export class UpdateRepositoryDto {
   @IsOptional() @IsBoolean() enabled?: boolean;
-  @IsOptional() @IsInt() @Min(1) workflowRunRetentionDays?: number | null;
+  @IsOptional() @IsInt() @Min(1) @Max(3650) issueRetentionDays?: number | null;
+  @IsOptional() @IsInt() @Min(1) @Max(3650) pullRequestRetentionDays?: number | null;
+  @IsOptional() @IsInt() @Min(1) @Max(3650) workflowRunRetentionDays?: number | null;
 }
 
 class CreateWorkflowFilterDto {
@@ -64,12 +66,14 @@ class SetRepositoryWebhookSecretDto {
 const repositoryFieldSchema = {
   enabled: true,
   id: true,
+  issueRetentionDays: true,
   lastSyncAt: true,
   members: true,
   name: true,
   owner: true,
   providerAccountId: true,
   providerRepositoryId: true,
+  pullRequestRetentionDays: true,
   url: true,
   workflowRunCount: true,
   workflowRunRetentionDays: true,

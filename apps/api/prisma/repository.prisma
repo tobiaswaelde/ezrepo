@@ -9,7 +9,9 @@ model Repository {
   url                      String    @db.VarChar(2048)
   enabled                  Boolean   @default(true)
   encryptedWebhookSecret   String?   @db.Text
+  issueRetentionDays       Int?
   lastSyncAt               DateTime?
+  pullRequestRetentionDays Int?
   workflowRunRetentionDays Int?
   retainedRunDurationMs    BigInt    @default(0)
 

@@ -50,16 +50,18 @@ describe('resource DTO mappings', () => {
 
     expect(
       Fields.parseAndValidate(
-        'id,name,owner,enabled,url,members,workflowRunCount,workflowRunRetentionDays,lastSyncAt',
+        'id,name,owner,enabled,url,members,workflowRunCount,issueRetentionDays,pullRequestRetentionDays,workflowRunRetentionDays,lastSyncAt',
         schema,
       ),
     ).toEqual({
       enabled: true,
       id: true,
+      issueRetentionDays: true,
       lastSyncAt: true,
       members: true,
       name: true,
       owner: true,
+      pullRequestRetentionDays: true,
       url: true,
       workflowRunCount: true,
       workflowRunRetentionDays: true,
@@ -76,6 +78,8 @@ describe('resource DTO mappings', () => {
       enabled: true,
       encryptedWebhookSecret: 'must-not-appear',
       lastSyncAt: null,
+      issueRetentionDays: 14,
+      pullRequestRetentionDays: 21,
       retainedRunDurationMs: 0n,
       workflowRunRetentionDays: 30,
       memberships: [
@@ -103,6 +107,7 @@ describe('resource DTO mappings', () => {
       url: 'https://example.test/ezrepo',
       enabled: true,
       lastSyncAt: null,
+      issueRetentionDays: 14,
       members: [
         {
           avatarUpdatedAt: new Date('2026-09-12T10:00:00.000Z'),
@@ -114,6 +119,7 @@ describe('resource DTO mappings', () => {
       ],
       workflowRunRetentionDays: 30,
       providerAccountId: 'account',
+      pullRequestRetentionDays: 21,
       workflowRunCount: 12,
     });
   });

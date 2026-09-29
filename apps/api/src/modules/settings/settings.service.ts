@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import { DefaultDateTimeFormat } from '../../generated/prisma/client.js';
-import { DEFAULT_WORKFLOW_RUN_RETENTION_DAYS } from '../../jobs/workflow-run-retention.service.js';
+import {
+  DEFAULT_WORKFLOW_RUN_RETENTION_DAYS,
+  DEFAULT_WORK_ITEM_RETENTION_DAYS,
+} from '../../jobs/workflow-run-retention.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { ApplicationSettingsDto, UpdateApplicationSettingsDto } from './dto/application-settings.dto.js';
 
@@ -26,6 +29,8 @@ export class SettingsService {
     const settings = await this.prisma.applicationSettings.findUnique({ where: { key: GLOBAL_SETTINGS_KEY } });
     return {
       dateTimeFormat: settings?.dateTimeFormat ?? DefaultDateTimeFormat.LOCALE_MEDIUM,
+      issueRetentionDays: settings?.issueRetentionDays ?? DEFAULT_WORK_ITEM_RETENTION_DAYS,
+      pullRequestRetentionDays: settings?.pullRequestRetentionDays ?? DEFAULT_WORK_ITEM_RETENTION_DAYS,
       workflowRunRetentionDays: settings?.workflowRunRetentionDays ?? DEFAULT_WORKFLOW_RUN_RETENTION_DAYS,
     };
   }
@@ -44,6 +49,8 @@ export class SettingsService {
     });
     return {
       dateTimeFormat: settings.dateTimeFormat,
+      issueRetentionDays: settings.issueRetentionDays,
+      pullRequestRetentionDays: settings.pullRequestRetentionDays,
       workflowRunRetentionDays: settings.workflowRunRetentionDays,
     };
   }

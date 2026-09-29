@@ -16,6 +16,8 @@ describe('SettingsService', () => {
 
     await expect(service.get()).resolves.toEqual({
       dateTimeFormat: DefaultDateTimeFormat.LOCALE_MEDIUM,
+      issueRetentionDays: 90,
+      pullRequestRetentionDays: 90,
       workflowRunRetentionDays: 90,
     });
     expect(applicationSettings.findUnique).toHaveBeenCalledWith({ where: { key: 'global' } });
@@ -25,18 +27,27 @@ describe('SettingsService', () => {
     applicationSettings.findUnique.mockResolvedValue({
       dateTimeFormat: DefaultDateTimeFormat.ISO,
       id: 'settings',
+      issueRetentionDays: 45,
       key: 'global',
+      pullRequestRetentionDays: 60,
       workflowRunRetentionDays: 180,
     });
 
     await expect(service.get()).resolves.toEqual({
       dateTimeFormat: DefaultDateTimeFormat.ISO,
+      issueRetentionDays: 45,
+      pullRequestRetentionDays: 60,
       workflowRunRetentionDays: 180,
     });
   });
 
   it('upserts the singleton global settings record', async () => {
-    const input = { dateTimeFormat: DefaultDateTimeFormat.LOCALE_SHORT, workflowRunRetentionDays: 30 };
+    const input = {
+      dateTimeFormat: DefaultDateTimeFormat.LOCALE_SHORT,
+      issueRetentionDays: 30,
+      pullRequestRetentionDays: 60,
+      workflowRunRetentionDays: 90,
+    };
     applicationSettings.upsert.mockResolvedValue({ ...input, id: 'settings', key: 'global' });
 
     await expect(service.update(input)).resolves.toEqual(input);

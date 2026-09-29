@@ -49,12 +49,54 @@
 
         <UFormField
           name="workflowRunRetentionDays"
-          :help="$t('settings.retentionHelp')"
-          :label="$t('settings.retention')"
+          :help="$t('settings.workflowRunRetentionHelp')"
+          :label="$t('settings.workflowRunRetention')"
           required
         >
           <UInput
             v-model.number="form.workflowRunRetentionDays"
+            class="w-full sm:max-w-48"
+            inputmode="numeric"
+            max="3650"
+            min="1"
+            type="number"
+            :disabled="saving"
+          >
+            <template #trailing>
+              <span class="text-xs text-muted">{{ $t('settings.days') }}</span>
+            </template>
+          </UInput>
+        </UFormField>
+
+        <UFormField
+          name="issueRetentionDays"
+          :help="$t('settings.issueRetentionHelp')"
+          :label="$t('settings.issueRetention')"
+          required
+        >
+          <UInput
+            v-model.number="form.issueRetentionDays"
+            class="w-full sm:max-w-48"
+            inputmode="numeric"
+            max="3650"
+            min="1"
+            type="number"
+            :disabled="saving"
+          >
+            <template #trailing>
+              <span class="text-xs text-muted">{{ $t('settings.days') }}</span>
+            </template>
+          </UInput>
+        </UFormField>
+
+        <UFormField
+          name="pullRequestRetentionDays"
+          :help="$t('settings.pullRequestRetentionHelp')"
+          :label="$t('settings.pullRequestRetention')"
+          required
+        >
+          <UInput
+            v-model.number="form.pullRequestRetentionDays"
             class="w-full sm:max-w-48"
             inputmode="numeric"
             max="3650"

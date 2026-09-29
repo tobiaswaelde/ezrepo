@@ -84,6 +84,10 @@ export class RepositoryDto {
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   lastSyncAt!: Date | null;
   @ApiPropertyOptional({ nullable: true })
+  issueRetentionDays!: number | null;
+  @ApiPropertyOptional({ nullable: true })
+  pullRequestRetentionDays!: number | null;
+  @ApiPropertyOptional({ nullable: true })
   workflowRunRetentionDays!: number | null;
   @ApiProperty({ format: 'uuid' })
   providerAccountId!: string;
@@ -109,6 +113,8 @@ export class RepositoryDto {
         url: model.url,
         enabled: model.enabled,
         lastSyncAt: model.lastSyncAt,
+        issueRetentionDays: model.issueRetentionDays,
+        pullRequestRetentionDays: model.pullRequestRetentionDays,
         workflowRunRetentionDays: model.workflowRunRetentionDays,
         providerAccountId: model.providerAccountId,
         members: (model.memberships ?? []).map((membership) => ({
