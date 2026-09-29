@@ -190,11 +190,21 @@ test('keeps table navigation accessible at desktop and narrow widths', async ({ 
   expect(unnamedButtons).toEqual([]);
   expect(await contrastRatio(page.getByText('No workflow runs are available.'))).toBeGreaterThanOrEqual(4.5);
 
+  const table = page.getByRole('table');
+  const tableScroller = table.locator('..');
+  await expect
+    .poll(() => table.evaluate((element) => element.clientWidth >= (element.parentElement?.clientWidth ?? 0)))
+    .toBe(true);
+  await page.screenshot({
+    animations: 'disabled',
+    path: testInfo.outputPath('workflow-runs-desktop.png'),
+    fullPage: true,
+  });
+
   await page.setViewportSize({ height: 844, width: 390 });
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
     .toBe(true);
-  const tableScroller = page.locator('table').locator('..');
   await expect.poll(() => tableScroller.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   const titleHeader = await page.getByRole('columnheader', { name: 'Title' }).boundingBox();
   const workflowHeader = await page.getByRole('columnheader', { name: 'Workflow' }).boundingBox();

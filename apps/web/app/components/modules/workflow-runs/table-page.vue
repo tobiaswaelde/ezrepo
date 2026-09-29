@@ -56,7 +56,6 @@
       :empty="empty"
       :loading="loading"
       :ui="{
-        base: 'min-w-max',
         th: 'first:pl-6 whitespace-nowrap bg-neutral-100 data-[pinned=right]:bg-neutral-100 dark:bg-neutral-950/20 dark:data-[pinned=right]:bg-neutral-950',
         td: 'first:pl-6 whitespace-nowrap',
       }"
