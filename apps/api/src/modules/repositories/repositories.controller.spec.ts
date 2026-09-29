@@ -154,6 +154,7 @@ describe('RepositoriesController', () => {
         runAfter: new Date('2026-09-29T08:00:00.000Z'),
         startedAt: null,
         status: 'FAILED',
+        syncAlerts: true,
         syncIssues: true,
         syncPullRequests: true,
         syncWorkflows: true,
@@ -180,14 +181,22 @@ describe('RepositoriesController', () => {
       syncState: {
         attempt: 2,
         lastError: 'Provider request failed.',
-        scopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+        scopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
         status: 'FAILED',
+        warningKinds: [],
       },
     });
     expect(repositories.getReadAbility).toHaveBeenCalledWith(viewer);
     expect(repositories.findById).toHaveBeenCalledWith(
       repository.id,
-      { include: { _count: expect.anything(), memberships: expect.anything(), syncRequest: true } },
+      {
+        include: {
+          _count: expect.anything(),
+          memberships: expect.anything(),
+          securityAlertSyncStates: expect.anything(),
+          syncRequest: true,
+        },
+      },
       ability,
     );
   });

@@ -252,6 +252,12 @@ const eventTypes: NotificationEventType[] = [
   'ISSUE_OPENED',
   'ISSUE_CLOSED',
   'ISSUE_REOPENED',
+  'DEPENDENCY_ALERT_OPENED',
+  'DEPENDENCY_ALERT_RESOLVED',
+  'CODE_ALERT_OPENED',
+  'CODE_ALERT_RESOLVED',
+  'SECRET_ALERT_OPENED',
+  'SECRET_ALERT_RESOLVED',
 ];
 const eventStates = reactive(
   Object.fromEntries(

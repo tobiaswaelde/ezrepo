@@ -38,6 +38,26 @@
 
     <ModulesDashboardSummaryCards :failing-workflow-count="failures.length" :loading="isLoading" :summary="summary" />
     <ModulesWorkItemsSummaryCards :loading="isCurrentLoading" :metrics="workMetrics" :title="$t('workItems.summary')" />
+    <UCard v-if="summary?.securityAlerts">
+      <template #header>
+        <div class="flex items-center justify-between gap-4">
+          <h2 class="font-semibold">{{ $t('securityAlerts.openSummary') }}</h2>
+          <UButton
+            color="neutral"
+            trailing-icon="i-lucide-arrow-right"
+            variant="ghost"
+            to="/alerts/dependencies"
+            :label="$t('repositoryDetails.viewAll')"
+          />
+        </div>
+      </template>
+      <div class="grid gap-3 sm:grid-cols-3">
+        <div v-for="metric in securityAlertMetrics" :key="metric.kind" class="rounded-lg bg-elevated p-4">
+          <p class="text-xs uppercase tracking-wide text-muted">{{ metric.label }}</p>
+          <p class="mt-1 text-2xl font-semibold tabular-nums">{{ metric.value }}</p>
+        </div>
+      </div>
+    </UCard>
 
     <div class="grid gap-6 xl:grid-cols-5">
       <UCard class="xl:col-span-3">
@@ -127,6 +147,15 @@ const workMetrics = computed(() => [
     to: '/pull-requests?preset=approval-required',
     value: String(pullRequestSummary.value?.workflowApprovalRequired ?? '—'),
   },
+]);
+const securityAlertMetrics = computed(() => [
+  {
+    kind: 'DEPENDENCY',
+    label: t('securityAlerts.dependencies'),
+    value: summary.value?.securityAlerts?.dependency ?? 0,
+  },
+  { kind: 'CODE', label: t('securityAlerts.code'), value: summary.value?.securityAlerts?.code ?? 0 },
+  { kind: 'SECRET', label: t('securityAlerts.secrets'), value: summary.value?.securityAlerts?.secret ?? 0 },
 ]);
 
 /** Fetch current and period-based dashboard resources visible to the current user. */

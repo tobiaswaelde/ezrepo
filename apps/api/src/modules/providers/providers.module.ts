@@ -23,6 +23,7 @@ import { RepositoryMetadataService } from './repository-metadata.service.js';
 import { RepositoryRefreshController } from './repository-refresh.controller.js';
 import { RepositorySyncJobsController } from './repository-sync-jobs.controller.js';
 import { RepositorySyncJobsService } from './repository-sync-jobs.service.js';
+import { SecurityAlertSyncService } from './security-alert-sync.service.js';
 import { ProviderSyncQueueService } from './sync-queue.service.js';
 import { ProviderSyncService } from './sync.service.js';
 import { WorkItemSyncService } from './work-item-sync.service.js';
@@ -62,6 +63,7 @@ import { WorkItemSyncService } from './work-item-sync.service.js';
       inject: [GitHubActionsAdapter, GitLabPipelinesAdapter, ForgejoActionsAdapter, GiteaActionsAdapter],
     },
     ProviderSyncService,
+    SecurityAlertSyncService,
     ProviderSyncQueueService,
     WorkItemSyncService,
   ],

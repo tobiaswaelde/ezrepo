@@ -172,6 +172,7 @@ export class RepositoriesController {
                 },
               },
             },
+            securityAlertSyncStates: { select: { availability: true, kind: true } },
             syncRequest: true,
           },
         },

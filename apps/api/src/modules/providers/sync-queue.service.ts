@@ -30,6 +30,8 @@ interface ClaimedSyncRequest {
   scopes: ProviderSyncScope[];
 }
 
+const allSyncScopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'];
+
 /** Persists, coalesces, claims, and retries repository synchronization requests. */
 @Injectable()
 export class ProviderSyncQueueService {
@@ -92,7 +94,7 @@ export class ProviderSyncQueueService {
       where: {
         enabled: true,
         providerAccount: { enabled: true },
-        OR: [{ syncRequest: null }, { syncRequest: { status: 'FAILED' } }],
+        OR: [{ syncRequest: null }, { syncRequest: { status: { in: ['FAILED', 'WARNING'] } } }],
       },
     });
     let queuedCount = 0;
@@ -129,7 +131,8 @@ export class ProviderSyncQueueService {
         providerAccount: { enabled: true },
       },
     });
-    if (!repository || (repository.syncRequest && repository.syncRequest.status !== 'FAILED')) return false;
+    if (!repository || (repository.syncRequest && !['FAILED', 'WARNING'].includes(repository.syncRequest.status)))
+      return false;
 
     const requestedAt = new Date();
     if (repository.syncRequest) {
@@ -150,8 +153,9 @@ export class ProviderSyncQueueService {
           syncIssues: true,
           syncPullRequests: true,
           syncWorkflows: true,
+          syncAlerts: true,
         },
-        where: { repositoryId, status: 'FAILED' },
+        where: { repositoryId, status: { in: ['FAILED', 'WARNING'] } },
       });
       return updated.count > 0;
     }
@@ -182,7 +186,7 @@ export class ProviderSyncQueueService {
   async enqueueWebhookRepository(
     repositoryId: string,
     database: QueueDatabase = this.prisma,
-    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+    scopes: ProviderSyncScope[] = allSyncScopes,
   ): Promise<boolean> {
     const repository = await database.repository.findFirst({
       select: { id: true },
@@ -229,7 +233,7 @@ export class ProviderSyncQueueService {
     repositoryId: string,
     delayMs: number,
     database: QueueDatabase = this.prisma,
-    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+    scopes: ProviderSyncScope[] = allSyncScopes,
   ) {
     const requestedAt = new Date();
     const runAfter = new Date(requestedAt.getTime() + delayMs);
@@ -237,11 +241,12 @@ export class ProviderSyncQueueService {
     await database.$executeRaw(Prisma.sql`
       INSERT INTO "repository_sync_requests" (
         "id", "createdAt", "updatedAt", "requestedAt", "runAfter", "repositoryId",
-        "syncWorkflows", "syncIssues", "syncPullRequests"
+        "syncWorkflows", "syncIssues", "syncPullRequests", "syncAlerts"
       )
       VALUES (
         ${id}::uuid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ${requestedAt}, ${runAfter}, ${repositoryId}::uuid,
-        ${scopes.includes('WORKFLOWS')}, ${scopes.includes('ISSUES')}, ${scopes.includes('PULL_REQUESTS')}
+        ${scopes.includes('WORKFLOWS')}, ${scopes.includes('ISSUES')}, ${scopes.includes('PULL_REQUESTS')},
+        ${scopes.includes('ALERTS')}
       )
       ON CONFLICT ("repositoryId") DO UPDATE SET
         "updatedAt" = CURRENT_TIMESTAMP,
@@ -251,6 +256,7 @@ export class ProviderSyncQueueService {
         "syncWorkflows" = "repository_sync_requests"."syncWorkflows" OR EXCLUDED."syncWorkflows",
         "syncIssues" = "repository_sync_requests"."syncIssues" OR EXCLUDED."syncIssues",
         "syncPullRequests" = "repository_sync_requests"."syncPullRequests" OR EXCLUDED."syncPullRequests",
+        "syncAlerts" = "repository_sync_requests"."syncAlerts" OR EXCLUDED."syncAlerts",
         "status" = CASE
           WHEN "repository_sync_requests"."status" = 'RUNNING' THEN 'RUNNING'::"RepositorySyncRequestStatus"
           ELSE 'PENDING'::"RepositorySyncRequestStatus"
@@ -369,12 +375,14 @@ export class ProviderSyncQueueService {
         scopes:
           candidate.syncWorkflows === undefined &&
           candidate.syncIssues === undefined &&
-          candidate.syncPullRequests === undefined
-            ? ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS']
+          candidate.syncPullRequests === undefined &&
+          candidate.syncAlerts === undefined
+            ? allSyncScopes
             : [
                 ...(candidate.syncWorkflows ? ['WORKFLOWS' as const] : []),
                 ...(candidate.syncIssues ? ['ISSUES' as const] : []),
                 ...(candidate.syncPullRequests ? ['PULL_REQUESTS' as const] : []),
+                ...(candidate.syncAlerts ? ['ALERTS' as const] : []),
               ],
       };
     });
@@ -423,7 +431,26 @@ export class ProviderSyncQueueService {
             where: { id: request.id },
           });
         } else {
-          await transaction.repositorySyncRequest.delete({ where: { id: request.id } });
+          const warningKinds = await transaction.securityAlertSyncState.findMany({
+            select: { kind: true },
+            where: { availability: 'UNAVAILABLE', repositoryId: request.repositoryId },
+          });
+          if (request.scopes.includes('ALERTS') && warningKinds.length > 0) {
+            await transaction.repositorySyncRequest.update({
+              data: {
+                lastError: `Security alerts unavailable: ${warningKinds.map(({ kind }) => kind).join(', ')}.`,
+                leaseExpiresAt: null,
+                leaseToken: null,
+                progressCurrent: null,
+                progressPhase: null,
+                progressTotal: null,
+                status: 'WARNING',
+              },
+              where: { id: request.id },
+            });
+          } else {
+            await transaction.repositorySyncRequest.delete({ where: { id: request.id } });
+          }
         }
       }
       await transaction.providerAccount.updateMany({

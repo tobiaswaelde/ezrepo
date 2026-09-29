@@ -147,11 +147,13 @@ export class RepositorySyncStateDto {
   progressTotal!: number | null;
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   requestedAt!: Date | null;
-  @ApiProperty({ enum: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'], isArray: true })
-  scopes!: Array<'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS'>;
+  @ApiProperty({ enum: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'], isArray: true })
+  scopes!: Array<'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS' | 'ALERTS'>;
+  @ApiProperty({ enum: ['DEPENDENCY', 'CODE', 'SECRET'], isArray: true })
+  warningKinds!: string[];
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   startedAt!: Date | null;
-  @ApiProperty({ enum: ['IDLE', 'PENDING', 'RUNNING', 'FAILED'] })
+  @ApiProperty({ enum: ['IDLE', 'PENDING', 'RUNNING', 'FAILED', 'WARNING'] })
   status!: 'IDLE' | RepositorySyncRequest['status'];
 }
 
@@ -191,10 +193,14 @@ export class RepositoryDetailDto extends RepositoryDto {
               ...(request.syncWorkflows ? ['WORKFLOWS' as const] : []),
               ...(request.syncIssues ? ['ISSUES' as const] : []),
               ...(request.syncPullRequests ? ['PULL_REQUESTS' as const] : []),
+              ...(request.syncAlerts ? ['ALERTS' as const] : []),
             ]
-          : ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+          : ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
         startedAt: request?.startedAt ?? null,
         status: request?.status ?? 'IDLE',
+        warningKinds: (model.securityAlertSyncStates ?? [])
+          .filter(({ availability }) => availability === 'UNAVAILABLE')
+          .map(({ kind }) => kind),
       },
     };
   }
@@ -208,6 +214,7 @@ export type RepositoryResourceModel = Repository & {
     userId: string;
   }>;
   syncRequest?: RepositorySyncRequest | null;
+  securityAlertSyncStates?: Array<{ availability: string; kind: string }>;
 };
 
 /** Public workflow-run representation used by dashboard and history endpoints. */

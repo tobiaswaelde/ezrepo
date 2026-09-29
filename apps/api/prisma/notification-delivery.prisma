@@ -13,14 +13,16 @@ model NotificationDelivery {
   notificationChannelId String              @db.Uuid
   notificationChannel   NotificationChannel @relation(fields: [notificationChannelId], references: [id], onDelete: Cascade)
 
-  repositoryId  String?      @db.Uuid
-  repository    Repository?  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
-  workflowRunId String?      @db.Uuid
-  workflowRun   WorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
-  issueId       String?      @db.Uuid
-  issue         Issue?       @relation(fields: [issueId], references: [id], onDelete: Cascade)
-  pullRequestId String?      @db.Uuid
-  pullRequest   PullRequest? @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  repositoryId    String?        @db.Uuid
+  repository      Repository?    @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  workflowRunId   String?        @db.Uuid
+  workflowRun     WorkflowRun?   @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  issueId         String?        @db.Uuid
+  issue           Issue?         @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  pullRequestId   String?        @db.Uuid
+  pullRequest     PullRequest?   @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  securityAlertId String?        @db.Uuid
+  securityAlert   SecurityAlert? @relation(fields: [securityAlertId], references: [id], onDelete: Cascade)
 
   requestedByUserId String? @db.Uuid
   requestedBy       User?   @relation("NotificationDeliveryRequester", fields: [requestedByUserId], references: [id], onDelete: SetNull)

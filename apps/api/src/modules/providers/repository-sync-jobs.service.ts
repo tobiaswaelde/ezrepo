@@ -50,7 +50,11 @@ export class RepositorySyncJobsService {
     const [itemCount, repositories] = await Promise.all([
       this.prisma.repository.count({ where }),
       this.prisma.repository.findMany({
-        include: { providerAccount: { select: { displayName: true, providerType: true } }, syncRequest: true },
+        include: {
+          providerAccount: { select: { displayName: true, providerType: true } },
+          securityAlertSyncStates: { select: { availability: true, kind: true } },
+          syncRequest: true,
+        },
         orderBy: [{ owner: 'asc' }, { name: 'asc' }, { id: 'asc' }],
         skip: (query.page - 1) * query.perPage,
         take: query.perPage,
@@ -72,13 +76,14 @@ export class RepositorySyncJobsService {
   async summary(user: AuthenticatedUser): Promise<RepositorySyncJobSummaryDto> {
     const ability = await this.repositories.getReadAbility(user);
     const where = { AND: [this.repositories.visibleWhere(ability), { enabled: true }] };
-    const [total, pending, running, failed] = await Promise.all([
+    const [total, pending, running, failed, warning] = await Promise.all([
       this.prisma.repository.count({ where }),
       this.prisma.repository.count({ where: { AND: [where, { syncRequest: { status: 'PENDING' } }] } }),
       this.prisma.repository.count({ where: { AND: [where, { syncRequest: { status: 'RUNNING' } }] } }),
       this.prisma.repository.count({ where: { AND: [where, { syncRequest: { status: 'FAILED' } }] } }),
+      this.prisma.repository.count({ where: { AND: [where, { syncRequest: { status: 'WARNING' } }] } }),
     ]);
-    return { failed, idle: total - pending - running - failed, pending, running, total };
+    return { failed, idle: total - pending - running - failed - warning, pending, running, total, warning };
   }
 
   /**

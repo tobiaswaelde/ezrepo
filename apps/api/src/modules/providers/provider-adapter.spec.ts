@@ -32,6 +32,6 @@ describe('ProviderAdapter contract', () => {
     expect(providerWebhookSyncScopes('issues')).toEqual(['ISSUES']);
     expect(providerWebhookSyncScopes('Merge Request Hook')).toEqual(['PULL_REQUESTS']);
     expect(providerWebhookSyncScopes('workflow_run')).toEqual(['WORKFLOWS']);
-    expect(providerWebhookSyncScopes('push')).toEqual(['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS']);
+    expect(providerWebhookSyncScopes('push')).toEqual(['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS']);
   });
 });

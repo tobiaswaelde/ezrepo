@@ -10,6 +10,7 @@ import type { ProviderSyncScope } from '../provider-adapter.js';
 export type RepositorySyncJobModel = Repository & {
   providerAccount: Pick<ProviderAccount, 'displayName' | 'providerType'>;
   syncRequest: RepositorySyncRequest | null;
+  securityAlertSyncStates?: Array<{ availability: string; kind: string }>;
 };
 
 /** Query parameters for the paginated repository synchronization job list. */
@@ -33,10 +34,12 @@ export class RepositorySyncJobDto {
   providerName!: string;
   @ApiProperty({ enum: ['GITHUB', 'GITLAB', 'FORGEJO', 'GITEA'] })
   providerType!: ProviderAccount['providerType'];
-  @ApiProperty({ enum: ['IDLE', 'PENDING', 'RUNNING', 'FAILED'] })
+  @ApiProperty({ enum: ['IDLE', 'PENDING', 'RUNNING', 'FAILED', 'WARNING'] })
   status!: 'IDLE' | RepositorySyncRequest['status'];
-  @ApiProperty({ enum: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'], isArray: true })
+  @ApiProperty({ enum: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'], isArray: true })
   scopes!: ProviderSyncScope[];
+  @ApiProperty({ enum: ['DEPENDENCY', 'CODE', 'SECRET'], isArray: true })
+  warningKinds!: string[];
   @ApiProperty()
   attempt!: number;
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
@@ -80,10 +83,14 @@ export class RepositorySyncJobDto {
             ...(request.syncWorkflows ? ['WORKFLOWS' as const] : []),
             ...(request.syncIssues ? ['ISSUES' as const] : []),
             ...(request.syncPullRequests ? ['PULL_REQUESTS' as const] : []),
+            ...(request.syncAlerts ? ['ALERTS' as const] : []),
           ]
-        : ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+        : ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
       startedAt: request?.startedAt ?? null,
       status: request?.status ?? 'IDLE',
+      warningKinds: (model.securityAlertSyncStates ?? [])
+        .filter(({ availability }) => availability === 'UNAVAILABLE')
+        .map(({ kind }) => kind),
     };
   }
 }
@@ -95,6 +102,7 @@ export class RepositorySyncJobSummaryDto {
   @ApiProperty() pending!: number;
   @ApiProperty() running!: number;
   @ApiProperty() failed!: number;
+  @ApiProperty() warning!: number;
 }
 
 /** Number of repository synchronization jobs accepted by a manual start request. */

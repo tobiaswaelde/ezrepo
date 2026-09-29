@@ -37,6 +37,24 @@ const jobs = [
     startedAt: null,
     status: 'IDLE',
   },
+  {
+    attempt: 1,
+    id: 'repository-warning',
+    lastError: null,
+    progressCurrent: null,
+    progressPhase: null,
+    progressTotal: null,
+    providerName: 'GitLab',
+    providerType: 'GITLAB',
+    repositoryName: 'partial-alerts',
+    repositoryOwner: 'team',
+    requestedAt: '2026-09-13T03:00:00.000Z',
+    runAfter: '2026-09-13T03:00:00.000Z',
+    scopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
+    startedAt: '2026-09-13T03:00:01.000Z',
+    status: 'WARNING',
+    warningKinds: ['CODE'],
+  },
 ] as const;
 
 async function mockJobsPage(page: Page, onQuery: (url: string) => void = () => undefined): Promise<void> {
@@ -58,14 +76,14 @@ async function mockJobsPage(page: Page, onQuery: (url: string) => void = () => u
   );
   await page.route('**/api/v1/version/latest', (route) => route.fulfill({ json: { latest: null } }));
   await page.route('**/api/v1/jobs/repository-sync/summary', (route) =>
-    route.fulfill({ json: { failed: 0, idle: 1, pending: 0, running: 1, total: 2 } }),
+    route.fulfill({ json: { failed: 0, idle: 1, pending: 0, running: 1, total: 3, warning: 1 } }),
   );
   await page.route(/\/api\/v1\/jobs\/repository-sync(?:\?.*)?$/, (route) => {
     onQuery(route.request().url());
     return route.fulfill({
       json: {
         items: jobs,
-        meta: { hasNextPage: false, hasPrevPage: false, itemCount: 2, page: 1, pageCount: 1, perPage: 10 },
+        meta: { hasNextPage: false, hasPrevPage: false, itemCount: 3, page: 1, pageCount: 1, perPage: 10 },
       },
     });
   });
@@ -93,6 +111,7 @@ test('shows available jobs, progress, start actions, and root navigation section
   await expect(page.getByText('Processing workflows: 7/12')).toBeVisible();
   await expect(page.getByRole('progressbar', { name: '58%' })).toHaveAttribute('aria-valuenow', '7');
   await expect(page.getByText('team/idle-repository')).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: 'team/partial-alerts' })).toContainText('Code scanning');
   await expect(page.getByText('Overview', { exact: true })).toBeVisible();
   await expect(page.getByText('Operations', { exact: true })).toBeVisible();
   await expect(page.getByText('Administration', { exact: true })).toBeVisible();

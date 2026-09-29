@@ -95,6 +95,29 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     label: t('layout.pullRequests'),
     to: '/pull-requests',
   }));
+  const alerts = computed<AppNavigationItem[]>(() => {
+    if (!['MANAGER', 'SYSTEM_ADMIN'].includes(auth.user?.role ?? '')) return [];
+    return [
+      {
+        active: isActive('/alerts/dependencies'),
+        icon: 'i-lucide-package-search',
+        label: t('securityAlerts.dependencies'),
+        to: '/alerts/dependencies',
+      },
+      {
+        active: isActive('/alerts/code'),
+        icon: 'i-lucide-file-search-2',
+        label: t('securityAlerts.code'),
+        to: '/alerts/code',
+      },
+      {
+        active: isActive('/alerts/secrets'),
+        icon: 'i-lucide-key-round',
+        label: t('securityAlerts.secrets'),
+        to: '/alerts/secrets',
+      },
+    ];
+  });
   const notifications = computed<AppNavigationItem[]>(() => [
     {
       active: isActive('/notifications', true),
@@ -152,6 +175,19 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
       },
       toMenuItem(issues.value),
       toMenuItem(pullRequests.value),
+      ...(alerts.value.length > 0
+        ? [
+            {
+              'aria-label': t('securityAlerts.title'),
+              active: alerts.value.some((item) => item.active),
+              children: alerts.value.map(toMenuItem),
+              defaultOpen: true,
+              icon: 'i-lucide-shield-alert',
+              label: t('securityAlerts.title'),
+              type: 'trigger' as const,
+            },
+          ]
+        : []),
       { label: t('layout.operations'), type: 'label' },
       toMenuItem(repositories.value),
       toMenuItem(jobs.value),
@@ -178,6 +214,7 @@ export function useNavigationItems(attentionCounts: NavigationAttentionCounts = 
     ...workflowRuns.value,
     issues.value,
     pullRequests.value,
+    ...alerts.value,
     repositories.value,
     jobs.value,
     ...notifications.value,

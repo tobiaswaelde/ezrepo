@@ -31,7 +31,7 @@ describe('RepositorySyncJobsService', () => {
       items: [
         {
           id: 'repository-id',
-          scopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+          scopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
           status: 'IDLE',
         },
       ],
@@ -48,12 +48,20 @@ describe('RepositorySyncJobsService', () => {
           .mockResolvedValueOnce(5)
           .mockResolvedValueOnce(1)
           .mockResolvedValueOnce(2)
-          .mockResolvedValueOnce(1),
+          .mockResolvedValueOnce(1)
+          .mockResolvedValueOnce(0),
       },
     };
     const service = createService(prisma);
 
-    await expect(service.summary(user)).resolves.toEqual({ failed: 1, idle: 1, pending: 1, running: 2, total: 5 });
+    await expect(service.summary(user)).resolves.toEqual({
+      failed: 1,
+      idle: 1,
+      pending: 1,
+      running: 2,
+      total: 5,
+      warning: 0,
+    });
   });
 
   it('starts only available repository jobs', async () => {

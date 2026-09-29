@@ -17,10 +17,11 @@ domains, current phase, item progress, attempt, and most recent safe error messa
 - **Pending** means the durable request is waiting for its scheduled time or an available worker.
 - **Running** shows the active phase and item progress when the provider reports a measurable total.
 - **Failed** retains a safe error summary and attempt count until the repository is queued again.
+- **Warning** means other scopes completed while one or more security-alert kinds were unavailable.
 
-The scopes column identifies whether the job reads workflows, issues, pull requests, or a combination. A waiting time can
-reflect webhook coalescing, retry backoff, or provider rate-limit instructions; repeatedly refreshing the page does not
-move the scheduled time forward.
+The scopes column identifies whether the job reads workflows, issues, pull requests, security alerts, or a combination.
+A waiting time can reflect webhook coalescing, retry backoff, or provider rate-limit instructions; repeatedly refreshing
+the page does not move the scheduled time forward.
 
 ## Start or retry synchronization
 

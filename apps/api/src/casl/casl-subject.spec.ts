@@ -11,6 +11,7 @@ describe('CASL authorization contract', () => {
       'WorkflowRun',
       'Issue',
       'PullRequest',
+      'SecurityAlert',
       'NotificationChannel',
       'NotificationDelivery',
       'Settings',

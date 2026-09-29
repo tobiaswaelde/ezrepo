@@ -153,4 +153,56 @@ describe('NotificationDeliveryService', () => {
       where: { id: 'delivery-push' },
     });
   });
+
+  it('builds security-alert payloads only from normalized safe fields', async () => {
+    const prisma = {
+      notificationDelivery: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            attempts: [],
+            createdAt: new Date('2026-09-29T00:00:00Z'),
+            eventType: 'SECRET_ALERT_OPENED',
+            id: 'delivery-alert',
+            issue: null,
+            kind: 'EVENT',
+            notificationChannel: {
+              encryptedUrl: 'encrypted-url',
+              enabled: true,
+              id: 'channel-a',
+              recipients: [],
+              type: 'CUSTOM_APPRISE',
+            },
+            pullRequest: null,
+            repository: {
+              name: 'ezrepo',
+              owner: 'ezrepo',
+              providerAccount: { providerType: 'GITHUB' },
+            },
+            securityAlert: { providerUrl: 'https://github.test/alert/1', title: 'GitHub token' },
+            workflowRun: null,
+          },
+        ]),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      notificationDeliveryAttempt: { create: jest.fn().mockResolvedValue(undefined) },
+    };
+    const apprise = { send: jest.fn().mockResolvedValue(undefined) };
+    const service = new NotificationDeliveryService(
+      prisma as unknown as PrismaService,
+      {} as JobRunnerService,
+      apprise as unknown as AppriseNotificationAdapter,
+      { sendToUser: jest.fn() } as unknown as BrowserPushService,
+    );
+
+    await service.deliverPending(['delivery-alert']);
+
+    expect(apprise.send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        eventType: 'SECRET_ALERT_OPENED',
+        subject: 'GitHub token',
+        subjectUrl: 'https://github.test/alert/1',
+      }),
+    );
+  });
 });

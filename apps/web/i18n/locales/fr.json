@@ -190,6 +190,7 @@
     },
     "loadError": "Les tâches de synchronisation n’ont pas pu être chargées.",
     "phases": {
+      "SYNCING_ALERTS": "Synchronizing security alerts",
       "FETCHING_WORKFLOWS": "Récupération des workflows",
       "LOADING_REPOSITORY": "Chargement des métadonnées",
       "PROCESSING_WORKFLOWS": "Traitement des workflows",
@@ -202,11 +203,23 @@
     "retry": "Réessayer",
     "run": "Exécuter",
     "runAll": "Tout exécuter",
-    "scopes": { "ISSUES": "Tickets", "PULL_REQUESTS": "Demandes de fusion", "WORKFLOWS": "Workflows" },
-    "status": { "FAILED": "Échec", "IDLE": "Inactive", "PENDING": "En attente", "RUNNING": "En cours" },
+    "scopes": {
+      "ALERTS": "Security alerts",
+      "ISSUES": "Tickets",
+      "PULL_REQUESTS": "Demandes de fusion",
+      "WORKFLOWS": "Workflows"
+    },
+    "status": {
+      "FAILED": "Échec",
+      "IDLE": "Inactive",
+      "PENDING": "En attente",
+      "RUNNING": "En cours",
+      "WARNING": "Warning"
+    },
     "summary": "État de synchronisation des dépôts",
     "title": "Tâches",
-    "waiting": "En attente"
+    "waiting": "En attente",
+    "warningKinds": "Unavailable alert types: {kinds}"
   },
   "layout": {
     "issues": "Tickets",
@@ -640,6 +653,10 @@
       "workflowPatterns": "Workflow patterns"
     },
     "events": {
+      "CODE_ALERT_OPENED": "Code scanning alert opened",
+      "CODE_ALERT_RESOLVED": "Code scanning alert resolved",
+      "DEPENDENCY_ALERT_OPENED": "Dependency alert opened",
+      "DEPENDENCY_ALERT_RESOLVED": "Dependency alert resolved",
       "ISSUE_CLOSED": "Issue closed",
       "ISSUE_OPENED": "New issue",
       "ISSUE_REOPENED": "Issue reopened",
@@ -647,6 +664,8 @@
       "PULL_REQUEST_MERGED": "Pull request merged",
       "PULL_REQUEST_OPENED": "New pull request",
       "PULL_REQUEST_REOPENED": "Pull request reopened",
+      "SECRET_ALERT_OPENED": "Secret scanning alert opened",
+      "SECRET_ALERT_RESOLVED": "Secret scanning alert resolved",
       "WORKFLOW_RUN_FAILED": "Workflow failed",
       "WORKFLOW_RUN_RECOVERED": "Workflow recovered after failure",
       "WORKFLOW_RUN_SUCCEEDED": "Workflow succeeded"
@@ -815,7 +834,12 @@
     }
   },
   "repositoryDetails": {
-    "activity": { "issues": "Issues", "pullRequests": "Pull requests", "workflowRuns": "Workflow runs" },
+    "activity": {
+      "issues": "Issues",
+      "pullRequests": "Pull requests",
+      "securityAlerts": "Security alerts",
+      "workflowRuns": "Workflow runs"
+    },
     "activityEmpty": "No {resource} found for this repository.",
     "activityLoadError": "{resource} could not be loaded.",
     "settings": "Repository settings",
@@ -873,6 +897,49 @@
     "user": "Utilisateur",
     "workflowFilters": "Filtres de flux",
     "workflowFiltersDescription": "Les filtres d’exclusion ont priorité sur les filtres d’autorisation."
+  },
+  "securityAlerts": {
+    "code": "Code scanning",
+    "columns": {
+      "ecosystem": "Ecosystem",
+      "manifest": "Manifest",
+      "package": "Package",
+      "path": "Path",
+      "repository": "Repository",
+      "rule": "Rule",
+      "scanner": "Scanner",
+      "secretProvider": "Secret provider",
+      "secretType": "Secret type",
+      "severity": "Severity",
+      "state": "State",
+      "title": "Alert",
+      "updated": "Updated"
+    },
+    "dependencies": "Dependencies",
+    "description": "Review normalized provider security findings without exposing secret values.",
+    "empty": "No security alerts match the current filters.",
+    "kindTitles": {
+      "CODE": "Code scanning alerts",
+      "DEPENDENCY": "Dependency alerts",
+      "SECRET": "Secret scanning alerts"
+    },
+    "loadError": "Security alerts could not be loaded.",
+    "open": "Open alerts",
+    "openSummary": "Open security alerts",
+    "search": "Search alerts",
+    "secrets": "Secrets",
+    "severities": {
+      "CRITICAL": "Critical",
+      "HIGH": "High",
+      "INFO": "Info",
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "UNKNOWN": "Unknown"
+    },
+    "states": { "DISMISSED": "Dismissed", "OPEN": "Open", "RESOLVED": "Resolved" },
+    "title": "Alerts",
+    "unavailable": "Unavailable data",
+    "unavailableDescription": "{count} repositories do not currently expose this alert type. Other synchronized data remains available."
   },
   "sidebar": {
     "github": "Open GitHub repository",

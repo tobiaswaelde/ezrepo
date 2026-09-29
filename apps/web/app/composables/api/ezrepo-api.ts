@@ -32,6 +32,9 @@ import type {
   RepositoryMembership,
   RepositorySyncJobSummary,
   RepositoryWebhookConfiguration,
+  SecurityAlert,
+  SecurityAlertFilterOptions,
+  SecurityAlertSummary,
   StartProviderOAuth,
   UpdateApplicationSettings,
   UpdateNotificationChannel,
@@ -202,6 +205,22 @@ export function useEzRepoApi() {
         input: Pick<RepositoryMembership, 'role'>,
       ): Promise<AxiosResponse<RepositoryMembership>> =>
         api.put(`${apiEndpoints.repositories}/${id}/memberships/${userId}`, input),
+    },
+    securityAlerts: {
+      filterOptions: (): Promise<AxiosResponse<SecurityAlertFilterOptions>> =>
+        api.get(`${apiEndpoints.securityAlerts}/filter-options`),
+      get: (id: string): Promise<AxiosResponse<SecurityAlert>> => api.get(`${apiEndpoints.securityAlerts}/${id}`),
+      listForRepository: (repositoryId: string): Promise<AxiosResponse<PaginatedResource<SecurityAlert>>> =>
+        api.get(apiEndpoints.securityAlerts, {
+          params: {
+            fields: 'id,title,kind,state,severity,providerUpdatedAt,providerUrl',
+            orderBy: JSON.stringify([{ providerUpdatedAt: 'desc' }, { id: 'desc' }]),
+            page: 1,
+            perPage: 5,
+            where: JSON.stringify({ repositoryId }),
+          },
+        }),
+      summary: (): Promise<AxiosResponse<SecurityAlertSummary>> => api.get(`${apiEndpoints.securityAlerts}/summary`),
     },
     workflowRuns: {
       listForRepository: (repositoryId: string): Promise<AxiosResponse<PaginatedResource<WorkflowRun>>> =>

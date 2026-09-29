@@ -23,6 +23,7 @@ const dashboardSummary = {
   medianDurationMs: 90_000,
   queuedCount: 1,
   runningCount: 1,
+  securityAlerts: { code: 2, critical: 1, dependency: 3, high: 2, secret: 1 },
   statuses: { cancelled: 0, failed: 1, skipped: 0, success: 1, unknown: 0 },
   successRate: 50,
   totalRunDurationMs: 5_400_000,
@@ -137,6 +138,9 @@ test('renders dashboard values, reloads for range filters, and presents request 
   await expect(page.getByText('Success rate')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Work overview' }).getByText('Open issues')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Work overview' }).getByText('8', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Open security alerts' })).toBeVisible();
+  await expect(page.locator('#main-content').getByText('Dependencies', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'View all' }).first()).toHaveAttribute('href', '/alerts/dependencies');
   await expect(
     page.getByRole('region', { name: 'Workflow health summary' }).getByText('Awaiting approval', { exact: true }),
   ).toBeVisible();

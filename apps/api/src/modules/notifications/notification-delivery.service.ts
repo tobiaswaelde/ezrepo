@@ -21,6 +21,7 @@ const deliveryInclude = {
   },
   pullRequest: true,
   repository: { include: { providerAccount: true } },
+  securityAlert: true,
   workflowRun: true,
 } as const;
 
@@ -297,7 +298,7 @@ export class NotificationDeliveryService {
       };
     }
     if (!delivery.eventType || !delivery.repository) throw new Error('Notification event context is missing.');
-    const subject = delivery.workflowRun ?? delivery.pullRequest ?? delivery.issue;
+    const subject = delivery.workflowRun ?? delivery.pullRequest ?? delivery.issue ?? delivery.securityAlert;
     if (!subject) throw new Error('Notification event subject is missing.');
     return {
       eventType: delivery.eventType,
@@ -307,8 +308,15 @@ export class NotificationDeliveryService {
       subject:
         delivery.workflowRun?.workflowName ??
         (delivery.pullRequest ? `#${delivery.pullRequest.number} ${delivery.pullRequest.title}` : undefined) ??
-        (delivery.issue ? `#${delivery.issue.number} ${delivery.issue.title}` : 'Notification event'),
-      subjectUrl: delivery.workflowRun?.url ?? delivery.pullRequest?.url ?? delivery.issue?.url ?? '',
+        (delivery.issue ? `#${delivery.issue.number} ${delivery.issue.title}` : undefined) ??
+        delivery.securityAlert?.title ??
+        'Notification event',
+      subjectUrl:
+        delivery.workflowRun?.url ??
+        delivery.pullRequest?.url ??
+        delivery.issue?.url ??
+        delivery.securityAlert?.providerUrl ??
+        '',
     };
   }
 

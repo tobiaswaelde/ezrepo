@@ -205,3 +205,97 @@ describe('GitLabPipelinesAdapter change requests', () => {
     await expect(adapter.getChangeRequestState(context, repository, '42')).resolves.toBeNull();
   });
 });
+
+describe('GitLabPipelinesAdapter security alerts', () => {
+  const context = { accessToken: 'token', baseUrl: 'https://gitlab.example.test', providerAccountId: 'account' };
+  const repository = { name: 'ezrepo', owner: 'group', providerRepositoryId: '1' };
+
+  it('paginates and normalizes supported report types', async () => {
+    const page = (nodes: object[], hasNextPage: boolean, endCursor: string | null) =>
+      new Response(
+        JSON.stringify({
+          data: { project: { vulnerabilities: { nodes, pageInfo: { endCursor, hasNextPage } } } },
+        }),
+      );
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        page(
+          [
+            {
+              detectedAt: '2026-09-01T00:00:00Z',
+              id: 'gid://gitlab/Vulnerability/1',
+              location: {
+                blobPath: 'package-lock.json',
+                dependency: { package: { name: 'vite' }, version: '7.0.0' },
+              },
+              reportType: 'DEPENDENCY_SCANNING',
+              severity: 'HIGH',
+              state: 'DETECTED',
+              title: 'Dependency issue',
+            },
+            {
+              detectedAt: '2026-09-01T00:00:00Z',
+              id: 'gid://gitlab/Vulnerability/ignored',
+              reportType: 'CONTAINER_SCANNING',
+              severity: 'LOW',
+              state: 'DETECTED',
+              title: 'Ignored issue',
+            },
+          ],
+          true,
+          'next',
+        ),
+      )
+      .mockResolvedValueOnce(
+        page(
+          [
+            {
+              description: 'Detected value: must-not-survive',
+              detectedAt: '2026-09-01T00:00:00Z',
+              id: 'gid://gitlab/Vulnerability/2',
+              identifiers: [{ name: 'AWS key' }],
+              location: { file: 'config.ts', secret: 'must-not-survive' },
+              reportType: 'SECRET_DETECTION',
+              severity: 'CRITICAL',
+              state: 'DISMISSED',
+              title: 'Secret issue',
+            },
+          ],
+          false,
+          null,
+        ),
+      );
+
+    const result = await new GitLabPipelinesAdapter(fetchFn).listSecurityAlerts(context, repository);
+
+    expect(result).toMatchObject([
+      {
+        alerts: [
+          {
+            kind: 'DEPENDENCY',
+            manifest: 'package-lock.json',
+            packageName: 'vite',
+            providerUrl: 'https://gitlab.example.test/group/ezrepo/-/security/vulnerability_report',
+            state: 'OPEN',
+            vulnerableRange: '7.0.0',
+          },
+        ],
+      },
+      { alerts: [] },
+      { alerts: [{ kind: 'SECRET', location: { path: 'config.ts' }, state: 'DISMISSED' }] },
+    ]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(fetchFn.mock.calls[1]?.[1]?.body)).toContain('next');
+    expect(JSON.stringify(result)).not.toContain('must-not-survive');
+  });
+
+  it('returns unavailable kinds for inaccessible GraphQL data', async () => {
+    const adapter = new GitLabPipelinesAdapter(jest.fn().mockResolvedValue(new Response(null, { status: 403 })));
+    await expect(adapter.listSecurityAlerts(context, repository)).resolves.toEqual([
+      expect.objectContaining({ availability: 'UNAVAILABLE', kind: 'DEPENDENCY' }),
+      expect.objectContaining({ availability: 'UNAVAILABLE', kind: 'CODE' }),
+      expect.objectContaining({ availability: 'UNAVAILABLE', kind: 'SECRET' }),
+    ]);
+  });
+});

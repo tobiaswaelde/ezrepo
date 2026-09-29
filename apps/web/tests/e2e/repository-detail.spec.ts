@@ -138,7 +138,7 @@ test('shows never-synchronized and empty states', async ({ page }) => {
       },
     }),
   );
-  await page.route(/\/api\/v1\/(?:workflow-runs|issues|pull-requests)\?.*$/, (route) =>
+  await page.route(/\/api\/v1\/(?:workflow-runs|issues|pull-requests|security-alerts)\?.*$/, (route) =>
     route.fulfill({ json: emptyPage }),
   );
 
@@ -166,7 +166,7 @@ test('updates repository-specific retention overrides', async ({ page }, testInf
     }
     await route.fulfill({ json: repository });
   });
-  await page.route(/\/api\/v1\/(?:workflow-runs|issues|pull-requests)\?.*$/, (route) =>
+  await page.route(/\/api\/v1\/(?:workflow-runs|issues|pull-requests|security-alerts)\?.*$/, (route) =>
     route.fulfill({ json: emptyPage }),
   );
 

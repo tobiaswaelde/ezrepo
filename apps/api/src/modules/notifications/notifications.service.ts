@@ -48,6 +48,7 @@ export const notificationDeliveryHistoryInclude = {
   notificationChannel: { select: { id: true, name: true, type: true } },
   pullRequest: { select: { id: true, number: true, title: true, url: true } },
   repository: { select: { id: true, name: true, owner: true } },
+  securityAlert: { select: { id: true, kind: true, providerUrl: true, title: true } },
   requestedBy: { select: { username: true } },
   workflowRun: { select: { id: true, url: true, workflowName: true } },
 } satisfies Prisma.NotificationDeliveryInclude;
@@ -65,6 +66,7 @@ interface EventSource {
   matchingEventTypes?: NotificationEventType[];
   pullRequestId?: string;
   repositoryId: string;
+  securityAlertId?: string;
   workflowName?: string;
   workflowRunId?: string;
 }
@@ -487,6 +489,25 @@ export class NotificationsService {
   }
 
   /**
+   * Enqueue an opened or resolved security-alert event from normalized, secret-free fields.
+   *
+   * @param eventType - Security-alert lifecycle event to deliver.
+   * @param alert - Safe persisted alert identity and update timestamp.
+   * @returns A promise that resolves after matching deliveries are queued.
+   */
+  async emitSecurityAlertEvent(
+    eventType: NotificationEventType,
+    alert: { id: string; providerUpdatedAt: Date; repositoryId: string },
+  ): Promise<void> {
+    await this.emitEvent({
+      deduplicationKey: `security-alert:${alert.id}:${eventType}:${alert.providerUpdatedAt.toISOString()}`,
+      eventType,
+      repositoryId: alert.repositoryId,
+      securityAlertId: alert.id,
+    });
+  }
+
+  /**
    * Find subscribed channels and enqueue idempotent deliveries for one domain event.
    *
    * @param source - Normalized domain event, repository scope, and idempotent delivery key.
@@ -559,6 +580,7 @@ export class NotificationsService {
         notificationChannelId: channelId,
         pullRequestId: source.pullRequestId,
         repositoryId: source.repositoryId,
+        securityAlertId: source.securityAlertId,
         workflowRunId: source.workflowRunId,
       })),
       skipDuplicates: true,

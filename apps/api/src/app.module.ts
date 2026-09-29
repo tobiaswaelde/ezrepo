@@ -13,6 +13,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ProvidersModule } from './modules/providers/providers.module.js';
 import { PullRequestsModule } from './modules/pull-requests/pull-requests.module.js';
 import { RepositoriesModule } from './modules/repositories/repositories.module.js';
+import { SecurityAlertsModule } from './modules/security-alerts/security-alerts.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { VersionModule } from './modules/version/version.module.js';
 import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
@@ -29,6 +30,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     NotificationsModule,
     RepositoriesModule,
     SettingsModule,
+    SecurityAlertsModule,
     ProvidersModule,
     PullRequestsModule,
     JobsModule,

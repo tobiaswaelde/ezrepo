@@ -50,7 +50,7 @@ describe('provider sync queue integration', () => {
     expect(sync.syncRepositoryById).toHaveBeenCalledTimes(1);
     expect(sync.syncRepositoryById).toHaveBeenCalledWith(
       repository.id,
-      ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+      ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
       expect.any(Function),
     );
     await expect(prisma.repositorySyncRequest.count()).resolves.toBe(0);

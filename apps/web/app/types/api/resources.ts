@@ -122,13 +122,14 @@ export interface PaginatedResource<T> {
 }
 
 /** Lifecycle state of one available repository synchronization job. */
-export type RepositorySyncJobStatus = 'IDLE' | 'PENDING' | 'RUNNING' | 'FAILED';
+export type RepositorySyncJobStatus = 'IDLE' | 'PENDING' | 'RUNNING' | 'FAILED' | 'WARNING';
 
 /** Persisted phase of a running repository synchronization job. */
 export type RepositorySyncProgressPhase =
   | 'LOADING_REPOSITORY'
   | 'SYNCING_ISSUES'
   | 'SYNCING_PULL_REQUESTS'
+  | 'SYNCING_ALERTS'
   | 'FETCHING_WORKFLOWS'
   | 'PROCESSING_WORKFLOWS'
   | 'REFRESHING_CHANGE_REQUESTS';
@@ -147,9 +148,10 @@ export interface RepositorySyncJob {
   repositoryOwner: string;
   requestedAt: ApiTimestamp | null;
   runAfter: ApiTimestamp | null;
-  scopes: Array<'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS'>;
+  scopes: Array<'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS' | 'ALERTS'>;
   startedAt: ApiTimestamp | null;
   status: RepositorySyncJobStatus;
+  warningKinds: SecurityAlertKind[];
 }
 
 /** Aggregate status counts for visible repository synchronization jobs. */
@@ -159,6 +161,7 @@ export interface RepositorySyncJobSummary {
   pending: number;
   running: number;
   total: number;
+  warning: number;
 }
 
 /** Input used to start a provider OAuth authorization. */
@@ -225,6 +228,7 @@ export interface RepositoryDetail extends Repository {
     | 'scopes'
     | 'startedAt'
     | 'status'
+    | 'warningKinds'
   >;
 }
 
@@ -324,6 +328,17 @@ export interface DashboardSummary {
   statuses: DashboardStatusDistribution;
   successRate: number;
   totalRunDurationMs: number;
+  securityAlerts?: {
+    code: number;
+    critical: number;
+    dependency: number;
+    high: number;
+    info: number;
+    low: number;
+    medium: number;
+    secret: number;
+    unknown: number;
+  };
 }
 
 /** Permission-aware workflow health aggregates for one visible repository. */
@@ -448,6 +463,66 @@ export interface WorkItemFilterOptions {
   milestones: string[];
 }
 
+export type SecurityAlertKind = 'DEPENDENCY' | 'CODE' | 'SECRET';
+export type SecurityAlertState = 'OPEN' | 'RESOLVED' | 'DISMISSED';
+export type SecurityAlertSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO' | 'UNKNOWN';
+
+/** Permission-filtered normalized security alert containing no provider secret value. */
+export interface SecurityAlert {
+  description?: string | null;
+  ecosystem: string | null;
+  fixedVersion: string | null;
+  id: string;
+  identifiers: string[];
+  kind: SecurityAlertKind;
+  location: Record<string, number | string> | null;
+  manifest: string | null;
+  packageName: string | null;
+  providerCreatedAt: ApiTimestamp;
+  providerType: ProviderType;
+  providerUpdatedAt: ApiTimestamp;
+  providerUrl: string;
+  repositoryId: string;
+  repositoryName: string;
+  repositoryOwner: string;
+  resolution: string | null;
+  resolvedAt: ApiTimestamp | null;
+  ruleId: string | null;
+  scanner: string | null;
+  secretProvider: string | null;
+  secretType: string | null;
+  severity: SecurityAlertSeverity;
+  state: SecurityAlertState;
+  title: string;
+  tool: string | null;
+  vulnerableRange: string | null;
+}
+
+export interface SecurityAlertSummary {
+  open: Record<SecurityAlertKind, number>;
+  severity: Record<SecurityAlertSeverity, number>;
+  unavailableRepositories: number;
+}
+
+export interface SecurityAlertFilterOptions {
+  availability: Array<{
+    availability: 'AVAILABLE' | 'UNAVAILABLE' | 'UNSUPPORTED';
+    kind: SecurityAlertKind;
+    lastSuccessfulSyncAt: ApiTimestamp | null;
+    reason: string | null;
+    repositoryId: string;
+  }>;
+  ecosystems: string[];
+  manifests: string[];
+  packages: string[];
+  paths: string[];
+  repositories: Array<{ id: string; name: string; owner: string }>;
+  rules: string[];
+  scanners: string[];
+  secretProviders: string[];
+  secretTypes: string[];
+}
+
 /** Supported guided or native notification destination. */
 export type NotificationChannelType = 'EMAIL' | 'GOTIFY' | 'NTFY' | 'DISCORD' | 'CUSTOM_APPRISE' | 'BROWSER_PUSH';
 
@@ -484,7 +559,13 @@ export type NotificationEventType =
   | 'PULL_REQUEST_MERGED'
   | 'ISSUE_OPENED'
   | 'ISSUE_CLOSED'
-  | 'ISSUE_REOPENED';
+  | 'ISSUE_REOPENED'
+  | 'DEPENDENCY_ALERT_OPENED'
+  | 'DEPENDENCY_ALERT_RESOLVED'
+  | 'CODE_ALERT_OPENED'
+  | 'CODE_ALERT_RESOLVED'
+  | 'SECRET_ALERT_OPENED'
+  | 'SECRET_ALERT_RESOLVED';
 
 export interface NotificationEventSubscription {
   eventType: NotificationEventType;
@@ -577,7 +658,7 @@ export interface NotificationDelivery {
   repositoryOwner: string | null;
   requestedByUsername: string | null;
   status: NotificationDeliveryStatus;
-  subjectKind: 'WORKFLOW_RUN' | 'PULL_REQUEST' | 'ISSUE' | null;
+  subjectKind: 'WORKFLOW_RUN' | 'PULL_REQUEST' | 'ISSUE' | 'SECURITY_ALERT' | null;
   subjectTitle: string | null;
   subjectUrl: string | null;
   updatedAt: ApiTimestamp;

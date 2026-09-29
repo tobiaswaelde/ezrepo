@@ -40,7 +40,7 @@ describe('ProviderSyncQueueService', () => {
 
     expect(mocks.sync.syncRepositoryById).toHaveBeenCalledWith(
       mocks.candidate.repositoryId,
-      ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+      ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
       expect.any(Function),
     );
     expect(mocks.transaction.repositorySyncRequest.delete).toHaveBeenCalledWith({
@@ -60,6 +60,19 @@ describe('ProviderSyncQueueService', () => {
     expect(mocks.transaction.repositorySyncRequest.delete).not.toHaveBeenCalled();
     expect(mocks.transaction.repositorySyncRequest.update).toHaveBeenCalledWith({
       data: expect.objectContaining({ attempt: 0, status: 'PENDING' }),
+      where: { id: mocks.candidate.id },
+    });
+  });
+
+  it('retains a warning request when an alert kind is unavailable', async () => {
+    const mocks = processingMocks({ warningKinds: ['SECRET'] });
+    const service = createService(mocks.prisma, mocks.sync);
+
+    await service.processDueRequests();
+
+    expect(mocks.transaction.repositorySyncRequest.delete).not.toHaveBeenCalled();
+    expect(mocks.transaction.repositorySyncRequest.update).toHaveBeenCalledWith({
+      data: expect.objectContaining({ lastError: 'Security alerts unavailable: SECRET.', status: 'WARNING' }),
       where: { id: mocks.candidate.id },
     });
   });
@@ -146,7 +159,7 @@ function createService(prisma: object, sync: object = { syncRepositoryById: jest
   );
 }
 
-function processingMocks(options: { completedGeneration?: number; error?: Error } = {}) {
+function processingMocks(options: { completedGeneration?: number; error?: Error; warningKinds?: string[] } = {}) {
   const candidate = {
     attempt: 0,
     createdAt: new Date(),
@@ -181,6 +194,9 @@ function processingMocks(options: { completedGeneration?: number; error?: Error 
       ),
       update: jest.fn().mockResolvedValue(undefined),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    securityAlertSyncState: {
+      findMany: jest.fn().mockResolvedValue((options.warningKinds ?? []).map((kind) => ({ kind }))),
     },
   };
   const prisma = {

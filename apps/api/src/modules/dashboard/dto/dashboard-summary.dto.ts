@@ -1,4 +1,17 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+/** Open security-alert counters available only to managers and administrators. */
+export class DashboardSecurityAlertSummaryDto {
+  @ApiProperty() dependency!: number;
+  @ApiProperty() code!: number;
+  @ApiProperty() secret!: number;
+  @ApiProperty() critical!: number;
+  @ApiProperty() high!: number;
+  @ApiProperty() medium!: number;
+  @ApiProperty() low!: number;
+  @ApiProperty() info!: number;
+  @ApiProperty() unknown!: number;
+}
 
 /** Completed workflow-run counts grouped by normalized terminal status. */
 export class DashboardStatusDistributionDto {
@@ -20,6 +33,8 @@ export class DashboardStatusDistributionDto {
 
 /** Permission-aware workflow health summary for one requested period. */
 export class DashboardSummaryDto {
+  @ApiPropertyOptional({ type: DashboardSecurityAlertSummaryDto })
+  securityAlerts?: DashboardSecurityAlertSummaryDto;
   @ApiProperty({ description: 'Number of visible runs currently awaiting provider approval.' })
   awaitingApprovalCount!: number;
 

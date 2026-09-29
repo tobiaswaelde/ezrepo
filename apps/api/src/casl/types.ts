@@ -24,6 +24,11 @@ export interface PullRequestAbilitySubject extends ForcedSubject<CaslSubject.Pul
   repositoryId: string;
 }
 
+/** Security-alert properties used by repository-scoped ability conditions. */
+export interface SecurityAlertAbilitySubject extends ForcedSubject<CaslSubject.SecurityAlert> {
+  repositoryId: string;
+}
+
 /** Global notification channel protected by system-level permissions. */
 export type NotificationChannelAbilitySubject = ForcedSubject<CaslSubject.NotificationChannel>;
 
@@ -40,6 +45,7 @@ export type AppAbility = Ability<
       | WorkflowRunAbilitySubject
       | IssueAbilitySubject
       | PullRequestAbilitySubject
+      | SecurityAlertAbilitySubject
       | NotificationChannelAbilitySubject
       | NotificationDeliveryAbilitySubject
     ),

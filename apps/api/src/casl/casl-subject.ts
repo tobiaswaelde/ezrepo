@@ -7,6 +7,7 @@ export enum CaslSubject {
   WorkflowRun = 'WorkflowRun',
   Issue = 'Issue',
   PullRequest = 'PullRequest',
+  SecurityAlert = 'SecurityAlert',
   NotificationChannel = 'NotificationChannel',
   NotificationDelivery = 'NotificationDelivery',
   Settings = 'Settings',

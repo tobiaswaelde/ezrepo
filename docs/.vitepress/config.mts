@@ -18,6 +18,7 @@ const sidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Workflow queues', link: '/guide/workflow-queues' },
       { text: 'Repository synchronization jobs', link: '/guide/jobs' },
       { text: 'Issues and pull requests', link: '/guide/issues-pull-requests' },
+      { text: 'Security alerts', link: '/guide/security-alerts' },
       { text: 'Repositories and notifications', link: '/guide/repositories-notifications' },
       { text: 'Administration and settings', link: '/guide/administration' },
     ],

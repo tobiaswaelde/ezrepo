@@ -1,4 +1,11 @@
-import type { ProviderType, WorkflowKind, WorkflowRunStatus } from '../../generated/prisma/client.js';
+import type {
+  ProviderType,
+  SecurityAlertKind,
+  SecurityAlertSeverity,
+  SecurityAlertState,
+  WorkflowKind,
+  WorkflowRunStatus,
+} from '../../generated/prisma/client.js';
 
 /** Injection token for the read-only HTTP client used by provider adapters. */
 export const PROVIDER_FETCH = Symbol('PROVIDER_FETCH');
@@ -85,6 +92,41 @@ export interface ProviderPullRequest {
   url: string;
 }
 
+/** Safe normalized provider alert persisted without raw provider payloads or secret values. */
+export interface ProviderSecurityAlert {
+  description: string | null;
+  ecosystem: string | null;
+  fixedVersion: string | null;
+  identifiers: string[];
+  kind: SecurityAlertKind;
+  location: Record<string, number | string> | null;
+  manifest: string | null;
+  packageName: string | null;
+  providerAlertId: string;
+  providerCreatedAt: Date;
+  providerUpdatedAt: Date;
+  providerUrl: string;
+  resolution: string | null;
+  resolvedAt: Date | null;
+  ruleId: string | null;
+  scanner: string | null;
+  secretProvider: string | null;
+  secretType: string | null;
+  severity: SecurityAlertSeverity;
+  state: SecurityAlertState;
+  title: string;
+  tool: string | null;
+  vulnerableRange: string | null;
+}
+
+/** Per-kind provider result that keeps unsupported and unavailable APIs independent. */
+export interface ProviderSecurityAlertResult {
+  alerts: ProviderSecurityAlert[];
+  availability: 'AVAILABLE' | 'UNAVAILABLE' | 'UNSUPPORTED';
+  kind: SecurityAlertKind;
+  reason: string | null;
+}
+
 /** Read-only lifecycle metadata used to retire obsolete change-request workflow failures. */
 export interface ProviderChangeRequestState {
   mergedAt: Date | null;
@@ -143,7 +185,7 @@ export interface VerifiedWebhook {
 }
 
 /** Independently coalesced domains supported by repository synchronization. */
-export type ProviderSyncScope = 'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS';
+export type ProviderSyncScope = 'WORKFLOWS' | 'ISSUES' | 'PULL_REQUESTS' | 'ALERTS';
 
 /**
  * Map provider webhook event names to the smallest safe synchronization scope.
@@ -157,7 +199,9 @@ export function providerWebhookSyncScopes(event: string): ProviderSyncScope[] {
   if (normalized.includes('pull') || normalized.includes('merge request')) return ['PULL_REQUESTS'];
   if (normalized.includes('workflow') || normalized.includes('pipeline') || normalized.includes('job'))
     return ['WORKFLOWS'];
-  return ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'];
+  if (normalized.includes('security') || normalized.includes('vulnerability') || normalized.includes('dependabot'))
+    return ['ALERTS'];
+  return ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'];
 }
 
 /** Read-only webhook request data received by ezRepo. */
@@ -255,6 +299,19 @@ export interface ProviderAdapter {
     repository: ProviderRepositoryReference,
     query: ProviderWorkItemQuery,
   ): Promise<ProviderPullRequest[]>;
+  /**
+   * Read normalized security alerts without exposing provider payloads or secret material.
+   *
+   * Omission means that the provider does not expose a supported read API.
+   *
+   * @param context - Provider account credentials and instance configuration.
+   * @param repository - Repository whose alerts are requested.
+   * @returns Per-kind normalized alerts and availability.
+   */
+  listSecurityAlerts?(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+  ): Promise<ProviderSecurityAlertResult[]>;
   /**
    * Read repositories accessible through the provider account and normalize their metadata.
    *

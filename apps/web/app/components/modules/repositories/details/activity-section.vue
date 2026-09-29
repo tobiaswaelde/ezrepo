@@ -64,7 +64,7 @@ import { ref, watch } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useDateTime } from '~/composables/use-date-time';
 
-type ActivityKind = 'issues' | 'pullRequests' | 'workflowRuns';
+type ActivityKind = 'issues' | 'pullRequests' | 'workflowRuns' | 'securityAlerts';
 
 interface ActivityItem {
   detailUrl?: string;
@@ -86,11 +86,13 @@ const loadError = ref(false);
 const icon = computed(() => {
   if (props.kind === 'issues') return 'i-tabler-circle-dot';
   if (props.kind === 'pullRequests') return 'i-tabler-git-pull-request';
+  if (props.kind === 'securityAlerts') return 'i-lucide-shield-alert';
   return 'i-lucide-workflow';
 });
 const pageUrl = computed(() => {
   if (props.kind === 'issues') return '/issues';
   if (props.kind === 'pullRequests') return '/pull-requests';
+  if (props.kind === 'securityAlerts') return `/alerts/dependencies?repositoryId=${props.repositoryId}`;
   return '/workflow-runs';
 });
 const title = computed(() => t(`repositoryDetails.activity.${props.kind}`));
@@ -125,7 +127,7 @@ async function load(repositoryId: string): Promise<void> {
         timestamp: formatDateTime(item.providerUpdatedAt),
         title: item.title,
       }));
-    } else {
+    } else if (props.kind === 'workflowRuns') {
       const { data } = await api.workflowRuns.listForRepository(repositoryId);
       if (props.repositoryId !== repositoryId) return;
       items.value = data.items.map((item) => ({
@@ -135,6 +137,18 @@ async function load(repositoryId: string): Promise<void> {
         subtitle: item.workflowName,
         timestamp: formatDateTime(item.completedAt ?? item.providerCreatedAt),
         title: item.displayTitle,
+      }));
+    } else {
+      const { data } = await api.securityAlerts.listForRepository(repositoryId);
+      if (props.repositoryId !== repositoryId) return;
+      items.value = data.items.map((item) => ({
+        detailUrl: `/alerts/${item.id}`,
+        id: item.id,
+        providerUrl: item.providerUrl,
+        status: t(`securityAlerts.states.${item.state}`),
+        subtitle: t(`securityAlerts.kindTitles.${item.kind}`),
+        timestamp: formatDateTime(item.providerUpdatedAt),
+        title: item.title,
       }));
     }
   } catch {

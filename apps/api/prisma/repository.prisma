@@ -20,6 +20,8 @@ model Repository {
   memberships              RepositoryMembership[]
   notificationEventFilters NotificationEventSubscriptionRepository[]
   notificationDeliveries   NotificationDelivery[]
+  securityAlerts           SecurityAlert[]
+  securityAlertSyncStates  SecurityAlertSyncState[]
   syncRequest              RepositorySyncRequest?
   workItemSyncCursors      WorkItemSyncCursor[]
   workItemLabels           WorkItemLabel[]

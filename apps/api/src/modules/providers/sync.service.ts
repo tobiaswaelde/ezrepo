@@ -15,6 +15,7 @@ import type {
 import { ProviderAdapterRegistry } from './provider-adapter.registry.js';
 import { ProviderCredentialService } from './provider-credential.service.js';
 import { RepositoryMetadataService } from './repository-metadata.service.js';
+import { SecurityAlertSyncService } from './security-alert-sync.service.js';
 import type { RepositorySyncProgressReporter } from './sync-progress.js';
 import { WorkItemSyncService } from './work-item-sync.service.js';
 
@@ -43,6 +44,7 @@ export class ProviderSyncService {
    * @param notifications - Service managing channels and idempotent notification events.
    * @param status - Service broadcasting active synchronization progress and workflow counts.
    * @param workItems - Optional service synchronizing issues, pull requests, and run associations.
+   * @param securityAlerts - Optional service synchronizing normalized security alerts.
    */
   constructor(
     private readonly prisma: PrismaService,
@@ -53,6 +55,7 @@ export class ProviderSyncService {
     private readonly notifications: NotificationsService,
     private readonly status: SystemStatusService,
     @Optional() private readonly workItems?: WorkItemSyncService,
+    @Optional() private readonly securityAlerts?: SecurityAlertSyncService,
   ) {}
 
   /**
@@ -108,7 +111,7 @@ export class ProviderSyncService {
    */
   async syncRepositoryById(
     repositoryId: string,
-    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
     reportProgress?: RepositorySyncProgressReporter,
   ): Promise<boolean> {
     const syncId = this.status.beginProviderSync();
@@ -156,7 +159,7 @@ export class ProviderSyncService {
   private async syncRepository(
     repository: SyncRepository,
     progress: SyncProgress,
-    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+    scopes: ProviderSyncScope[] = ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
     reportProgress?: RepositorySyncProgressReporter,
   ): Promise<void> {
     const synchronizationStartedAt = new Date();
@@ -177,6 +180,8 @@ export class ProviderSyncService {
         accessToken: this.credentials.decrypt(refreshedRepository.providerAccount.encryptedAccessToken),
       };
       await this.workItems?.synchronize(context, refreshedRepository, adapter, scopes, reportProgress);
+      if (scopes.includes('ALERTS'))
+        await this.securityAlerts?.synchronize(context, refreshedRepository, adapter, reportProgress);
       if (!scopes.includes('WORKFLOWS')) {
         await this.markSynchronizationSuccess(repository, synchronizationStartedAt, false);
         return;

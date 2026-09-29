@@ -46,7 +46,20 @@
       :description="$t('repositoryDetails.syncStatus.staleDescription', { interval: intervalMinutes })"
     />
     <UAlert
-      v-if="repository.syncState.lastError"
+      v-if="repository.syncState.status === 'WARNING'"
+      class="mt-4"
+      color="warning"
+      icon="i-lucide-triangle-alert"
+      variant="subtle"
+      :description="
+        $t('jobs.warningKinds', {
+          kinds: repository.syncState.warningKinds.map((kind) => $t(`securityAlerts.kindTitles.${kind}`)).join(', '),
+        })
+      "
+      :title="$t('jobs.status.WARNING')"
+    />
+    <UAlert
+      v-else-if="repository.syncState.lastError"
       class="mt-4"
       color="error"
       icon="i-lucide-circle-alert"
@@ -91,9 +104,14 @@ const dataAge = computed(() => {
   if (hours < 24) return t('repositoryDetails.syncStatus.ageHours', { count: hours });
   return t('repositoryDetails.syncStatus.ageDays', { count: Math.floor(hours / 24) });
 });
-const statusLabel = computed(() => t(`repositoryDetails.syncStatus.status.${props.repository.syncState.status}`));
+const statusLabel = computed(() =>
+  props.repository.syncState.status === 'WARNING'
+    ? t('jobs.status.WARNING')
+    : t(`repositoryDetails.syncStatus.status.${props.repository.syncState.status}`),
+);
 const statusColor = computed(() => {
   if (props.repository.syncState.status === 'FAILED') return 'error';
+  if (props.repository.syncState.status === 'WARNING') return 'warning';
   if (activeJob.value) return 'info';
   return 'neutral';
 });

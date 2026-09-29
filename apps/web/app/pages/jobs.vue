@@ -27,7 +27,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-2 overflow-hidden rounded-lg sm:grid-cols-4" :aria-label="$t('jobs.summary')">
+            <div class="grid grid-cols-2 overflow-hidden rounded-lg sm:grid-cols-5" :aria-label="$t('jobs.summary')">
               <div v-for="metric in summaryMetrics" :key="metric.key" class="bg-elevated px-4 py-3">
                 <p class="text-xs uppercase tracking-wide text-muted">{{ metric.label }}</p>
                 <p class="mt-1 text-2xl font-semibold tabular-nums">{{ metric.value }}</p>
@@ -41,7 +41,7 @@
               class="min-h-24 rounded-none"
               icon="i-lucide-play"
               size="lg"
-              :disabled="!summary || summary.idle + summary.failed === 0"
+              :disabled="!summary || summary.idle + summary.failed + summary.warning === 0"
               :label="$t('jobs.runAll')"
               :loading="isPending('all')"
               @click="startAll"
@@ -108,7 +108,14 @@
         <span class="whitespace-nowrap text-xs text-muted">{{ formatTimestamp(row.original.startedAt) }}</span>
       </template>
       <template #lastError-cell="{ row }">
-        <p v-if="row.original.lastError" class="max-w-72 whitespace-normal text-xs text-error">
+        <p v-if="row.original.status === 'WARNING'" class="max-w-72 whitespace-normal text-xs text-warning">
+          {{
+            $t('jobs.warningKinds', {
+              kinds: row.original.warningKinds.map((kind) => $t(`securityAlerts.kindTitles.${kind}`)).join(', '),
+            })
+          }}
+        </p>
+        <p v-else-if="row.original.lastError" class="max-w-72 whitespace-normal text-xs text-error">
           {{ $t(`jobs.errors.${syncErrorKind(row.original.lastError)}`) }}
         </p>
         <span v-else class="text-sm text-muted">—</span>
@@ -123,7 +130,7 @@
             variant="soft"
             :aria-label="startLabel(row.original)"
             :disabled="['PENDING', 'RUNNING'].includes(row.original.status)"
-            :icon="row.original.status === 'FAILED' ? 'i-lucide-rotate-ccw' : 'i-lucide-play'"
+            :icon="['FAILED', 'WARNING'].includes(row.original.status) ? 'i-lucide-rotate-ccw' : 'i-lucide-play'"
             :label="startLabel(row.original)"
             :loading="isPending(row.original.id)"
             @click="start(row.original)"
@@ -189,6 +196,7 @@ const summaryMetrics = computed(() => [
   { key: 'running', label: t('jobs.status.RUNNING'), value: summary.value?.running ?? 0 },
   { key: 'waiting', label: t('jobs.waiting'), value: summary.value?.pending ?? 0 },
   { key: 'failed', label: t('jobs.status.FAILED'), value: summary.value?.failed ?? 0 },
+  { key: 'warning', label: t('jobs.status.WARNING'), value: summary.value?.warning ?? 0 },
   { key: 'idle', label: t('jobs.status.IDLE'), value: summary.value?.idle ?? 0 },
 ]);
 
@@ -232,14 +240,15 @@ async function start(job: RepositorySyncJob): Promise<void> {
 
 /** Return the localized action label for one repository job. */
 function startLabel(job: RepositorySyncJob): string {
-  return t(job.status === 'FAILED' ? 'jobs.retry' : 'jobs.run');
+  return t(['FAILED', 'WARNING'].includes(job.status) ? 'jobs.retry' : 'jobs.run');
 }
 
 /** Map job states to semantic badge colors. */
-function statusColor(status: RepositorySyncJobStatus): 'neutral' | 'info' | 'success' | 'error' {
+function statusColor(status: RepositorySyncJobStatus): 'neutral' | 'info' | 'success' | 'error' | 'warning' {
   if (status === 'RUNNING') return 'success';
   if (status === 'PENDING') return 'info';
   if (status === 'FAILED') return 'error';
+  if (status === 'WARNING') return 'warning';
   return 'neutral';
 }
 

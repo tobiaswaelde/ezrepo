@@ -175,7 +175,7 @@ function getProviderOAuthConfiguration(providerType: ProviderType): ProviderOAut
         authorizationUrl: 'https://github.com/login/oauth/authorize',
         clientId: ENV.GITHUB_OAUTH_CLIENT_ID,
         clientSecret: ENV.GITHUB_OAUTH_CLIENT_SECRET,
-        scopes: 'repo',
+        scopes: 'repo security_events',
         tokenUrl: 'https://github.com/login/oauth/access_token',
       };
     case 'GITLAB': {

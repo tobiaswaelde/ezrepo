@@ -150,6 +150,8 @@ test('shows global channel events and system-wide delivery history', async ({ pa
   await addChannel.click();
   const dialog = page.getByRole('dialog', { name: 'Add notification channel' });
   await expect(dialog.getByText('Events', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('checkbox', { name: 'Dependency alert opened' })).toBeVisible();
+  await expect(dialog.getByRole('checkbox', { name: 'Secret scanning alert resolved' })).toBeVisible();
   await expect(dialog.locator(':focus')).toHaveCount(1);
   await dialog.getByRole('checkbox', { name: 'Workflow failed' }).check();
   await expect(dialog.getByText('Repository filters')).toBeVisible();

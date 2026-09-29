@@ -12,6 +12,8 @@ import type {
   ProviderPullRequest,
   ProviderRepository,
   ProviderRepositoryReference,
+  ProviderSecurityAlert,
+  ProviderSecurityAlertResult,
   ProviderWebhookRequest,
   ProviderWorkItemLabel,
   ProviderWorkItemQuery,
@@ -19,7 +21,7 @@ import type {
   VerifiedWebhook,
 } from '../provider-adapter.js';
 import { PROVIDER_FETCH, buildWorkflowRunScopeKey, providerWebhookSyncScopes } from '../provider-adapter.js';
-import { providerRequestError } from '../provider-request.error.js';
+import { ProviderRequestError, providerRequestError } from '../provider-request.error.js';
 import { isWorkflowRunAwaitingApproval, normalizeWorkflowRunStatus } from '../workflow-status.js';
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -88,6 +90,51 @@ interface GitHubPullResponse extends GitHubIssueResponse {
   draft?: boolean;
   head: { ref: string };
   merged_at?: string | null;
+}
+interface GitHubDependabotAlert {
+  created_at: string;
+  dependency: { manifest_path: string; package: { ecosystem: string; name: string } };
+  dismissed_at?: string | null;
+  dismissed_reason?: string | null;
+  fixed_at?: string | null;
+  html_url: string;
+  number: number;
+  security_advisory: {
+    description?: string;
+    identifiers?: Array<{ type: string; value: string }>;
+    severity?: string;
+    summary: string;
+  } | null;
+  security_vulnerability: {
+    first_patched_version?: { identifier: string } | null;
+    vulnerable_version_range?: string;
+  } | null;
+  state: string;
+  updated_at: string;
+}
+interface GitHubCodeScanningAlert {
+  created_at: string;
+  dismissed_at?: string | null;
+  dismissed_reason?: string | null;
+  fixed_at?: string | null;
+  html_url: string;
+  most_recent_instance?: { location?: { end_line?: number; path?: string; start_line?: number } };
+  number: number;
+  rule: { description?: string; id: string; name?: string; security_severity_level?: string; severity?: string };
+  state: string;
+  tool?: { name?: string };
+  updated_at: string;
+}
+interface GitHubSecretScanningAlert {
+  created_at: string;
+  html_url: string;
+  number: number;
+  resolution?: string | null;
+  resolved_at?: string | null;
+  secret_type: string;
+  secret_type_display_name?: string;
+  state: string;
+  updated_at: string;
 }
 
 const dependabotWorkflowPath = 'dynamic/dependabot/dependabot-updates';
@@ -301,6 +348,37 @@ export class GitHubActionsAdapter implements ProviderAdapter {
   }
 
   /**
+   * Read GitHub Dependabot, code-scanning, and secret-scanning alerts independently.
+   *
+   * @param context - Provider account credentials and instance configuration.
+   * @param repository - Repository whose security alerts are requested.
+   * @returns Per-kind normalized alerts and availability.
+   */
+  async listSecurityAlerts(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+  ): Promise<ProviderSecurityAlertResult[]> {
+    const base = `/repos/${repository.owner}/${repository.name}`;
+    return Promise.all([
+      this.readAlertKind('DEPENDENCY', () =>
+        this.listAlertPages<GitHubDependabotAlert>(context, `${base}/dependabot/alerts`).then((alerts) =>
+          alerts.map((alert) => this.toDependabotAlert(alert)),
+        ),
+      ),
+      this.readAlertKind('CODE', () =>
+        this.listAlertPages<GitHubCodeScanningAlert>(context, `${base}/code-scanning/alerts`).then((alerts) =>
+          alerts.map((alert) => this.toCodeScanningAlert(alert)),
+        ),
+      ),
+      this.readAlertKind('SECRET', () =>
+        this.listAlertPages<GitHubSecretScanningAlert>(context, `${base}/secret-scanning/alerts`).then((alerts) =>
+          alerts.map((alert) => this.toSecretScanningAlert(alert)),
+        ),
+      ),
+    ]);
+  }
+
+  /**
    * Verify provider webhook authentication before returning its repository and synchronization scopes.
    *
    * @param request - Incoming request with the authentication or webhook context required by this endpoint.
@@ -366,6 +444,202 @@ export class GitHubActionsAdapter implements ProviderAdapter {
       if (result.length < 100 || (result.length > 0 && !keepReading(result[result.length - 1]!))) break;
     }
     return items;
+  }
+
+  /**
+   * Read a complete number-keyed GitHub alert collection.
+   *
+   * @typeParam T - Number-keyed GitHub alert response type.
+   * @param context - Provider account credentials and instance configuration.
+   * @param path - GitHub API path for the alert kind.
+   * @param parameters - Additional query parameters sent on every page.
+   * @returns All alerts collected across provider pages.
+   */
+  private async listAlertPages<T extends { number: number }>(
+    context: ProviderAccountContext,
+    path: string,
+    parameters: Record<string, string> = {},
+  ): Promise<T[]> {
+    const items: T[] = [];
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({ ...parameters, page: String(page), per_page: '100' });
+      const result = await this.request<T[]>(context, `${path}?${query}`);
+      items.push(...result);
+      if (result.length < 100) break;
+    }
+    return items;
+  }
+
+  /**
+   * Convert feature and permission failures into a sanitized per-kind availability result.
+   *
+   * @param kind - Normalized alert kind being read.
+   * @param read - Provider read operation for that alert kind.
+   * @returns Normalized alerts or a sanitized unavailable result.
+   * @throws Error - When the provider failure should retain normal retry behavior.
+   */
+  private async readAlertKind(
+    kind: ProviderSecurityAlertResult['kind'],
+    read: () => Promise<ProviderSecurityAlert[]>,
+  ): Promise<ProviderSecurityAlertResult> {
+    try {
+      return { alerts: await read(), availability: 'AVAILABLE', kind, reason: null };
+    } catch (error) {
+      if (error instanceof ProviderRequestError && !error.rateLimited && [403, 404].includes(error.status))
+        return {
+          alerts: [],
+          availability: 'UNAVAILABLE',
+          kind,
+          reason: 'Provider permissions, features, or licensing do not allow this alert type.',
+        };
+      throw error;
+    }
+  }
+
+  /**
+   * Normalize a GitHub Dependabot alert.
+   *
+   * @param alert - Dependabot response to normalize.
+   * @returns Safe normalized dependency alert.
+   */
+  private toDependabotAlert(alert: GitHubDependabotAlert): ProviderSecurityAlert {
+    const vulnerability = alert.security_vulnerability;
+    return {
+      description: alert.security_advisory?.description ?? null,
+      ecosystem: alert.dependency.package.ecosystem,
+      fixedVersion: vulnerability?.first_patched_version?.identifier ?? null,
+      identifiers: (alert.security_advisory?.identifiers ?? []).map(({ type, value }) => `${type}:${value}`),
+      kind: 'DEPENDENCY',
+      location: null,
+      manifest: alert.dependency.manifest_path,
+      packageName: alert.dependency.package.name,
+      providerAlertId: String(alert.number),
+      providerCreatedAt: new Date(alert.created_at),
+      providerUpdatedAt: new Date(alert.updated_at),
+      providerUrl: alert.html_url,
+      resolution: alert.dismissed_reason ?? (alert.state === 'fixed' ? 'fixed' : null),
+      resolvedAt: this.alertResolvedAt(alert),
+      ruleId: null,
+      scanner: 'Dependabot',
+      secretProvider: null,
+      secretType: null,
+      severity: this.toAlertSeverity(alert.security_advisory?.severity),
+      state: this.toAlertState(alert.state),
+      title: alert.security_advisory?.summary ?? `Dependency alert #${alert.number}`,
+      tool: null,
+      vulnerableRange: vulnerability?.vulnerable_version_range ?? null,
+    };
+  }
+
+  /**
+   * Normalize a GitHub code-scanning alert with an allowlisted location.
+   *
+   * @param alert - Code-scanning response to normalize.
+   * @returns Safe normalized code alert.
+   */
+  private toCodeScanningAlert(alert: GitHubCodeScanningAlert): ProviderSecurityAlert {
+    const location = alert.most_recent_instance?.location;
+    return {
+      description: alert.rule.description ?? null,
+      ecosystem: null,
+      fixedVersion: null,
+      identifiers: [alert.rule.id],
+      kind: 'CODE',
+      location: location
+        ? {
+            ...(location.path ? { path: location.path } : {}),
+            ...(location.start_line === undefined ? {} : { startLine: location.start_line }),
+            ...(location.end_line === undefined ? {} : { endLine: location.end_line }),
+          }
+        : null,
+      manifest: null,
+      packageName: null,
+      providerAlertId: String(alert.number),
+      providerCreatedAt: new Date(alert.created_at),
+      providerUpdatedAt: new Date(alert.updated_at),
+      providerUrl: alert.html_url,
+      resolution: alert.dismissed_reason ?? (alert.fixed_at ? 'fixed' : null),
+      resolvedAt: this.alertResolvedAt(alert),
+      ruleId: alert.rule.id,
+      scanner: alert.tool?.name ?? null,
+      secretProvider: null,
+      secretType: null,
+      severity: this.toAlertSeverity(alert.rule.security_severity_level ?? alert.rule.severity),
+      state: this.toAlertState(alert.state),
+      title: alert.rule.name ?? alert.rule.description ?? alert.rule.id,
+      tool: alert.tool?.name ?? null,
+      vulnerableRange: null,
+    };
+  }
+
+  /**
+   * Normalize secret-scanning metadata without retaining the detected secret or raw location payload.
+   *
+   * @param alert - Secret-scanning response to normalize.
+   * @returns Safe normalized secret alert.
+   */
+  private toSecretScanningAlert(alert: GitHubSecretScanningAlert): ProviderSecurityAlert {
+    return {
+      description: null,
+      ecosystem: null,
+      fixedVersion: null,
+      identifiers: [alert.secret_type],
+      kind: 'SECRET',
+      location: null,
+      manifest: null,
+      packageName: null,
+      providerAlertId: String(alert.number),
+      providerCreatedAt: new Date(alert.created_at),
+      providerUpdatedAt: new Date(alert.updated_at),
+      providerUrl: alert.html_url,
+      resolution: alert.resolution ?? null,
+      resolvedAt: alert.resolved_at ? new Date(alert.resolved_at) : null,
+      ruleId: null,
+      scanner: 'GitHub Secret Scanning',
+      secretProvider: null,
+      secretType: alert.secret_type,
+      severity: 'UNKNOWN',
+      state: this.toAlertState(alert.state),
+      title: alert.secret_type_display_name ?? alert.secret_type,
+      tool: null,
+      vulnerableRange: null,
+    };
+  }
+
+  /**
+   * Normalize provider alert state, treating dismissals as a distinct terminal state.
+   *
+   * @param state - Provider alert state.
+   * @returns Shared alert state.
+   */
+  private toAlertState(state: string): ProviderSecurityAlert['state'] {
+    if (state === 'open') return 'OPEN';
+    if (state === 'dismissed' || state === 'auto_dismissed') return 'DISMISSED';
+    return 'RESOLVED';
+  }
+
+  /**
+   * Normalize provider severities into the shared ordered values.
+   *
+   * @param value - Provider severity value.
+   * @returns Shared severity value.
+   */
+  private toAlertSeverity(value: string | null | undefined): ProviderSecurityAlert['severity'] {
+    const severity = value?.toLocaleUpperCase('en-US');
+    return severity && ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'].includes(severity)
+      ? (severity as ProviderSecurityAlert['severity'])
+      : 'UNKNOWN';
+  }
+
+  /**
+   * Resolve the first available terminal timestamp without storing provider payloads.
+   *
+   * @param alert - Provider alert terminal timestamps.
+   * @returns Terminal timestamp or null for open alerts.
+   */
+  private alertResolvedAt(alert: { dismissed_at?: string | null; fixed_at?: string | null }): Date | null {
+    const value = alert.fixed_at ?? alert.dismissed_at;
+    return value ? new Date(value) : null;
   }
 
   /**

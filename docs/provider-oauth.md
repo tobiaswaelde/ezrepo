@@ -38,8 +38,13 @@ explicit base URL when its OAuth client is configured.
 
 Use these scopes when registering the application:
 
-- GitHub: `repo`. GitHub's OAuth application scope covers repository access, including private repositories.
+- GitHub: `repo security_events`. Existing OAuth accounts must be reauthorized before ezRepo can read security alerts.
 - GitLab: `read_api read_user`.
+
+Fine-grained GitHub personal access tokens need read access to Dependabot alerts, code scanning alerts, and secret
+scanning alerts. GitLab security alert access additionally depends on the instance license and the token owner's
+project role; unavailable alert types are shown without failing other repository synchronization scopes.
+
 - Forgejo: `read:repository`.
 - Gitea: configure a personal access token with read access in the Gitea provider-account form, including the
   instance base URL. ezRepo does not currently offer a shared Gitea OAuth client because every self-hosted

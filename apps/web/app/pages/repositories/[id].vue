@@ -62,6 +62,11 @@
         <ModulesRepositoriesDetailsActivitySection kind="workflowRuns" :repository-id="repository.id" />
         <ModulesRepositoriesDetailsActivitySection kind="issues" :repository-id="repository.id" />
         <ModulesRepositoriesDetailsActivitySection kind="pullRequests" :repository-id="repository.id" />
+        <ModulesRepositoriesDetailsActivitySection
+          v-if="canViewAlerts"
+          kind="securityAlerts"
+          :repository-id="repository.id"
+        />
       </div>
 
       <section v-if="isAdmin" id="settings" class="space-y-4">
@@ -111,6 +116,7 @@ const webhookConfiguration = ref<RepositoryWebhookConfiguration>();
 const webhookConfigurationLoading = ref(false);
 const webhookConfigurationError = ref(false);
 const isAdmin = computed(() => auth.user?.role === 'SYSTEM_ADMIN');
+const canViewAlerts = computed(() => ['MANAGER', 'SYSTEM_ADMIN'].includes(auth.user?.role ?? ''));
 const repositoryName = computed(() =>
   repository.value ? `${repository.value.owner}/${repository.value.name}` : t('repositoryDetails.title'),
 );

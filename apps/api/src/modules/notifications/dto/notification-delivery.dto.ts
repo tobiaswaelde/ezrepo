@@ -19,6 +19,7 @@ export type DeliveryHistoryModel = NotificationDelivery & {
   notificationChannel: { id: string; name: string; type: NotificationChannelType };
   pullRequest?: { id: string; number: string; title: string; url: string } | null;
   repository?: { id: string; name: string; owner: string } | null;
+  securityAlert?: { id: string; kind: string; providerUrl: string; title: string } | null;
   requestedBy?: { username: string } | null;
   workflowRun?: { id: string; url: string; workflowName: string } | null;
 };
@@ -89,7 +90,7 @@ export class NotificationDeliveryDto {
   @ApiPropertyOptional()
   repositoryName!: string | null;
   @ApiPropertyOptional()
-  subjectKind!: 'WORKFLOW_RUN' | 'PULL_REQUEST' | 'ISSUE' | null;
+  subjectKind!: 'WORKFLOW_RUN' | 'PULL_REQUEST' | 'ISSUE' | 'SECURITY_ALERT' | null;
   @ApiPropertyOptional()
   subjectTitle!: string | null;
   @ApiPropertyOptional()
@@ -122,7 +123,9 @@ export class NotificationDeliveryDto {
         ? 'PULL_REQUEST'
         : model.issue
           ? 'ISSUE'
-          : null;
+          : model.securityAlert
+            ? 'SECURITY_ALERT'
+            : null;
     return {
       id: model.id,
       kind: model.kind,
@@ -137,8 +140,15 @@ export class NotificationDeliveryDto {
       subjectTitle:
         model.workflowRun?.workflowName ??
         (model.pullRequest ? `#${model.pullRequest.number} ${model.pullRequest.title}` : undefined) ??
-        (model.issue ? `#${model.issue.number} ${model.issue.title}` : null),
-      subjectUrl: model.workflowRun?.url ?? model.pullRequest?.url ?? model.issue?.url ?? null,
+        (model.issue ? `#${model.issue.number} ${model.issue.title}` : undefined) ??
+        model.securityAlert?.title ??
+        null,
+      subjectUrl:
+        model.workflowRun?.url ??
+        model.pullRequest?.url ??
+        model.issue?.url ??
+        model.securityAlert?.providerUrl ??
+        null,
       requestedByUsername: model.requestedBy?.username ?? null,
       status: model.status,
       finalError: model.finalError,

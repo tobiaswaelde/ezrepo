@@ -68,9 +68,9 @@ describe('repository synchronization jobs integration', () => {
   afterAll(async () => prisma.onModuleDestroy());
 
   it.each([
-    ['admin', 2, { failed: 1, idle: 1, pending: 0, running: 0, total: 2 }],
-    ['viewer', 1, { failed: 0, idle: 1, pending: 0, running: 0, total: 1 }],
-    ['outsider', 0, { failed: 0, idle: 0, pending: 0, running: 0, total: 0 }],
+    ['admin', 2, { failed: 1, idle: 1, pending: 0, running: 0, total: 2, warning: 0 }],
+    ['viewer', 1, { failed: 0, idle: 1, pending: 0, running: 0, total: 1, warning: 0 }],
+    ['outsider', 0, { failed: 0, idle: 0, pending: 0, running: 0, total: 0, warning: 0 }],
   ] as const)('restricts the %s job list and summary to visible repositories', async (role, count, summary) => {
     const result = await jobs.query(users[role], { page: 1, perPage: 10 });
 

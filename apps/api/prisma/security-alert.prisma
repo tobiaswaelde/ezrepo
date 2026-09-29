@@ -1,0 +1,85 @@
+enum SecurityAlertKind {
+  DEPENDENCY
+  CODE
+  SECRET
+}
+
+enum SecurityAlertState {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum SecurityAlertSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+  UNKNOWN
+}
+
+enum SecurityAlertAvailability {
+  AVAILABLE
+  UNAVAILABLE
+  UNSUPPORTED
+}
+
+model SecurityAlert {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kind              SecurityAlertKind
+  state             SecurityAlertState
+  severity          SecurityAlertSeverity
+  providerAlertId   String                @db.VarChar(255)
+  title             String                @db.VarChar(1024)
+  description       String?               @db.Text
+  identifiers       String[]
+  scanner           String?               @db.VarChar(255)
+  providerCreatedAt DateTime
+  providerUpdatedAt DateTime
+  resolvedAt        DateTime?
+  resolution        String?               @db.VarChar(255)
+  providerUrl       String                @db.VarChar(2048)
+  packageName       String?               @db.VarChar(512)
+  ecosystem         String?               @db.VarChar(255)
+  manifest          String?               @db.VarChar(1024)
+  vulnerableRange   String?               @db.VarChar(1024)
+  fixedVersion      String?               @db.VarChar(255)
+  ruleId            String?               @db.VarChar(255)
+  tool              String?               @db.VarChar(255)
+  secretType        String?               @db.VarChar(255)
+  secretProvider    String?               @db.VarChar(255)
+  location          Json?
+
+  repositoryId           String                 @db.Uuid
+  repository             Repository             @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  notificationDeliveries NotificationDelivery[]
+
+  @@unique([repositoryId, kind, providerAlertId])
+  @@index([repositoryId, kind, state, severity])
+  @@index([providerUpdatedAt])
+  @@map("security_alerts")
+}
+
+model SecurityAlertSyncState {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kind                 SecurityAlertKind
+  availability         SecurityAlertAvailability
+  reason               String?                   @db.VarChar(512)
+  lastSuccessfulSyncAt DateTime?
+  synchronizedThrough  DateTime?
+  baselineEstablished  Boolean                   @default(false)
+
+  repositoryId String     @db.Uuid
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, kind])
+  @@index([availability, kind])
+  @@map("security_alert_sync_states")
+}

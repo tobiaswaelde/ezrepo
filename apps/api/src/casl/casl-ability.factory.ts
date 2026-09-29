@@ -36,6 +36,7 @@ export class CaslAbilityFactory {
       can(CaslAction.Read, CaslSubject.WorkflowRun, { repositoryId: { in: [] } });
       can(CaslAction.Read, CaslSubject.Issue, { repositoryId: { in: [] } });
       can(CaslAction.Read, CaslSubject.PullRequest, { repositoryId: { in: [] } });
+      can(CaslAction.Read, CaslSubject.SecurityAlert, { repositoryId: { in: [] } });
       return build();
     }
 
@@ -51,6 +52,7 @@ export class CaslAbilityFactory {
 
       if (managedRepositoryIds.length > 0) {
         can(CaslAction.Update, CaslSubject.Repository, { id: { in: managedRepositoryIds } });
+        can(CaslAction.Read, CaslSubject.SecurityAlert, { repositoryId: { in: managedRepositoryIds } });
       }
     }
 

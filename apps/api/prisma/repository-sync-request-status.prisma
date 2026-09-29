@@ -2,4 +2,5 @@ enum RepositorySyncRequestStatus {
   PENDING
   RUNNING
   FAILED
+  WARNING
 }

@@ -8,7 +8,11 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../auth/types.js';
 import { WorkflowRunsQueryService, type WorkflowRunTypeMap } from '../workflow-runs/workflow-runs-query.service.js';
-import type { DashboardStatusDistributionDto, DashboardSummaryDto } from './dto/dashboard-summary.dto.js';
+import type {
+  DashboardSecurityAlertSummaryDto,
+  DashboardStatusDistributionDto,
+  DashboardSummaryDto,
+} from './dto/dashboard-summary.dto.js';
 import type { DashboardWorkflowRunModel } from './dto/dashboard-workflow-run.dto.js';
 import type { RepositoryHealthDto } from './dto/repository-health.dto.js';
 import type {
@@ -134,7 +138,7 @@ export class DashboardService {
     const visibleRepositoryWhere = accessibleBy(ability, CaslAction.Read).ofType(
       CaslSubject.Repository as never,
     ) as Prisma.RepositoryWhereInput;
-    const [completedRuns, activeRuns, currentDuration, retainedDuration] = await Promise.all([
+    const [completedRuns, activeRuns, currentDuration, retainedDuration, securityAlerts] = await Promise.all([
       this.workflowRuns.findMany<DashboardSummaryRun>(
         {
           select: dashboardSummarySelect,
@@ -151,6 +155,7 @@ export class DashboardService {
       ),
       this.prisma.workflowRun.aggregate({ _sum: { durationMs: true }, where: visibleRunWhere }),
       this.prisma.repository.aggregate({ _sum: { retainedRunDurationMs: true }, where: visibleRepositoryWhere }),
+      this.getSecurityAlertSummary(user),
     ]);
     const statuses = this.countStatuses(completedRuns);
     const decidedCount = statuses.success + statuses.failed;
@@ -162,9 +167,50 @@ export class DashboardService {
       queuedCount: activeRuns.filter((run) => run.status === 'QUEUED').length,
       runningCount: activeRuns.filter((run) => run.status === 'RUNNING').length,
       statuses,
+      ...(securityAlerts ? { securityAlerts } : {}),
       successRate: decidedCount === 0 ? 0 : this.roundPercentage((statuses.success / decidedCount) * 100),
       totalRunDurationMs:
         Number(currentDuration._sum.durationMs ?? 0) + Number(retainedDuration._sum.retainedRunDurationMs ?? 0n),
+    };
+  }
+
+  /**
+   * Return open alert counters only for managers and system administrators.
+   *
+   * @param user - Authenticated dashboard caller.
+   * @returns Permission-scoped alert counters, or null for viewers.
+   */
+  private async getSecurityAlertSummary(user: AuthenticatedUser): Promise<DashboardSecurityAlertSummaryDto | null> {
+    if (user.role === 'VIEWER') return null;
+    const repositoryIds =
+      user.role === 'SYSTEM_ADMIN'
+        ? undefined
+        : (
+            await this.prisma.repositoryMembership.findMany({
+              select: { repositoryId: true },
+              where: { role: 'MANAGER', userId: user.id },
+            })
+          ).map(({ repositoryId }) => repositoryId);
+    const where: Prisma.SecurityAlertWhereInput = {
+      state: 'OPEN',
+      ...(repositoryIds === undefined ? {} : { repositoryId: { in: repositoryIds } }),
+    };
+    const [kinds, severities] = await Promise.all([
+      this.prisma.securityAlert.groupBy({ by: ['kind'], _count: true, where }),
+      this.prisma.securityAlert.groupBy({ by: ['severity'], _count: true, where }),
+    ]);
+    const kind = new Map(kinds.map((entry) => [entry.kind, entry._count]));
+    const severity = new Map(severities.map((entry) => [entry.severity, entry._count]));
+    return {
+      code: kind.get('CODE') ?? 0,
+      critical: severity.get('CRITICAL') ?? 0,
+      dependency: kind.get('DEPENDENCY') ?? 0,
+      high: severity.get('HIGH') ?? 0,
+      info: severity.get('INFO') ?? 0,
+      low: severity.get('LOW') ?? 0,
+      medium: severity.get('MEDIUM') ?? 0,
+      secret: kind.get('SECRET') ?? 0,
+      unknown: severity.get('UNKNOWN') ?? 0,
     };
   }
 

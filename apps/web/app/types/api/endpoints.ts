@@ -9,6 +9,7 @@ import type {
   PullRequest,
   Repository,
   RepositorySyncJob,
+  SecurityAlert,
   UpdateNotificationChannel,
   User,
   WorkflowRun,
@@ -50,6 +51,7 @@ export const apiEndpoints = {
   workflowRuns: 'workflow-runs',
   issues: 'issues',
   pullRequests: 'pull-requests',
+  securityAlerts: 'security-alerts',
 } as const;
 
 /** Resource endpoints that use the shared Query Kit pagination contract. */
@@ -88,6 +90,7 @@ export interface Endpoints {
   };
   issues: { create: never; dto: Issue; update: never };
   'pull-requests': { create: never; dto: PullRequest; update: never };
+  'security-alerts': { create: never; dto: SecurityAlert; update: never };
 }
 
 /** Name of a resource endpoint that uses the shared Query Kit pagination contract. */

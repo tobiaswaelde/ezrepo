@@ -183,6 +183,35 @@ describe('NotificationsService', () => {
     expect(prisma.notificationDelivery.createMany).not.toHaveBeenCalled();
   });
 
+  it('queues a deduplicated security-alert delivery with only the alert reference', async () => {
+    const { delivery, prisma, service } = createService();
+    prisma.notificationChannel.findMany.mockResolvedValue([
+      {
+        eventSubscriptions: [{ eventType: 'SECRET_ALERT_OPENED', repositories: [], workflowPatterns: [] }],
+        id: 'channel-a',
+      },
+    ]);
+    prisma.notificationDelivery.findMany.mockResolvedValue([{ id: 'delivery-a' }]);
+
+    await service.emitSecurityAlertEvent('SECRET_ALERT_OPENED', {
+      id: 'alert-a',
+      providerUpdatedAt: new Date('2026-09-29T00:00:00Z'),
+      repositoryId: 'repository-a',
+    });
+
+    expect(prisma.notificationDelivery.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          deduplicationKey: 'security-alert:alert-a:SECRET_ALERT_OPENED:2026-09-29T00:00:00.000Z',
+          eventType: 'SECRET_ALERT_OPENED',
+          securityAlertId: 'alert-a',
+        }),
+      ],
+      skipDuplicates: true,
+    });
+    expect(delivery.deliverPending).toHaveBeenCalledWith(['delivery-a']);
+  });
+
   it('previews matching workflow runs without creating a delivery', async () => {
     const { delivery, prisma, service } = createService();
     prisma.repository.count.mockResolvedValue(1);

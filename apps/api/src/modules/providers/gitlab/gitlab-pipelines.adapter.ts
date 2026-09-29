@@ -12,6 +12,8 @@ import type {
   ProviderPullRequest,
   ProviderRepository,
   ProviderRepositoryReference,
+  ProviderSecurityAlert,
+  ProviderSecurityAlertResult,
   ProviderWebhookRequest,
   ProviderWorkItemQuery,
   ProviderWorkflowRun,
@@ -82,6 +84,36 @@ interface GitLabPullRequestResponse extends GitLabIssue {
   source_branch: string;
   target_branch: string;
   work_in_progress?: boolean;
+}
+interface GitLabVulnerability {
+  description?: string | null;
+  detectedAt: string;
+  id: string;
+  identifiers?: Array<{ externalId?: string; externalType?: string; name?: string }>;
+  location?: {
+    blobPath?: string;
+    dependency?: { package?: { name?: string }; version?: string };
+    file?: string;
+  } | null;
+  reportType: string;
+  resolvedAt?: string | null;
+  scanner?: { name?: string } | null;
+  severity: string;
+  state: string;
+  title: string;
+  updatedAt?: string;
+  webUrl?: string;
+}
+interface GitLabVulnerabilityPage {
+  data?: {
+    project?: {
+      vulnerabilities?: {
+        nodes: GitLabVulnerability[];
+        pageInfo: { endCursor?: string | null; hasNextPage: boolean };
+      };
+    };
+  };
+  errors?: Array<{ message?: string }>;
 }
 
 /** GitLab adapter that only reads projects and pipelines. */
@@ -302,6 +334,39 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
   }
 
   /**
+   * Read GitLab dependency, SAST, and secret-detection vulnerabilities through GraphQL.
+   *
+   * @param context - Provider account credentials and instance configuration.
+   * @param repository - Repository whose vulnerabilities are requested.
+   * @returns Per-kind normalized alerts and availability.
+   * @throws Error - When a transient provider failure should retain normal retry behavior.
+   */
+  async listSecurityAlerts(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+  ): Promise<ProviderSecurityAlertResult[]> {
+    const kinds = ['DEPENDENCY', 'CODE', 'SECRET'] as const;
+    try {
+      const vulnerabilities = await this.listVulnerabilities(context, repository);
+      return kinds.map((kind) => ({
+        alerts: vulnerabilities.filter((alert) => alert.kind === kind),
+        availability: 'AVAILABLE',
+        kind,
+        reason: null,
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'GITLAB_SECURITY_UNAVAILABLE')
+        return kinds.map((kind) => ({
+          alerts: [],
+          availability: 'UNAVAILABLE',
+          kind,
+          reason: 'Provider permissions, features, or licensing do not allow security vulnerabilities.',
+        }));
+      throw error;
+    }
+  }
+
+  /**
    * Verify provider webhook authentication before returning its repository and synchronization scopes.
    *
    * @param request - Incoming request with the authentication or webhook context required by this endpoint.
@@ -400,6 +465,112 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
     const response = await this.fetchFn(this.url(context, path), { headers: this.headers(context) });
     if (!response.ok) throw providerRequestError('GitLab', response);
     return (await response.json()) as T;
+  }
+
+  /**
+   * Read all GitLab vulnerability pages and retain only supported report types.
+   *
+   * @param context - Provider account credentials and instance configuration.
+   * @param repository - Repository whose vulnerabilities are requested.
+   * @returns Supported normalized security alerts.
+   * @throws Error - When GraphQL is unavailable or a provider read fails.
+   */
+  private async listVulnerabilities(
+    context: ProviderAccountContext,
+    repository: ProviderRepositoryReference,
+  ): Promise<ProviderSecurityAlert[]> {
+    const alerts: ProviderSecurityAlert[] = [];
+    const providerUrl = `${this.graphqlUrl(context).replace(/\/api\/graphql$/, '')}/${repository.owner}/${repository.name}/-/security/vulnerability_report`;
+    let cursor: string | null = null;
+    do {
+      const response = await this.fetchFn(this.graphqlUrl(context), {
+        body: JSON.stringify({
+          query:
+            'query($fullPath: ID!, $after: String) { project(fullPath: $fullPath) { vulnerabilities(first: 100, after: $after) { nodes { id title description severity state reportType detectedAt resolvedAt updatedAt webUrl scanner { name } identifiers { name externalType externalId } location { ... on VulnerabilityLocationDependencyScanning { blobPath dependency { package { name } version } } ... on VulnerabilityLocationSast { file } ... on VulnerabilityLocationSecretDetection { file } } } pageInfo { hasNextPage endCursor } } } }',
+          variables: { after: cursor, fullPath: `${repository.owner}/${repository.name}` },
+        }),
+        headers: { ...this.headers(context), 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      if (!response.ok) {
+        if ([403, 404].includes(response.status)) throw new Error('GITLAB_SECURITY_UNAVAILABLE');
+        throw providerRequestError('GitLab', response);
+      }
+      const page = (await response.json()) as GitLabVulnerabilityPage;
+      if (page.errors?.length || !page.data?.project?.vulnerabilities) throw new Error('GITLAB_SECURITY_UNAVAILABLE');
+      const collection = page.data.project.vulnerabilities;
+      alerts.push(...collection.nodes.flatMap((alert) => this.toSecurityAlert(alert, providerUrl)));
+      cursor = collection.pageInfo.hasNextPage ? (collection.pageInfo.endCursor ?? null) : null;
+    } while (cursor);
+    return alerts;
+  }
+
+  /**
+   * Normalize a supported GitLab vulnerability while allowlisting safe location fields.
+   *
+   * @param alert - GitLab vulnerability to normalize.
+   * @param providerUrl - Safe repository vulnerability-report fallback URL.
+   * @returns Zero or one safe normalized alert.
+   */
+  private toSecurityAlert(alert: GitLabVulnerability, providerUrl: string): ProviderSecurityAlert[] {
+    const kind =
+      alert.reportType === 'DEPENDENCY_SCANNING'
+        ? 'DEPENDENCY'
+        : alert.reportType === 'SAST'
+          ? 'CODE'
+          : alert.reportType === 'SECRET_DETECTION'
+            ? 'SECRET'
+            : null;
+    if (!kind) return [];
+    const locationValue = alert.location?.blobPath ?? alert.location?.file;
+    const state = ['DETECTED', 'CONFIRMED'].includes(alert.state)
+      ? 'OPEN'
+      : alert.state === 'DISMISSED'
+        ? 'DISMISSED'
+        : 'RESOLVED';
+    return [
+      {
+        description: kind === 'SECRET' ? null : (alert.description ?? null),
+        ecosystem: null,
+        fixedVersion: null,
+        identifiers: (alert.identifiers ?? []).map(
+          ({ externalId, externalType, name }) =>
+            [externalType, externalId].filter(Boolean).join(':') || name || 'unknown',
+        ),
+        kind,
+        location: locationValue ? { path: locationValue } : null,
+        manifest: kind === 'DEPENDENCY' ? (locationValue ?? null) : null,
+        packageName: kind === 'DEPENDENCY' ? (alert.location?.dependency?.package?.name ?? null) : null,
+        providerAlertId: alert.id,
+        providerCreatedAt: new Date(alert.detectedAt),
+        providerUpdatedAt: new Date(alert.updatedAt ?? alert.detectedAt),
+        providerUrl: alert.webUrl ?? providerUrl,
+        resolution: state === 'OPEN' ? null : alert.state.toLocaleLowerCase('en-US'),
+        resolvedAt: alert.resolvedAt ? new Date(alert.resolvedAt) : null,
+        ruleId: kind === 'CODE' ? (alert.identifiers?.[0]?.externalId ?? null) : null,
+        scanner: alert.scanner?.name ?? null,
+        secretProvider: null,
+        secretType: kind === 'SECRET' ? (alert.identifiers?.[0]?.name ?? null) : null,
+        severity: this.toSecuritySeverity(alert.severity),
+        state,
+        title: alert.title,
+        tool: alert.scanner?.name ?? null,
+        vulnerableRange: kind === 'DEPENDENCY' ? (alert.location?.dependency?.version ?? null) : null,
+      },
+    ];
+  }
+
+  /**
+   * Normalize GitLab vulnerability severity.
+   *
+   * @param value - GitLab severity value.
+   * @returns Shared severity value.
+   */
+  private toSecuritySeverity(value: string): ProviderSecurityAlert['severity'] {
+    const severity = value.toLocaleUpperCase('en-US');
+    return ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'].includes(severity)
+      ? (severity as ProviderSecurityAlert['severity'])
+      : 'UNKNOWN';
   }
   /**
    * Read provider pages until exhausted or the synchronization boundary is reached.
@@ -555,6 +726,18 @@ export class GitLabPipelinesAdapter implements ProviderAdapter {
   private url(context: ProviderAccountContext, path: string): string {
     const baseUrl = (context.baseUrl ?? 'https://gitlab.com').replace(/\/$/, '');
     return `${baseUrl.endsWith('/api/v4') ? baseUrl : `${baseUrl}/api/v4`}${path}`;
+  }
+
+  /**
+   * Resolve the GraphQL endpoint for GitLab.com or a self-hosted instance.
+   *
+   * @param context - Provider account instance configuration.
+   * @returns Absolute GraphQL endpoint.
+   */
+  private graphqlUrl(context: ProviderAccountContext): string {
+    const configured = (context.baseUrl ?? 'https://gitlab.com').replace(/\/$/, '');
+    const baseUrl = configured.endsWith('/api/v4') ? configured.slice(0, -7) : configured;
+    return `${baseUrl}/api/graphql`;
   }
   /**
    * Normalize a provider run, retaining lifecycle, timing, workflow identity, and change-request scope.

@@ -170,7 +170,7 @@ describe('ForgejoActionsAdapter', () => {
     ).resolves.toEqual({
       event: 'push',
       providerRepositoryId: '42',
-      syncScopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS'],
+      syncScopes: ['WORKFLOWS', 'ISSUES', 'PULL_REQUESTS', 'ALERTS'],
     });
   });
 });

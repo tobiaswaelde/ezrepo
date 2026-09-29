@@ -324,3 +324,89 @@ describe('GitHubActionsAdapter change requests', () => {
     await expect(adapter.getChangeRequestState(context, repository, '42')).resolves.toBeNull();
   });
 });
+
+describe('GitHubActionsAdapter security alerts', () => {
+  const context = { accessToken: 'token', baseUrl: null, providerAccountId: 'account' };
+  const repository = { name: 'ezrepo', owner: 'octo', providerRepositoryId: '1' };
+
+  it('normalizes all three alert APIs without retaining secret material', async () => {
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              created_at: '2026-09-01T00:00:00Z',
+              dependency: { manifest_path: 'package.json', package: { ecosystem: 'npm', name: 'vite' } },
+              html_url: 'https://github.test/dependabot/1',
+              number: 1,
+              security_advisory: { identifiers: [{ type: 'CVE', value: 'CVE-1' }], severity: 'high', summary: 'Vite' },
+              security_vulnerability: { vulnerable_version_range: '<1.0.0' },
+              state: 'open',
+              updated_at: '2026-09-02T00:00:00Z',
+            },
+          ]),
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              created_at: '2026-09-01T00:00:00Z',
+              html_url: 'https://github.test/code/2',
+              most_recent_instance: { location: { path: 'src/index.ts', start_line: 4 } },
+              number: 2,
+              rule: { id: 'js/rule', name: 'Rule', security_severity_level: 'medium' },
+              state: 'open',
+              tool: { name: 'CodeQL' },
+              updated_at: '2026-09-02T00:00:00Z',
+            },
+          ]),
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              created_at: '2026-09-01T00:00:00Z',
+              html_url: 'https://github.test/secret/3',
+              locations_url: 'https://api.github.test/secret/locations',
+              number: 3,
+              secret: 'must-not-survive',
+              secret_type: 'github_personal_access_token',
+              state: 'open',
+              updated_at: '2026-09-02T00:00:00Z',
+            },
+          ]),
+        ),
+      );
+
+    const result = await new GitHubActionsAdapter(fetchFn).listSecurityAlerts(context, repository);
+
+    expect(result).toMatchObject([
+      { alerts: [{ kind: 'DEPENDENCY', packageName: 'vite', severity: 'HIGH' }], availability: 'AVAILABLE' },
+      { alerts: [{ kind: 'CODE', location: { path: 'src/index.ts', startLine: 4 } }], availability: 'AVAILABLE' },
+      {
+        alerts: [{ kind: 'SECRET', location: null, secretType: 'github_personal_access_token' }],
+        availability: 'AVAILABLE',
+      },
+    ]);
+    expect(JSON.stringify(result)).not.toContain('must-not-survive');
+    expect(JSON.stringify(result)).not.toContain('locations_url');
+    expect(fetchFn.mock.calls.every(([url]) => !String(url).includes('state=all'))).toBe(true);
+  });
+
+  it('keeps unavailable alert kinds independent', async () => {
+    const fetchFn = jest
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 403 }))
+      .mockResolvedValueOnce(new Response('[]'))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+    await expect(new GitHubActionsAdapter(fetchFn).listSecurityAlerts(context, repository)).resolves.toMatchObject([
+      { availability: 'UNAVAILABLE', kind: 'DEPENDENCY' },
+      { alerts: [], availability: 'AVAILABLE', kind: 'CODE' },
+      { availability: 'UNAVAILABLE', kind: 'SECRET' },
+    ]);
+  });
+});

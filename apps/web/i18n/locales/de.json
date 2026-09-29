@@ -179,7 +179,7 @@
       "scopes": "Bereiche",
       "status": "Status"
     },
-    "description": "Synchronisiert Workflows, Issues und Pull Requests von den konfigurierten Anbietern.",
+    "description": "Synchronisiert Workflows, Issues, Pull Requests und Sicherheitswarnungen von den konfigurierten Anbietern.",
     "empty": "Es sind keine aktivierten Repository-Synchronisierungsjobs verfügbar.",
     "errors": {
       "invalidCredentials": "Der Anbieter hat die konfigurierten Zugangsdaten abgelehnt.",
@@ -195,18 +195,26 @@
       "PROCESSING_WORKFLOWS": "Workflows verarbeiten",
       "REFRESHING_CHANGE_REQUESTS": "Änderungsanfragen aktualisieren",
       "SYNCING_ISSUES": "Issues synchronisieren",
-      "SYNCING_PULL_REQUESTS": "Pull Requests synchronisieren"
+      "SYNCING_PULL_REQUESTS": "Pull Requests synchronisieren",
+      "SYNCING_ALERTS": "Sicherheitswarnungen synchronisieren"
     },
     "progressCount": "{phase}: {current}/{total}",
     "repositorySync": "Repository-Synchronisierung",
     "retry": "Erneut versuchen",
     "run": "Starten",
     "runAll": "Alle starten",
-    "scopes": { "ISSUES": "Issues", "PULL_REQUESTS": "Pull Requests", "WORKFLOWS": "Workflows" },
-    "status": { "FAILED": "Fehlgeschlagen", "IDLE": "Inaktiv", "PENDING": "Wartend", "RUNNING": "Läuft" },
+    "scopes": { "ALERTS": "Warnungen", "ISSUES": "Issues", "PULL_REQUESTS": "Pull Requests", "WORKFLOWS": "Workflows" },
+    "status": {
+      "FAILED": "Fehlgeschlagen",
+      "IDLE": "Inaktiv",
+      "PENDING": "Wartend",
+      "RUNNING": "Läuft",
+      "WARNING": "Warnung"
+    },
     "summary": "Status der Repository-Synchronisierung",
     "title": "Jobs",
-    "waiting": "Wartend"
+    "waiting": "Wartend",
+    "warningKinds": "Nicht verfügbare Warnungstypen: {kinds}"
   },
   "layout": {
     "administration": "Verwaltung",
@@ -643,6 +651,10 @@
       "workflowPatterns": "Workflow-Muster"
     },
     "events": {
+      "CODE_ALERT_OPENED": "Code-Scanning-Warnung geöffnet",
+      "CODE_ALERT_RESOLVED": "Code-Scanning-Warnung behoben",
+      "DEPENDENCY_ALERT_OPENED": "Abhängigkeitswarnung geöffnet",
+      "DEPENDENCY_ALERT_RESOLVED": "Abhängigkeitswarnung behoben",
       "ISSUE_CLOSED": "Issue geschlossen",
       "ISSUE_OPENED": "Neues Issue",
       "ISSUE_REOPENED": "Issue wieder geöffnet",
@@ -650,6 +662,8 @@
       "PULL_REQUEST_MERGED": "Pull Request gemergt",
       "PULL_REQUEST_OPENED": "Neuer Pull Request",
       "PULL_REQUEST_REOPENED": "Pull Request wieder geöffnet",
+      "SECRET_ALERT_OPENED": "Secret-Scanning-Warnung geöffnet",
+      "SECRET_ALERT_RESOLVED": "Secret-Scanning-Warnung behoben",
       "WORKFLOW_RUN_FAILED": "Workflow fehlgeschlagen",
       "WORKFLOW_RUN_RECOVERED": "Workflow nach Fehler wieder erfolgreich",
       "WORKFLOW_RUN_SUCCEEDED": "Workflow erfolgreich"
@@ -821,7 +835,12 @@
     }
   },
   "repositoryDetails": {
-    "activity": { "issues": "Issues", "pullRequests": "Pull Requests", "workflowRuns": "Workflow-Runs" },
+    "activity": {
+      "issues": "Issues",
+      "pullRequests": "Pull Requests",
+      "securityAlerts": "Sicherheitswarnungen",
+      "workflowRuns": "Workflow-Runs"
+    },
     "activityEmpty": "Für dieses Repository wurden keine {resource} gefunden.",
     "activityLoadError": "{resource} konnten nicht geladen werden.",
     "settings": "Repository-Einstellungen",
@@ -879,6 +898,49 @@
     "user": "Benutzer",
     "workflowFilters": "Workflow-Filter",
     "workflowFiltersDescription": "Ausschlussfilter haben Vorrang vor Erlaubnisfiltern."
+  },
+  "securityAlerts": {
+    "code": "Code-Scanning",
+    "columns": {
+      "ecosystem": "Ökosystem",
+      "manifest": "Manifest",
+      "package": "Paket",
+      "path": "Pfad",
+      "repository": "Repository",
+      "rule": "Regel",
+      "scanner": "Scanner",
+      "secretProvider": "Secret-Anbieter",
+      "secretType": "Secret-Typ",
+      "severity": "Schweregrad",
+      "state": "Status",
+      "title": "Warnung",
+      "updated": "Aktualisiert"
+    },
+    "dependencies": "Abhängigkeiten",
+    "description": "Prüfe normalisierte Sicherheitsfunde der Anbieter, ohne Secret-Werte offenzulegen.",
+    "empty": "Keine Sicherheitswarnungen entsprechen den aktuellen Filtern.",
+    "kindTitles": {
+      "CODE": "Code-Scanning-Warnungen",
+      "DEPENDENCY": "Abhängigkeitswarnungen",
+      "SECRET": "Secret-Scanning-Warnungen"
+    },
+    "loadError": "Sicherheitswarnungen konnten nicht geladen werden.",
+    "open": "Offene Warnungen",
+    "openSummary": "Offene Sicherheitswarnungen",
+    "search": "Warnungen durchsuchen",
+    "secrets": "Secrets",
+    "severities": {
+      "CRITICAL": "Kritisch",
+      "HIGH": "Hoch",
+      "INFO": "Info",
+      "LOW": "Niedrig",
+      "MEDIUM": "Mittel",
+      "UNKNOWN": "Unbekannt"
+    },
+    "states": { "DISMISSED": "Verworfen", "OPEN": "Offen", "RESOLVED": "Behoben" },
+    "title": "Warnungen",
+    "unavailable": "Nicht verfügbare Daten",
+    "unavailableDescription": "{count} Repositories stellen diesen Warnungstyp derzeit nicht bereit. Andere synchronisierte Daten bleiben verfügbar."
   },
   "sidebar": {
     "github": "GitHub-Repository öffnen",
