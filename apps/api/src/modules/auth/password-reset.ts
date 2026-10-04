@@ -8,7 +8,10 @@ interface PasswordResetDatabase {
      * @param input - Input values used to validate and perform the operation.
      * @returns The matching local user ID, or null when the login does not exist.
      */
-    findUnique(input: { where: { username: string } }): Promise<{ id: string } | null>;
+    findUnique(input: { where: { username: string } }): Promise<{
+      authProvider?: 'LOCAL' | 'OIDC';
+      id: string;
+    } | null>;
     /**
      * Replace the password hash and increment the local user authentication version.
      *
@@ -43,6 +46,7 @@ export async function resetPassword(
 
   const user = await database.user.findUnique({ where: { username: normalizedUsername } });
   if (!user) throw new Error('No local user found for that username.');
+  if (user.authProvider === 'OIDC') throw new Error('OIDC-managed users do not have a local password.');
 
   await database.user.update({
     where: { id: user.id },

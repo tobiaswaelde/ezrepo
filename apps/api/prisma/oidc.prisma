@@ -1,0 +1,54 @@
+model OidcConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  key                       String   @unique @default("global") @db.VarChar(64)
+  enabled                   Boolean  @default(false)
+  providerName              String?  @db.VarChar(64)
+  issuer                    String?  @db.VarChar(2048)
+  clientId                  String?  @db.VarChar(512)
+  encryptedClientSecret     String?  @db.Text
+  scopes                    String[] @default(["openid", "profile", "email"])
+  groupsClaim               String   @default("groups") @db.VarChar(200)
+  systemAdministratorGroups String[] @default([])
+  managerGroups             String[] @default([])
+  viewerGroups              String[] @default([])
+  allowUnmatchedViewer      Boolean  @default(false)
+  allowHttpIssuer           Boolean  @default(false)
+  observedGroups            String[] @default([])
+  configRevision            Int      @default(0)
+
+  @@map("oidc_configs")
+}
+
+model OidcLoginTransaction {
+  id             String    @id @default(uuid()) @db.Uuid
+  stateHash      String    @unique @db.VarChar(64)
+  nonce          String    @db.VarChar(512)
+  codeVerifier   String    @db.VarChar(512)
+  bindingHash    String    @db.VarChar(64)
+  configRevision Int
+  returnTo       String?   @db.VarChar(512)
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  consumedAt     DateTime?
+
+  @@index([bindingHash])
+  @@index([expiresAt])
+  @@map("oidc_login_transactions")
+}
+
+model OidcSessionExchange {
+  id         String    @id @default(uuid()) @db.Uuid
+  codeHash   String    @unique @db.VarChar(64)
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  returnTo   String    @default("/") @db.VarChar(512)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  @@index([expiresAt])
+  @@map("oidc_session_exchanges")
+}

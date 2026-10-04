@@ -9,7 +9,10 @@ describe('AuthController', () => {
   });
 
   it('creates the first administrator through the setup service', async () => {
-    const result = { accessToken: 'jwt', user: { id: 'admin-id', role: 'SYSTEM_ADMIN', username: 'admin' } };
+    const result = {
+      accessToken: 'jwt',
+      user: { authProvider: 'LOCAL' as const, id: 'admin-id', role: 'SYSTEM_ADMIN', username: 'admin' },
+    };
     const auth = { setup: jest.fn().mockResolvedValue(result) };
     const controller = new AuthController(auth as never, {} as never);
     const input = { firstName: 'Vera', password: 'secure-password', username: 'admin' };
@@ -19,13 +22,19 @@ describe('AuthController', () => {
   });
 
   it('returns the replacement session after changing the current password', async () => {
-    const result = { accessToken: 'replacement', user: { id: 'user-id', role: 'VIEWER', username: 'viewer' } };
+    const result = {
+      accessToken: 'replacement',
+      user: { authProvider: 'LOCAL' as const, id: 'user-id', role: 'VIEWER', username: 'viewer' },
+    };
     const auth = { updatePassword: jest.fn().mockResolvedValue(result) };
     const controller = new AuthController(auth as never, {} as never);
     const input = { currentPassword: 'current-password', newPassword: 'replacement-password' };
 
     await expect(
-      controller.updatePassword({ user: { id: 'user-id', role: 'VIEWER', username: 'viewer' } }, input),
+      controller.updatePassword(
+        { user: { authProvider: 'LOCAL' as const, id: 'user-id', role: 'VIEWER', username: 'viewer' } },
+        input,
+      ),
     ).resolves.toEqual(result);
     expect(auth.updatePassword).toHaveBeenCalledWith('user-id', 'current-password', 'replacement-password');
   });
@@ -49,7 +58,10 @@ describe('AuthController', () => {
     };
 
     await expect(
-      controller.updateProfile({ user: { id: 'user-id', role: 'VIEWER', username: 'viewer' } }, input),
+      controller.updateProfile(
+        { user: { authProvider: 'LOCAL' as const, id: 'user-id', role: 'VIEWER', username: 'viewer' } },
+        input,
+      ),
     ).resolves.toEqual(updated);
     expect(auth.updateProfile).toHaveBeenCalledWith('user-id', input);
   });

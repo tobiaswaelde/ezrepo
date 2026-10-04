@@ -9,8 +9,8 @@ import type { NotificationDeliveryService } from './notification-delivery.servic
 import { NotificationsService } from './notifications.service.js';
 
 describe('NotificationsService', () => {
-  const viewer = { id: 'user-a', role: 'VIEWER' as const, username: 'viewer' };
-  const admin = { id: 'admin-a', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
+  const viewer = { authProvider: 'LOCAL' as const, id: 'user-a', role: 'VIEWER' as const, username: 'viewer' };
+  const admin = { authProvider: 'LOCAL' as const, id: 'admin-a', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
   const failedRun = {
     id: 'run-a',
     providerCreatedAt: new Date('2026-09-14T10:00:00.000Z'),

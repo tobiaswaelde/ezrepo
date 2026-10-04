@@ -27,4 +27,13 @@ describe('resetPassword', () => {
     await expect(resetPassword(database, 'missing', 'replacement-password')).rejects.toThrow('No local user found');
     expect(database.user.update).not.toHaveBeenCalled();
   });
+
+  it('rejects an OIDC-managed account without creating a local credential', async () => {
+    database.user.findUnique.mockResolvedValue({ authProvider: 'OIDC', id: 'oidc-user-id' });
+
+    await expect(resetPassword(database, 'oidc-user', 'replacement-password')).rejects.toThrow(
+      'OIDC-managed users do not have a local password',
+    );
+    expect(database.user.update).not.toHaveBeenCalled();
+  });
 });

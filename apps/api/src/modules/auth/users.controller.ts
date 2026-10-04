@@ -107,7 +107,7 @@ export class UsersController {
     );
   }
   /**
-   * Delete a local user after verifying system administrator access.
+   * Delete a user after verifying system administrator access.
    *
    * @param request - HTTP request carrying the authenticated application user.
    * @param id - Local identifier of the target record.

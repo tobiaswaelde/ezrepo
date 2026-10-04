@@ -42,6 +42,10 @@ const validators = {
   AUTH_JWT_SECRET: str({ desc: 'JWT signing secret' }),
   AUTH_JWT_EXPIRATION: str({ default: '7d' }),
   TOKEN_ENCRYPTION_KEY: base64Key({ desc: 'Base64-encoded 32-byte encryption key' }),
+  OIDC_CALLBACK_URL: httpUrl({
+    default: 'http://localhost:3001/api/v1/auth/oidc/callback',
+    desc: 'Public API callback URL registered with the OIDC provider',
+  }),
   WEB_PUSH_VAPID_PUBLIC_KEY: str({ default: '' }),
   WEB_PUSH_VAPID_PRIVATE_KEY: str({ default: '' }),
   WEB_PUSH_VAPID_SUBJECT: str({ default: '' }),

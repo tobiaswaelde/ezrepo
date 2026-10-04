@@ -9,11 +9,11 @@ describe('RepositoriesQueryService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('gives system administrators an unrestricted repository ability', async () => {
-    await expect(service.getReadAbility({ id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' })).resolves.toBe(
-      ability,
-    );
+    await expect(
+      service.getReadAbility({ authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' }),
+    ).resolves.toBe(ability);
     expect(abilityFactory.createForUser).toHaveBeenCalledWith(
-      { id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
+      { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
       [],
     );
     expect(prisma.repositoryMembership.findMany).not.toHaveBeenCalled();
@@ -23,13 +23,15 @@ describe('RepositoriesQueryService', () => {
     const memberships = [{ repositoryId: 'repository-1', role: 'VIEWER' as const }];
     prisma.repositoryMembership.findMany.mockResolvedValue(memberships);
 
-    await expect(service.getReadAbility({ id: 'viewer', role: 'VIEWER', username: 'viewer' })).resolves.toBe(ability);
+    await expect(
+      service.getReadAbility({ authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' }),
+    ).resolves.toBe(ability);
     expect(prisma.repositoryMembership.findMany).toHaveBeenCalledWith({
       where: { userId: 'viewer' },
       select: { repositoryId: true, role: true },
     });
     expect(abilityFactory.createForUser).toHaveBeenCalledWith(
-      { id: 'viewer', role: 'VIEWER', username: 'viewer' },
+      { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' },
       memberships,
     );
   });

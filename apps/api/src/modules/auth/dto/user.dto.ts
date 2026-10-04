@@ -10,6 +10,8 @@ export type UserWithAvatar = User & { avatar?: { updatedAt: Date } | null };
 
 /** Public user representation without credential material. */
 export class UserDto {
+  @ApiProperty({ enum: ['LOCAL', 'OIDC'] })
+  authProvider!: User['authProvider'];
   @ApiProperty({ format: 'date-time', nullable: true })
   avatarUpdatedAt!: Date | null;
   @ApiProperty({ maxLength: 255, nullable: true })
@@ -37,6 +39,7 @@ export class UserDto {
   static fromModel(model: UserWithAvatar, ability?: AppAbility): UserDto {
     return filterCaslFields(
       {
+        authProvider: model.authProvider,
         avatarUpdatedAt: model.avatar?.updatedAt ?? null,
         firstName: model.firstName,
         id: model.id,

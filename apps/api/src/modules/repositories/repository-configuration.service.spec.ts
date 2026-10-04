@@ -13,8 +13,13 @@ describe('RepositoryConfigurationService', () => {
   const credentials = { encrypt: jest.fn((value: string) => `encrypted:${value}`) };
   const filters = { validatePattern: jest.fn() };
   const service = new RepositoryConfigurationService(prisma as never, credentials as never, filters as never);
-  const administrator = { id: 'administrator', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
-  const manager = { id: 'manager', role: 'MANAGER' as const, username: 'manager' };
+  const administrator = {
+    authProvider: 'LOCAL' as const,
+    id: 'administrator',
+    role: 'SYSTEM_ADMIN' as const,
+    username: 'admin',
+  };
+  const manager = { authProvider: 'LOCAL' as const, id: 'manager', role: 'MANAGER' as const, username: 'manager' };
 
   beforeEach(() => {
     jest.clearAllMocks();

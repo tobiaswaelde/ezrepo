@@ -38,7 +38,7 @@ describe('RepositoryMetadataService', () => {
     { get: jest.fn().mockReturnValue(adapter) } as never,
     { decrypt: jest.fn().mockReturnValue('access-token') } as never,
   );
-  const admin = { id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
+  const admin = { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -94,7 +94,10 @@ describe('RepositoryMetadataService', () => {
 
   it('rejects non-administrators before reading the repository', async () => {
     await expect(
-      service.refreshById({ id: 'viewer', role: 'VIEWER', username: 'viewer' }, repository.id),
+      service.refreshById(
+        { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' },
+        repository.id,
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.repository.findUnique).not.toHaveBeenCalled();
   });

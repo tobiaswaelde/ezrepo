@@ -1,4 +1,4 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 
 import { AuthService } from './auth.service.js';
@@ -181,6 +181,15 @@ describe('AuthService', () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
+  it('rejects local password changes for an OIDC-managed account', async () => {
+    prisma.user.findUnique.mockResolvedValue({ authProvider: 'OIDC', id: 'user-id', passwordHash: null });
+
+    await expect(service.updatePassword('user-id', 'current-password', 'new-long-password')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
   it('rejects an invalid access token', async () => {
     jwt.verifyAsync.mockRejectedValue(new Error('invalid token'));
 
@@ -217,6 +226,15 @@ describe('AuthService', () => {
       data: { firstName: 'Vera', lastName: null, username: 'viewer' },
       include: { avatar: { select: { updatedAt: true } } },
     });
+  });
+
+  it('rejects local profile changes for an OIDC-managed account', async () => {
+    prisma.user.findUnique.mockResolvedValue({ authProvider: 'OIDC', id: 'user-id', username: 'oidc_user' });
+
+    await expect(
+      service.updateProfile('user-id', { firstName: 'Changed', lastName: null, username: 'oidc_user' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
   it('requires the current password before changing the login username', async () => {

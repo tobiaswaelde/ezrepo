@@ -14,7 +14,12 @@ describe('WorkflowRunsQueryService', () => {
       },
     };
     const service = new WorkflowRunsQueryService(mocks as unknown as PrismaService, new CaslAbilityFactory());
-    const ability = await service.getReadAbility({ id: 'viewer', role: 'VIEWER', username: 'viewer' });
+    const ability = await service.getReadAbility({
+      authProvider: 'LOCAL' as const,
+      id: 'viewer',
+      role: 'VIEWER',
+      username: 'viewer',
+    });
 
     await service.query(
       service.toQueryOptions({ page: 1, perPage: 20, search: 'deploy', where: { status: 'FAILED' } }),
@@ -82,7 +87,7 @@ describe('WorkflowRunsQueryService', () => {
     };
     const service = new WorkflowRunsQueryService(mocks as unknown as PrismaService, new CaslAbilityFactory());
     const ability = new CaslAbilityFactory().createForUser(
-      { id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
+      { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
       [],
     );
 
@@ -154,7 +159,7 @@ describe('WorkflowRunsQueryService', () => {
     };
     const service = new WorkflowRunsQueryService(mocks as unknown as PrismaService, new CaslAbilityFactory());
     const ability = new CaslAbilityFactory().createForUser(
-      { id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
+      { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
       [],
     );
 
@@ -175,7 +180,7 @@ describe('WorkflowRunsQueryService', () => {
     };
     const service = new WorkflowRunsQueryService(mocks as unknown as PrismaService, new CaslAbilityFactory());
     const ability = new CaslAbilityFactory().createForUser(
-      { id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
+      { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
       [],
     );
 

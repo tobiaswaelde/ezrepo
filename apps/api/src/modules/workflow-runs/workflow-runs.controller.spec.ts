@@ -50,7 +50,10 @@ describe('WorkflowRunsController', () => {
     };
     const controller = new WorkflowRunsController(workflowRuns as unknown as WorkflowRunsQueryService);
 
-    const response = await controller.query({ user: { id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' } }, query);
+    const response = await controller.query(
+      { user: { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' } },
+      query,
+    );
 
     expect(workflowRuns.query).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -101,7 +104,10 @@ describe('WorkflowRunsController', () => {
     const controller = new WorkflowRunsController(workflowRuns as unknown as WorkflowRunsQueryService);
 
     await expect(
-      controller.queryNeedsAttention({ user: { id: 'viewer', role: 'VIEWER', username: 'viewer' } }, query),
+      controller.queryNeedsAttention(
+        { user: { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' } },
+        query,
+      ),
     ).resolves.toMatchObject({ items: [] });
     expect(workflowRuns.toNeedsAttentionQueryOptions).toHaveBeenCalledWith(query, ability);
     expect(workflowRuns.query).toHaveBeenCalledWith(

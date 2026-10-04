@@ -1,5 +1,6 @@
 import type { AxiosResponse } from 'axios';
 
+import type { OidcCheckResult, OidcConfig, UpdateOidcConfig } from '~/types/api/auth';
 import { apiEndpoints } from '~/types/api/endpoints';
 import type {
   ApplicationSettings,
@@ -125,6 +126,12 @@ export function useEzRepoApi() {
       list: (repositoryId?: string): Promise<AxiosResponse<NotificationDelivery[]>> =>
         api.get(apiEndpoints.notificationDeliveries, { params: { repositoryId } }),
     },
+    oidc: {
+      check: (): Promise<AxiosResponse<OidcCheckResult>> => api.post(apiEndpoints.auth.oidc.check),
+      config: (): Promise<AxiosResponse<OidcConfig>> => api.get(apiEndpoints.auth.oidc.config),
+      update: (input: UpdateOidcConfig): Promise<AxiosResponse<OidcConfig>> =>
+        api.put(apiEndpoints.auth.oidc.config, input),
+    },
     providerAccounts: {
       authorize: (input: StartProviderOAuth): Promise<AxiosResponse<ProviderOAuthAuthorization>> =>
         api.post(apiEndpoints.providerAccounts.authorize, input),
@@ -244,7 +251,7 @@ export function useEzRepoApi() {
       list: (): Promise<AxiosResponse<PaginatedResource<User>>> =>
         api.get(apiEndpoints.users, {
           params: {
-            fields: 'id,username,firstName,lastName,role,avatarUpdatedAt,createdAt,updatedAt',
+            fields: 'id,username,firstName,lastName,role,authProvider,avatarUpdatedAt,createdAt,updatedAt',
             page: 1,
             perPage: 100,
           },

@@ -12,7 +12,7 @@ describe('PoliciesGuard', () => {
   };
   const abilityFactory = { createForUser: jest.fn() } as unknown as CaslAbilityFactory;
   const guard = new PoliciesGuard(reflector, prisma as never, abilityFactory);
-  const context = (user?: { id: string; role: 'VIEWER'; username: string }) =>
+  const context = (user?: { authProvider: 'LOCAL'; id: string; role: 'VIEWER'; username: string }) =>
     ({
       getHandler: jest.fn(),
       getClass: jest.fn(),
@@ -37,7 +37,9 @@ describe('PoliciesGuard', () => {
     prisma.repositoryMembership.findMany.mockResolvedValue([{ repositoryId: 'repo-1', role: 'VIEWER' }]);
     (abilityFactory.createForUser as jest.Mock).mockReturnValue(ability);
 
-    await expect(guard.canActivate(context({ id: 'user-1', role: 'VIEWER', username: 'viewer' }))).resolves.toBe(true);
+    await expect(
+      guard.canActivate(context({ authProvider: 'LOCAL' as const, id: 'user-1', role: 'VIEWER', username: 'viewer' })),
+    ).resolves.toBe(true);
     expect(prisma.repositoryMembership.findMany).toHaveBeenCalledWith({
       where: { userId: 'user-1' },
       select: { repositoryId: true, role: true },
@@ -50,6 +52,8 @@ describe('PoliciesGuard', () => {
     prisma.repositoryMembership.findMany.mockResolvedValue([]);
     (abilityFactory.createForUser as jest.Mock).mockReturnValue({});
 
-    await expect(guard.canActivate(context({ id: 'user-1', role: 'VIEWER', username: 'viewer' }))).resolves.toBe(false);
+    await expect(
+      guard.canActivate(context({ authProvider: 'LOCAL' as const, id: 'user-1', role: 'VIEWER', username: 'viewer' })),
+    ).resolves.toBe(false);
   });
 });

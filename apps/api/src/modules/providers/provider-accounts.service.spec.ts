@@ -33,7 +33,7 @@ describe('ProviderAccountsService', () => {
     adapters as never,
     syncQueue as never,
   );
-  const admin = { id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
+  const admin = { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -90,9 +90,9 @@ describe('ProviderAccountsService', () => {
   });
 
   it('rejects non-administrators before querying provider accounts', async () => {
-    await expect(service.list({ id: 'viewer', role: 'VIEWER', username: 'viewer' })).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.list({ authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.providerAccount.findMany).not.toHaveBeenCalled();
   });
 

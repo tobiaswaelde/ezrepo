@@ -1,6 +1,7 @@
-import type { UserRole } from '../../generated/prisma/client.js';
+import type { AuthProvider, UserRole } from '../../generated/prisma/client.js';
 
 export interface AuthenticatedUser {
+  authProvider: AuthProvider;
   avatarUpdatedAt?: Date | null;
   firstName?: string | null;
   id: string;

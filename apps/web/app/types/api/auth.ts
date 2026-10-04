@@ -89,6 +89,7 @@ export interface UpdateProfileRequest {
 
 /** The safe authenticated-user payload returned by ezRepo's auth endpoints. */
 export interface AuthenticatedUser {
+  authProvider: 'LOCAL' | 'OIDC';
   avatarUpdatedAt: string | null;
   firstName: string | null;
   id: string;
@@ -101,4 +102,51 @@ export interface AuthenticatedUser {
 export interface AuthResult {
   accessToken: string;
   user: AuthenticatedUser;
+}
+
+export interface OidcStatus {
+  enabled: boolean;
+  providerName?: string;
+}
+
+export interface OidcConfig {
+  allowHttpIssuer: boolean;
+  allowUnmatchedViewer: boolean;
+  callbackUrl: string;
+  clientId: string | null;
+  clientSecretConfigured: boolean;
+  configRevision: number;
+  enabled: boolean;
+  groupsClaim: string;
+  issuer: string | null;
+  managerGroups: string[];
+  observedGroups: string[];
+  providerName: string | null;
+  scopes: string[];
+  secretDecryptable: boolean;
+  systemAdministratorGroups: string[];
+  updatedAt: string;
+  viewerGroups: string[];
+}
+
+export interface UpdateOidcConfig extends Omit<
+  OidcConfig,
+  'callbackUrl' | 'clientSecretConfigured' | 'configRevision' | 'observedGroups' | 'secretDecryptable' | 'updatedAt'
+> {
+  clientSecret?: string;
+  clientSecretClear?: boolean;
+}
+
+export interface OidcCheckResult {
+  code?: string;
+  endpoints?: { authorization: boolean; jwks: boolean; token: boolean; userinfo: boolean };
+  idTokenAlgorithm?: string;
+  issuer?: string;
+  ok: boolean;
+  tokenEndpointAuthenticationMethod?: 'client_secret_basic' | 'client_secret_post' | 'none';
+  warnings?: string[];
+}
+
+export interface OidcExchangeResult extends AuthResult {
+  returnTo: string;
 }

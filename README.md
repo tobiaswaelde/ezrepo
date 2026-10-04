@@ -56,6 +56,7 @@ API accepts the following variables:
 | `SHADOW_DATABASE_URL`             | Yes      | —                       | PostgreSQL shadow database URL used for Prisma migrations.                                             |
 | `CORS_ORIGIN`                     | No       | `http://localhost:3000` | One origin, comma-separated origins, or `*`.                                                           |
 | `PUBLIC_URL`                      | No       | `http://localhost:3000` | Public ezRepo URL; must use HTTP or HTTPS.                                                             |
+| `OIDC_CALLBACK_URL`               | No       | Local API callback      | Exact public API callback URL registered with the optional OpenID Connect provider.                    |
 | `AUTH_JWT_ISSUER`                 | No       | `ezrepo`                | JWT issuer identifier.                                                                                 |
 | `AUTH_JWT_SECRET`                 | Yes      | —                       | Long, unique secret used to sign JWTs.                                                                 |
 | `AUTH_JWT_EXPIRATION`             | No       | `7d`                    | JWT lifetime accepted by the Nest JWT module.                                                          |
@@ -76,6 +77,9 @@ by the Nest API's `envalid` configuration:
 | `POSTGRES_USER`     | `ezrepo` | PostgreSQL user.                                      |
 | `POSTGRES_PASSWORD` | —        | PostgreSQL password; replace the example value.       |
 | `EZREPO_VERSION`    | `latest` | API and web image version selected by Docker Compose. |
+
+OIDC provider settings are managed under **Settings → Authentication**. The client secret is encrypted with
+`TOKEN_ENCRYPTION_KEY`; see [authentication](docs/authentication.md) for provider setup and recovery behavior.
 
 Provider access tokens, repository webhook secrets, and notification credentials
 are not environment variables. ezRepo stores them encrypted in PostgreSQL

@@ -263,6 +263,7 @@ export interface RepositoryMembership {
 
 /** Safe system user representation. */
 export interface User {
+  authProvider: 'LOCAL' | 'OIDC';
   avatarUpdatedAt: ApiTimestamp | null;
   firstName: string | null;
   id: string;

@@ -4,7 +4,7 @@ import { RepositorySyncJobsService } from './repository-sync-jobs.service.js';
 import type { ProviderSyncQueueService } from './sync-queue.service.js';
 
 describe('RepositorySyncJobsService', () => {
-  const user = { id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
+  const user = { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
 
   it('returns idle repositories as permanently available jobs', async () => {
     const prisma = {

@@ -3,7 +3,7 @@ import { DashboardController } from './dashboard.controller.js';
 import type { DashboardService } from './dashboard.service.js';
 
 describe('DashboardController', () => {
-  const user: AuthenticatedUser = { id: 'viewer', role: 'VIEWER', username: 'viewer' };
+  const user: AuthenticatedUser = { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' };
   const request = { user };
   const period = { from: '2026-08-01T00:00:00.000Z', to: '2026-08-31T23:59:59.999Z' };
 

@@ -78,9 +78,9 @@ describe('security-alert authorization integration', () => {
       createAlert(hiddenRepository.id, 'hidden', 'Hidden alert'),
     ]);
     users = {
-      admin: { id: admin.id, role: admin.role, username: admin.username },
-      manager: { id: manager.id, role: manager.role, username: manager.username },
-      viewer: { id: viewer.id, role: viewer.role, username: viewer.username },
+      admin: { authProvider: 'LOCAL' as const, id: admin.id, role: admin.role, username: admin.username },
+      manager: { authProvider: 'LOCAL' as const, id: manager.id, role: manager.role, username: manager.username },
+      viewer: { authProvider: 'LOCAL' as const, id: viewer.id, role: viewer.role, username: viewer.username },
     };
     visibleAlertId = visibleAlert.id;
   });

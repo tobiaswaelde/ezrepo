@@ -105,7 +105,7 @@ export class ProviderOAuthService {
     const state = this.states.consume(stateValue);
     const user = await this.prisma.user.findUnique({
       where: { id: state.userId },
-      select: { id: true, role: true, username: true },
+      select: { authProvider: true, id: true, role: true, username: true },
     });
 
     if (!user || user.role !== 'SYSTEM_ADMIN') {

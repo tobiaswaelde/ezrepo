@@ -11,17 +11,19 @@ describe('ProviderAccountsQueryService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('gives system administrators an unrestricted provider-account ability', () => {
-    expect(service.getReadAbility({ id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' })).toBe(ability);
+    expect(
+      service.getReadAbility({ authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' }),
+    ).toBe(ability);
     expect(abilityFactory.createForUser).toHaveBeenCalledWith(
-      { id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
+      { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
       [],
     );
   });
 
   it('rejects non-administrators before building a provider-account query', () => {
-    expect(() => service.getReadAbility({ id: 'viewer', role: 'VIEWER', username: 'viewer' })).toThrow(
-      ForbiddenException,
-    );
+    expect(() =>
+      service.getReadAbility({ authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' }),
+    ).toThrow(ForbiddenException);
     expect(abilityFactory.createForUser).not.toHaveBeenCalled();
   });
 

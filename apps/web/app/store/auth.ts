@@ -5,6 +5,7 @@ import { accessTokenStorageKey, useApi } from '~/composables/api/api';
 import type {
   AuthResult,
   AuthenticatedUser,
+  OidcExchangeResult,
   SetupRequest,
   UpdatePasswordRequest,
   UpdateProfileRequest,
@@ -34,6 +35,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function setup(input: SetupRequest): Promise<void> {
     const response = await useApi().post<AuthResult>('/auth/setup', input);
     setSession(response.data);
+  }
+
+  /** Exchange a short-lived OIDC browser handoff for the normal bearer session. */
+  async function exchangeOidcCode(code: string): Promise<string> {
+    const response = await useApi().post<OidcExchangeResult>('/auth/oidc/exchange', { code });
+    setSession(response.data);
+    return response.data.returnTo;
   }
 
   /** Refresh the current user and clear an expired or invalid local session. */
@@ -85,6 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     accessToken,
     clearSession,
+    exchangeOidcCode,
     initialize,
     initialized,
     refresh,

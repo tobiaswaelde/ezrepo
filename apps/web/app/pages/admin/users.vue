@@ -62,6 +62,11 @@
       <template #role-cell="{ row }">
         <UBadge color="neutral" variant="subtle">{{ $t(`roles.${row.original.role}`) }}</UBadge>
       </template>
+      <template #authProvider-cell="{ row }">
+        <UBadge variant="subtle" :color="row.original.authProvider === 'OIDC' ? 'info' : 'neutral'">
+          {{ $t(`users.authProviders.${row.original.authProvider}`) }}
+        </UBadge>
+      </template>
       <template #createdAt-cell="{ row }">
         <span class="whitespace-nowrap text-sm text-muted">{{ formatTimestamp(row.original.createdAt) }}</span>
       </template>
@@ -142,6 +147,7 @@ const userRoleOptions = computed<Array<{ label: string; value: UserRole }>>(() =
 const columnDefinition = computed<UserTableColumn[]>(() => [
   { accessorKey: 'username', header: t('users.columns.username'), id: 'username' },
   { accessorKey: 'role', header: t('users.columns.role'), id: 'role' },
+  { accessorKey: 'authProvider', header: t('users.columns.authProvider'), id: 'authProvider' },
   { accessorKey: 'createdAt', header: t('users.columns.createdAt'), id: 'createdAt' },
   { accessorKey: 'updatedAt', header: t('users.columns.updatedAt'), id: 'updatedAt' },
   { enableHiding: false, header: t('users.columns.actions'), id: 'actions' },
@@ -149,6 +155,7 @@ const columnDefinition = computed<UserTableColumn[]>(() => [
 const sortableFields = computed<SortingField[]>(() => [
   { label: t('users.columns.username'), value: 'username' },
   { label: t('users.columns.role'), value: 'role' },
+  { label: t('users.columns.authProvider'), value: 'authProvider' },
   { label: t('users.columns.createdAt'), value: 'createdAt' },
   { label: t('users.columns.updatedAt'), value: 'updatedAt' },
 ]);
@@ -165,7 +172,7 @@ const userTable = useTable({
   defaultItemsPerPage: 10,
   endpoint: 'users',
   name: 'users',
-  staticFields: ['avatarUpdatedAt', 'firstName', 'id', 'lastName'],
+  staticFields: ['authProvider', 'avatarUpdatedAt', 'firstName', 'id', 'lastName'],
 });
 const {
   columnOrder,

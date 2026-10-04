@@ -17,7 +17,12 @@ describe('ProviderOAuthService', () => {
   };
   const fetch = jest.fn();
   const service = new ProviderOAuthService(accounts as never, fetch as never, prisma as never, states as never);
-  const admin: AuthenticatedUser = { id: 'admin-id', role: 'SYSTEM_ADMIN', username: 'admin' };
+  const admin: AuthenticatedUser = {
+    authProvider: 'LOCAL' as const,
+    id: 'admin-id',
+    role: 'SYSTEM_ADMIN',
+    username: 'admin',
+  };
   const configuration = service as unknown as {
     getConfiguration: (providerType: 'GITHUB') => ProviderOAuthConfiguration;
   };

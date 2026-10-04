@@ -24,6 +24,13 @@ export const apiEndpoints = {
     setupStatus: '/auth/setup-status',
     signIn: '/auth/signin',
     signOut: '/auth/signout',
+    oidc: {
+      check: '/auth/oidc/check',
+      config: '/auth/oidc/config',
+      exchange: '/auth/oidc/exchange',
+      start: '/auth/oidc/start',
+      status: '/auth/oidc/status',
+    },
   },
   dashboard: {
     awaitingApproval: '/dashboard/awaiting-approval',

@@ -60,9 +60,9 @@ describe('repository synchronization jobs integration', () => {
       data: { repositoryId: idleRepository.id, role: 'VIEWER', userId: viewer.id },
     });
     users = {
-      admin: { id: admin.id, role: admin.role, username: admin.username },
-      outsider: { id: outsider.id, role: outsider.role, username: outsider.username },
-      viewer: { id: viewer.id, role: viewer.role, username: viewer.username },
+      admin: { authProvider: 'LOCAL' as const, id: admin.id, role: admin.role, username: admin.username },
+      outsider: { authProvider: 'LOCAL' as const, id: outsider.id, role: outsider.role, username: outsider.username },
+      viewer: { authProvider: 'LOCAL' as const, id: viewer.id, role: viewer.role, username: viewer.username },
     };
   });
   afterAll(async () => prisma.onModuleDestroy());

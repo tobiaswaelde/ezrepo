@@ -12,7 +12,7 @@ describe('RepositorySyncJobsController', () => {
   const controller = new RepositorySyncJobsController(jobs as never);
 
   it('allows every authenticated user to query visible jobs', async () => {
-    const user = { id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
+    const user = { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
     const query = { page: 1, perPage: 10 } as never;
     jobs.query.mockResolvedValueOnce({ items: [], meta: {} });
 
@@ -22,8 +22,8 @@ describe('RepositorySyncJobsController', () => {
   });
 
   it('allows only system administrators to start jobs', async () => {
-    const viewer = { id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
-    const admin = { id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
+    const viewer = { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
+    const admin = { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
 
     await expect(controller.runAll({ user: viewer })).rejects.toBeInstanceOf(ForbiddenException);
     await expect(controller.runAll({ user: admin })).resolves.toEqual({ queuedCount: 2 });

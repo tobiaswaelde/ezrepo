@@ -116,10 +116,10 @@ describe('workflow-run authorization integration', () => {
       }),
     ]);
     users = {
-      admin: { id: admin.id, role: admin.role, username: admin.username },
-      manager: { id: manager.id, role: manager.role, username: manager.username },
-      outsider: { id: outsider.id, role: outsider.role, username: outsider.username },
-      viewer: { id: viewer.id, role: viewer.role, username: viewer.username },
+      admin: { authProvider: 'LOCAL' as const, id: admin.id, role: admin.role, username: admin.username },
+      manager: { authProvider: 'LOCAL' as const, id: manager.id, role: manager.role, username: manager.username },
+      outsider: { authProvider: 'LOCAL' as const, id: outsider.id, role: outsider.role, username: outsider.username },
+      viewer: { authProvider: 'LOCAL' as const, id: viewer.id, role: viewer.role, username: viewer.username },
     };
     hiddenRunId = hiddenRun.id;
     visibleRunId = visibleRun.id;

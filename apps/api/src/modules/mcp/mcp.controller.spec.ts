@@ -5,7 +5,7 @@ import type { McpHttpService } from './mcp-http.service.js';
 import type { McpTokenService } from './mcp-token.service.js';
 import { McpController } from './mcp.controller.js';
 
-const user: AuthenticatedUser = { id: 'user-id', role: 'VIEWER', username: 'viewer' };
+const user: AuthenticatedUser = { authProvider: 'LOCAL' as const, id: 'user-id', role: 'VIEWER', username: 'viewer' };
 
 describe('McpController', () => {
   const nodeHandler = jest.fn();

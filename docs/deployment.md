@@ -39,6 +39,7 @@ The Compose stack persists PostgreSQL data, including normalized user profile pi
 
    ```dotenv
    PUBLIC_URL=https://ezrepo.example.com
+   OIDC_CALLBACK_URL=https://ezrepo.example.com/api/v1/auth/oidc/callback
    CORS_ORIGIN=https://ezrepo.example.com
    NUXT_PUBLIC_API_BASE_URL=https://ezrepo.example.com/api/v1
    OAUTH_CALLBACK_URL=https://ezrepo.example.com/api/v1/provider-accounts/oauth/callback

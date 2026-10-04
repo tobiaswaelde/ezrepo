@@ -30,9 +30,9 @@ describe('DashboardService', () => {
     } as unknown as WorkflowRunsQueryService;
     const service = new DashboardService(workflowRuns, prisma());
 
-    await expect(service.getLatestFailures({ id: 'viewer', role: 'VIEWER', username: 'viewer' })).resolves.toEqual(
-      failures,
-    );
+    await expect(
+      service.getLatestFailures({ authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' }),
+    ).resolves.toEqual(failures);
     expect(workflowRuns.findNeedsAttention).toHaveBeenCalledWith(
       expect.objectContaining({
         orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
@@ -57,7 +57,9 @@ describe('DashboardService', () => {
     } as unknown as WorkflowRunsQueryService;
     const service = new DashboardService(workflowRuns, prisma());
 
-    await expect(service.getLatestRuns({ id: 'viewer', role: 'VIEWER', username: 'viewer' })).resolves.toHaveLength(1);
+    await expect(
+      service.getLatestRuns({ authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' }),
+    ).resolves.toHaveLength(1);
     expect(workflowRuns.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
@@ -84,6 +86,7 @@ describe('DashboardService', () => {
 
     await expect(
       new DashboardService(workflowRuns, prisma()).getAwaitingApproval({
+        authProvider: 'LOCAL',
         id: 'viewer',
         role: 'VIEWER',
         username: 'viewer',
@@ -122,7 +125,7 @@ describe('DashboardService', () => {
 
     await expect(
       service.getTrend(
-        { id: 'viewer', role: 'VIEWER', username: 'viewer' },
+        { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' },
         { bucket: 'day', from: '2026-08-25T10:00:00.000Z', to: '2026-08-27T01:00:00.000Z' },
       ),
     ).resolves.toEqual([
@@ -145,7 +148,10 @@ describe('DashboardService', () => {
   });
 
   it('summarizes visible completed and active workflow runs', async () => {
-    const ability = new CaslAbilityFactory().createForUser({ id: 'viewer', role: 'VIEWER', username: 'viewer' }, []);
+    const ability = new CaslAbilityFactory().createForUser(
+      { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' },
+      [],
+    );
     const workflowRuns = {
       findCurrent: jest.fn().mockResolvedValue([
         { awaitingApproval: true, durationMs: null, status: 'QUEUED' },
@@ -161,7 +167,7 @@ describe('DashboardService', () => {
 
     await expect(
       new DashboardService(workflowRuns, prisma(600_000n, 5_184_468_000n)).getSummary(
-        { id: 'viewer', role: 'VIEWER', username: 'viewer' },
+        { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' },
         { from: '2026-08-01T00:00:00.000Z', to: '2026-08-31T23:59:59.999Z' },
       ),
     ).resolves.toEqual({
@@ -202,7 +208,7 @@ describe('DashboardService', () => {
 
     await expect(
       new DashboardService(workflowRuns, prisma()).getRepositoryHealth(
-        { id: 'viewer', role: 'VIEWER', username: 'viewer' },
+        { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' },
         { from: '2026-08-01T00:00:00.000Z', to: '2026-08-31T23:59:59.999Z' },
       ),
     ).resolves.toEqual([
@@ -237,7 +243,7 @@ describe('DashboardService', () => {
 
     await expect(
       new DashboardService(workflowRuns, prisma()).getTrend(
-        { id: 'viewer', role: 'VIEWER', username: 'viewer' },
+        { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' },
         { bucket: 'hour', from: '2026-08-27T00:00:00.000Z', to: '2026-08-26T00:00:00.000Z' },
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -274,7 +280,7 @@ describe('DashboardService', () => {
       },
     } as unknown as PrismaService;
     const dashboard = new DashboardService(new WorkflowRunsQueryService(prisma, new CaslAbilityFactory()), prisma);
-    const user = { id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
+    const user = { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
 
     await expect(dashboard.getLatestFailures(user)).resolves.toEqual([
       expect.objectContaining({ repositoryId: 'repository-a', workflowName: 'Visible test' }),

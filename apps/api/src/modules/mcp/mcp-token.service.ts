@@ -145,6 +145,6 @@ export class McpTokenService {
    * @returns The safe application identity without password or token secrets.
    */
   private toAuthenticatedUser(user: User): AuthenticatedUser {
-    return { id: user.id, role: user.role, username: user.username };
+    return { authProvider: user.authProvider, id: user.id, role: user.role, username: user.username };
   }
 }

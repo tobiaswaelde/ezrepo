@@ -9,7 +9,7 @@ interface RegisteredTool {
   handler: (input: unknown) => Promise<{ structuredContent: unknown }>;
 }
 
-const user: AuthenticatedUser = { id: 'viewer-id', role: 'VIEWER', username: 'viewer' };
+const user: AuthenticatedUser = { authProvider: 'LOCAL' as const, id: 'viewer-id', role: 'VIEWER', username: 'viewer' };
 
 function listToolsRequest(id: number): Request {
   return new Request('http://localhost/mcp', {

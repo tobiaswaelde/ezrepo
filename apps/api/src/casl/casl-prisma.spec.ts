@@ -7,9 +7,10 @@ import type { AppAbility } from './types.js';
 
 describe('CASL Prisma integration', () => {
   it('converts a repository ability into a database where restriction', () => {
-    const ability = new CaslAbilityFactory().createForUser({ id: 'viewer', role: 'VIEWER', username: 'viewer' }, [
-      { repositoryId: 'repository-a', role: 'VIEWER' },
-    ]);
+    const ability = new CaslAbilityFactory().createForUser(
+      { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' },
+      [{ repositoryId: 'repository-a', role: 'VIEWER' }],
+    );
     const accessibleWhere = createCaslAccessibleWhere<AppAbility, CaslSubject.Repository, CaslAction>({
       action: CaslAction.Read,
     });

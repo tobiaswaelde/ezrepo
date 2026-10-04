@@ -4,8 +4,13 @@ import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../auth/types.js';
 import { McpTokenService } from './mcp-token.service.js';
 
-const viewer: AuthenticatedUser = { id: 'user-id', role: 'VIEWER', username: 'viewer' };
-const admin: AuthenticatedUser = { id: 'admin-id', role: 'SYSTEM_ADMIN', username: 'admin' };
+const viewer: AuthenticatedUser = { authProvider: 'LOCAL' as const, id: 'user-id', role: 'VIEWER', username: 'viewer' };
+const admin: AuthenticatedUser = {
+  authProvider: 'LOCAL' as const,
+  id: 'admin-id',
+  role: 'SYSTEM_ADMIN',
+  username: 'admin',
+};
 const persistedToken = {
   createdAt: new Date('2026-09-12T10:00:00.000Z'),
   expiresAt: null,

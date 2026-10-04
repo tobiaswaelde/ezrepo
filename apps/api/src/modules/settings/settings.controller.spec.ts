@@ -26,15 +26,21 @@ describe('SettingsController', () => {
 
   it('updates settings for a system administrator', async () => {
     await expect(
-      controller.update({ user: { id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' } }, persisted),
+      controller.update(
+        { user: { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' } },
+        persisted,
+      ),
     ).resolves.toBe(persisted);
     expect(settings.update).toHaveBeenCalledWith(persisted);
   });
 
   it('rejects updates from non-administrators', () => {
-    expect(() => controller.update({ user: { id: 'viewer', role: 'VIEWER', username: 'viewer' } }, persisted)).toThrow(
-      ForbiddenException,
-    );
+    expect(() =>
+      controller.update(
+        { user: { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' } },
+        persisted,
+      ),
+    ).toThrow(ForbiddenException);
     expect(settings.update).not.toHaveBeenCalled();
   });
 });

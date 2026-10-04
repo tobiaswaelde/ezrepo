@@ -43,9 +43,13 @@ describe('RepositoriesController', () => {
     );
 
     await expect(
-      controller.update({ user: { id: 'viewer', role: 'VIEWER', username: 'viewer' } }, 'repository-1', {
-        issueRetentionDays: 30,
-      }),
+      controller.update(
+        { user: { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' } },
+        'repository-1',
+        {
+          issueRetentionDays: 30,
+        },
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.repository.update).not.toHaveBeenCalled();
   });
@@ -99,7 +103,10 @@ describe('RepositoriesController', () => {
       repositories as unknown as RepositoriesQueryService,
     );
 
-    const response = await controller.query({ user: { id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' } }, query);
+    const response = await controller.query(
+      { user: { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' } },
+      query,
+    );
 
     expect(repositories.query).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -172,7 +179,7 @@ describe('RepositoriesController', () => {
       {} as RepositoryConfigurationService,
       repositories as unknown as RepositoriesQueryService,
     );
-    const viewer = { id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
+    const viewer = { authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER' as const, username: 'viewer' };
 
     await expect(controller.findById({ user: viewer }, repository.id)).resolves.toMatchObject({
       id: repository.id,

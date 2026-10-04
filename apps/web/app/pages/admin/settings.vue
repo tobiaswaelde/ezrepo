@@ -44,6 +44,11 @@ const navigation = computed<NavigationMenuItem[][]>(() => [
     ...(auth.user?.role === 'SYSTEM_ADMIN'
       ? [
           {
+            icon: 'i-lucide-shield-check',
+            label: t('settings.tabs.authentication'),
+            to: '/admin/settings/authentication',
+          },
+          {
             icon: 'i-lucide-settings-2',
             label: t('settings.tabs.system'),
             to: '/admin/settings/system',

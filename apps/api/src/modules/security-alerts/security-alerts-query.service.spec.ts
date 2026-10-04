@@ -8,9 +8,9 @@ describe('SecurityAlertsQueryService', () => {
   it('rejects viewers before any alert query can run', async () => {
     const { service } = createService();
 
-    await expect(service.getReadAbility({ id: 'viewer', role: 'VIEWER', username: 'viewer' })).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.getReadAbility({ authProvider: 'LOCAL' as const, id: 'viewer', role: 'VIEWER', username: 'viewer' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('builds manager abilities from manager memberships only', async () => {
@@ -18,7 +18,7 @@ describe('SecurityAlertsQueryService', () => {
     prisma.repositoryMembership.findMany.mockResolvedValue([{ repositoryId: 'managed', role: 'MANAGER' }]);
     const ability = { can: jest.fn() };
     abilityFactory.createForUser.mockReturnValue(ability);
-    const user = { id: 'manager', role: 'MANAGER' as const, username: 'manager' };
+    const user = { authProvider: 'LOCAL' as const, id: 'manager', role: 'MANAGER' as const, username: 'manager' };
 
     await expect(service.getReadAbility(user)).resolves.toBe(ability);
     await expect(service.visibleRepositoryIds(user)).resolves.toEqual(['managed']);
@@ -31,7 +31,7 @@ describe('SecurityAlertsQueryService', () => {
   it('leaves system administrators unrestricted', async () => {
     const { abilityFactory, prisma, service } = createService();
     abilityFactory.createForUser.mockReturnValue({});
-    const user = { id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
+    const user = { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN' as const, username: 'admin' };
 
     await service.getReadAbility(user);
     await expect(service.visibleRepositoryIds(user)).resolves.toBeUndefined();
