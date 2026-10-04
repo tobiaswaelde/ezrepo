@@ -14,6 +14,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineProps } from 'vue';
 import type { WorkItemLabel } from '~/types/api/resources';
 
 defineProps<{ labels: WorkItemLabel[] }>();

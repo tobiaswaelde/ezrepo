@@ -66,6 +66,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 
+import { defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { usePendingActions } from '~/composables/use-pending-actions';
 import type { WorkflowFilter } from '~/types/api/resources';

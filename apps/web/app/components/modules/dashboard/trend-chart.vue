@@ -84,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineProps } from 'vue';
 import type { WorkflowRunTrendBucket } from '~/types/api/resources';
 
 const props = defineProps<{

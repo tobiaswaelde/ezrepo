@@ -70,6 +70,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineModel, defineProps } from 'vue';
 import { useDateTime } from '~/composables/use-date-time';
 import type { NotificationDelivery } from '~/types/api/resources';
 defineProps<{ delivery: NotificationDelivery | null }>();

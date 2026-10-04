@@ -48,7 +48,7 @@
 
 <script setup lang="ts">
 import Cropper from 'cropperjs';
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { defineEmits, defineModel, defineProps, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 defineProps<{ source: string }>();
 const open = defineModel<boolean>('open', { required: true });

@@ -78,6 +78,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
+import { defineEmits, defineModel, defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useAuthStore } from '~/store/auth';
 import type { Repository, RepositoryWebhookConfiguration } from '~/types/api/resources';

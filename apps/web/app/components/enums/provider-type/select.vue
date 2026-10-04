@@ -10,6 +10,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineModel, defineProps } from 'vue';
 import { useProviderType } from '~/composables/enums/provider-type';
 import { providerTypes, type ProviderType } from '~/types/api/resources';
 

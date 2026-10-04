@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineProps } from 'vue';
 import type { DashboardSummary } from '~/types/api/resources';
 
 const props = defineProps<{

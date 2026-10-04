@@ -57,6 +57,7 @@
 import type { TableColumn } from '#ui/types';
 import { computed, ref } from 'vue';
 
+import { defineModel, defineProps } from 'vue';
 import type { ProviderRepository } from '~/types/api/resources';
 
 const props = defineProps<{

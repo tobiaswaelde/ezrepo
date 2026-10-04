@@ -6,6 +6,7 @@
 import type { AvatarProps } from '#ui/components/Avatar.vue';
 import { computed, ref, watch } from 'vue';
 
+import { defineProps, withDefaults } from 'vue';
 import { useAvatarImages } from '~/composables/app/avatar-images';
 import { getUserIdentityLabel, getUserInitials } from '~/utils/user-identity';
 

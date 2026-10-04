@@ -168,6 +168,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 
+import { defineEmits, defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useDateTime } from '~/composables/use-date-time';
 import type { RepositoryWebhookConfiguration } from '~/types/api/resources';

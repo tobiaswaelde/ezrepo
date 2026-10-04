@@ -89,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useDateTime } from '~/composables/use-date-time';
 import type { Issue, PullRequest } from '~/types/api/resources';

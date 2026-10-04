@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import type { BadgeProps } from '#ui/types';
 
+import { defineProps } from 'vue';
 import { useProviderType } from '~/composables/enums/provider-type';
 import type { ProviderType } from '~/types/api/resources';
 

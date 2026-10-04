@@ -61,6 +61,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
+import { defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useDateTime } from '~/composables/use-date-time';
 

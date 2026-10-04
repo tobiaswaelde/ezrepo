@@ -123,6 +123,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { FilterFieldType, type FilterField, type Filtering, type SortingField } from '@querry-kit/nuxt-ui/types';
 import { refDebounced } from '@vueuse/core';
+import { defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useSystemStatusState } from '~/composables/api/system-status';
 import { useTable } from '~/composables/api/table';

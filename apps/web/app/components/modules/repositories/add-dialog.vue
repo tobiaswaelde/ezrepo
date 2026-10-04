@@ -109,6 +109,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
+import { defineEmits, defineModel } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useProviderType } from '~/composables/enums/provider-type';
 import type { ProviderAccount, ProviderRepository } from '~/types/api/resources';

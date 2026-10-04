@@ -6,7 +6,18 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/.nuxt/**', '**/coverage/**', '**/generated/**', '.nx/**'],
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.nuxt/**',
+      '**/.output/**',
+      '**/.vitepress/cache/**',
+      '**/coverage/**',
+      '**/generated/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
+      '.nx/**',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
@@ -41,6 +52,14 @@ export default tseslint.config(
           alphabetical: false,
         },
       ],
+    },
+  },
+  {
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+      },
     },
   },
   prettierConfig,

@@ -11,14 +11,21 @@ publicHoistPattern:
   - vue-i18n
 
 overrides:
-  '@tiptap/core@>=3.7.0 <3.30.5': 3.31.3
-  '@tiptap/pm@>=3.7.0 <3.31.3': 3.31.3
+  '@tiptap/core@>=3.7.0 <3.30.5': 3.31.4
+  '@tiptap/pm@>=3.7.0 <3.31.3': 3.31.4
+  'axios@<1.20.0': 1.20.0
+  'brace-expansion@<1.1.21': 1.1.21
+  'brace-expansion@>=2.0.0 <2.1.7': 2.1.7
+  'brace-expansion@>=4.0.0 <5.0.12': 5.0.12
+  'devalue@<=5.9.2': 5.9.3
   'deepmerge-ts@<8.0.0': 8.0.0
   'esbuild@>=0.27.3 <0.28.1': 0.28.2
+  'fast-uri@>=3.0.0 <3.1.8': 3.1.8
   'js-yaml@>=3.0.0 <3.15.2': 3.15.2
   'multer@<2.3.0': 2.3.0
   'mysql2@<=3.23.0': 3.23.1
   'nx>smol-toml': 1.7.1
+  'serialize-javascript@>=7.1.1 <7.1.2': 7.1.2
   'vitepress>vite': 6.4.3
 
 allowBuilds:
@@ -55,3 +62,7 @@ minimumReleaseAgeExclude:
   - prisma@7.10.0
   - rollup@4.63.2
   - yaml@2.9.1
+
+patchedDependencies:
+  braces@3.0.3: patches/braces@3.0.3.patch
+  node-forge@1.4.0: patches/node-forge@1.4.0.patch

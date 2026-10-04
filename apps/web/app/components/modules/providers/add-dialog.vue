@@ -68,6 +68,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 
+import { defineEmits, defineModel } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useUnsavedChangesGuard } from '~/composables/use-unsaved-changes-guard';
 import { providerOAuthFormSchema, providerPatFormSchema, type ProviderType } from '~/types/api/resources';

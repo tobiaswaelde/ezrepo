@@ -130,6 +130,7 @@
 import { FilterFieldType, type FilterField, type SortingField } from '@querry-kit/nuxt-ui/types';
 import { refDebounced } from '@vueuse/core';
 
+import { defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useTable } from '~/composables/api/table';
 import { useProviderType } from '~/composables/enums/provider-type';

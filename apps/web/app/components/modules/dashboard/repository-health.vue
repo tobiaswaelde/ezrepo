@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineProps } from 'vue';
 import type { RepositoryHealth } from '~/types/api/resources';
 
 defineProps<{

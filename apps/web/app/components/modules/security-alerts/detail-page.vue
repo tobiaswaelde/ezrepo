@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useDateTime } from '~/composables/use-date-time';
 import type { SecurityAlert } from '~/types/api/resources';

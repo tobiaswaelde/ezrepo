@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, defineProps, withDefaults } from 'vue';
 
 interface PageBreadcrumbItem {
   icon?: string;

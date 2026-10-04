@@ -77,6 +77,7 @@
 import { useNow } from '@vueuse/core';
 import { computed } from 'vue';
 
+import { defineProps } from 'vue';
 import { useDateTime } from '~/composables/use-date-time';
 import type { RepositoryDetail } from '~/types/api/resources';
 import { syncErrorKind } from '~/util/sync-error';

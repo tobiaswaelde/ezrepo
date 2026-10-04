@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { defineProps } from 'vue';
 import { useDateTime } from '~/composables/use-date-time';
 import type { DashboardWorkflowRun } from '~/types/api/resources';
 

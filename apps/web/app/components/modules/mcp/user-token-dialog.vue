@@ -60,6 +60,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
+import { defineModel, defineProps } from 'vue';
 import { useEzRepoApi } from '~/composables/api/ezrepo-api';
 import { useDateTime } from '~/composables/use-date-time';
 import type { McpAccessToken, McpAccessTokenStatus, User } from '~/types/api/resources';

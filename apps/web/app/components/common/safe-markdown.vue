@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { defineProps } from 'vue';
 
 const props = defineProps<{ source: string }>();
 const renderer = new marked.Renderer();
