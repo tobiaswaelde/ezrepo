@@ -95,11 +95,10 @@ export class DashboardService {
    */
   async getAwaitingApproval(user: AuthenticatedUser): Promise<DashboardWorkflowRunModel[]> {
     const ability = await this.workflowRuns.getReadAbility(user);
-    return this.workflowRuns.findCurrent<DashboardWorkflowRunModel>(
+    return this.workflowRuns.findAwaitingApproval<DashboardWorkflowRunModel>(
       {
         include: dashboardRunInclude,
         orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
-        where: { awaitingApproval: true },
       },
       ability,
     );
@@ -138,30 +137,29 @@ export class DashboardService {
     const visibleRepositoryWhere = accessibleBy(ability, CaslAction.Read).ofType(
       CaslSubject.Repository as never,
     ) as Prisma.RepositoryWhereInput;
-    const [completedRuns, activeRuns, currentDuration, retainedDuration, securityAlerts] = await Promise.all([
-      this.workflowRuns.findMany<DashboardSummaryRun>(
-        {
-          select: dashboardSummarySelect,
-          where: {
-            completedAt: { gte: from.toISOString(), lte: to.toISOString() },
-            status: { in: [...completedDashboardStatuses] },
+    const [completedRuns, activeRuns, awaitingApprovalRuns, currentDuration, retainedDuration, securityAlerts] =
+      await Promise.all([
+        this.workflowRuns.findMany<DashboardSummaryRun>(
+          {
+            select: dashboardSummarySelect,
+            where: {
+              completedAt: { gte: from.toISOString(), lte: to.toISOString() },
+              status: { in: [...completedDashboardStatuses] },
+            },
           },
-        },
-        ability,
-      ),
-      this.workflowRuns.findCurrent<DashboardSummaryRun>(
-        { select: dashboardSummarySelect, where: { status: { in: ['QUEUED', 'RUNNING'] } } },
-        ability,
-      ),
-      this.prisma.workflowRun.aggregate({ _sum: { durationMs: true }, where: visibleRunWhere }),
-      this.prisma.repository.aggregate({ _sum: { retainedRunDurationMs: true }, where: visibleRepositoryWhere }),
-      this.getSecurityAlertSummary(user),
-    ]);
+          ability,
+        ),
+        this.workflowRuns.findActive<DashboardSummaryRun>({ select: dashboardSummarySelect }, ability),
+        this.workflowRuns.findAwaitingApproval<{ id: string }>({ select: { id: true } }, ability),
+        this.prisma.workflowRun.aggregate({ _sum: { durationMs: true }, where: visibleRunWhere }),
+        this.prisma.repository.aggregate({ _sum: { retainedRunDurationMs: true }, where: visibleRepositoryWhere }),
+        this.getSecurityAlertSummary(user),
+      ]);
     const statuses = this.countStatuses(completedRuns);
     const decidedCount = statuses.success + statuses.failed;
 
     return {
-      awaitingApprovalCount: activeRuns.filter((run) => run.awaitingApproval).length,
+      awaitingApprovalCount: awaitingApprovalRuns.length,
       completedCount: completedRuns.length,
       medianDurationMs: this.median(
         completedRuns.flatMap((run) => (run.durationMs === null ? [] : [Number(run.durationMs)])),

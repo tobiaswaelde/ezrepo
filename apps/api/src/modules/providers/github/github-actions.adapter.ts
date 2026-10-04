@@ -780,8 +780,8 @@ export class GitHubActionsAdapter implements ProviderAdapter {
    * Preserve the pull-request execution context when GitHub omits it from the Actions run payload.
    *
    * GitHub can return an empty `pull_requests` array for historical pull-request runs after their branch is merged.
-   * Looking up pull requests associated with the immutable head commit keeps the lookup read-only and lets a later
-   * successful validation on the target branch retire the stale failure.
+   * Looking up pull requests associated with the immutable head commit keeps the lookup read-only and lets pull-request
+   * lifecycle reconciliation retire stale failures and approval requests after the change request closes.
    *
    * @param context - Provider account credentials and instance configuration for this request.
    * @param repository - Repository identity and metadata required by the operation.
@@ -796,12 +796,7 @@ export class GitHubActionsAdapter implements ProviderAdapter {
     repository: ProviderRepositoryReference,
     run: GitHubWorkflowRunResponse,
   ): Promise<ProviderWorkflowRun> {
-    if (
-      run.event === 'pull_request' &&
-      normalizeWorkflowRunStatus('GITHUB', run.status, run.conclusion) === 'FAILED' &&
-      !run.pull_requests?.length &&
-      run.head_sha
-    ) {
+    if (run.event === 'pull_request' && !run.pull_requests?.length && run.head_sha) {
       const pullRequests = await this.request<GitHubPullRequestResponse[]>(
         context,
         `/repos/${repository.owner}/${repository.name}/commits/${run.head_sha}/pulls?per_page=1`,

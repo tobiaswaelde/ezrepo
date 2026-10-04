@@ -208,11 +208,9 @@ export class McpToolsService {
     input: McpWorkflowRunFilters,
   ): Promise<McpPaginatedResult<DashboardWorkflowRunDto>> {
     const ability = await this.workflowRuns.getReadAbility(user);
-    const where = {
-      AND: [this.workflowRunWhere(input), { awaitingApproval: true }],
-    } satisfies Prisma.WorkflowRunWhereInput;
+    const where = this.workflowRunWhere(input);
     const [items, totalItems] = await Promise.all([
-      this.workflowRuns.findCurrent<DashboardWorkflowRunModel>(
+      this.workflowRuns.findAwaitingApproval<DashboardWorkflowRunModel>(
         {
           include: dashboardRunInclude,
           skip: (input.page - 1) * input.limit,
@@ -221,7 +219,7 @@ export class McpToolsService {
         },
         ability,
       ),
-      this.workflowRuns.findCurrent<{ id: string }>({ select: { id: true }, where }, ability),
+      this.workflowRuns.findAwaitingApproval<{ id: string }>({ select: { id: true }, where }, ability),
     ]);
     return this.paginated(items.map(DashboardWorkflowRunDto.fromModel), totalItems.length, input);
   }

@@ -73,6 +73,98 @@ describe('WorkItemSyncService', () => {
     ]);
   });
 
+  it('propagates a merged pull-request lifecycle to its existing workflow runs', async () => {
+    const mergedAt = new Date('2026-10-04T01:32:04.000Z');
+    const providerCreatedAt = new Date('2026-10-03T20:00:00.000Z');
+    const providerUpdatedAt = new Date('2026-10-04T01:32:04.000Z');
+    const persistedPullRequest = {
+      authorId: null,
+      body: null,
+      closedAt: mergedAt,
+      createdAt: providerCreatedAt,
+      draft: false,
+      id: 'pull-request-id',
+      mergedAt,
+      number: '1',
+      providerCreatedAt,
+      providerPullRequestId: 'provider-pull-request-id',
+      providerUpdatedAt,
+      repositoryId: 'repository',
+      sourceBranch: 'changeset-release/main',
+      state: 'MERGED' as const,
+      targetBranch: 'main',
+      title: 'Version Packages',
+      updatedAt: providerUpdatedAt,
+      url: 'https://github.com/octo/ezrepo/pull/1',
+      workflowApprovalRequired: true,
+      workflowStatus: 'PENDING' as const,
+    };
+    const transaction = {
+      pullRequest: { upsert: jest.fn().mockResolvedValue(persistedPullRequest) },
+      pullRequestAssignee: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      pullRequestLabel: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      workflowRun: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    const prisma = {
+      pullRequest: {
+        findUnique: jest.fn().mockResolvedValue({ state: 'OPEN' }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ state: 'MERGED' }),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      transaction: jest.fn((callback) => callback(transaction)),
+      workflowRun: {
+        findMany: jest.fn().mockResolvedValue([{ awaitingApproval: true, status: 'QUEUED' }]),
+      },
+      workItemSyncCursor: { findUnique: jest.fn().mockResolvedValue(null), upsert: jest.fn().mockResolvedValue({}) },
+    };
+    const adapter = {
+      listPullRequests: jest.fn().mockResolvedValue([
+        {
+          assignees: [],
+          author: null,
+          body: null,
+          closedAt: mergedAt,
+          draft: false,
+          labels: [],
+          mergedAt,
+          number: '1',
+          providerCreatedAt,
+          providerPullRequestId: 'provider-pull-request-id',
+          providerUpdatedAt,
+          sourceBranch: 'changeset-release/main',
+          state: 'MERGED',
+          targetBranch: 'main',
+          title: 'Version Packages',
+          url: 'https://github.com/octo/ezrepo/pull/1',
+        },
+      ]),
+    } as unknown as ProviderAdapter;
+    const service = new WorkItemSyncService(prisma as unknown as PrismaService, notifications as never);
+
+    await service.synchronize(
+      { accessToken: 'token', baseUrl: null, providerAccountId: 'account' },
+      { id: 'repository', name: 'ezrepo', owner: 'octo', providerAccountId: 'account', providerRepositoryId: '1' },
+      adapter,
+      ['PULL_REQUESTS'],
+    );
+
+    expect(transaction.workflowRun.updateMany).toHaveBeenCalledWith({
+      data: {
+        changeRequestCheckedAt: expect.any(Date),
+        changeRequestMergedAt: mergedAt,
+        changeRequestState: 'MERGED',
+        changeRequestTargetBranch: 'main',
+        pullRequestId: 'pull-request-id',
+        scopeKey: 'change-request:1',
+      },
+      where: { changeRequestNumber: '1', repositoryId: 'repository' },
+    });
+    expect(prisma.pullRequest.update).toHaveBeenCalledWith({
+      data: { workflowApprovalRequired: false, workflowStatus: 'PENDING' },
+      where: { id: 'pull-request-id' },
+    });
+  });
+
   it.each([
     [['SUCCESS', 'SKIPPED'], 'SUCCESS'],
     [['SUCCESS', 'QUEUED'], 'PENDING'],
@@ -84,7 +176,10 @@ describe('WorkItemSyncService', () => {
     [[], 'UNKNOWN'],
   ] as const)('aggregates current workflow states %j as %s', async (statuses, expected) => {
     const prisma = {
-      pullRequest: { update: jest.fn().mockResolvedValue(undefined) },
+      pullRequest: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ state: 'OPEN' }),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
       workflowRun: {
         findMany: jest.fn().mockResolvedValue(
           statuses.map((status, index) => ({
@@ -102,12 +197,35 @@ describe('WorkItemSyncService', () => {
     });
   });
 
+  it('does not report workflow approval for a merged pull request', async () => {
+    const prisma = {
+      pullRequest: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ state: 'MERGED' }),
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      workflowRun: {
+        findMany: jest.fn().mockResolvedValue([{ awaitingApproval: true, status: 'QUEUED' }]),
+      },
+    };
+    const service = new WorkItemSyncService(prisma as unknown as PrismaService, notifications as never);
+
+    await service.refreshPullRequestWorkflowStatus('pull-request-id');
+
+    expect(prisma.pullRequest.update).toHaveBeenCalledWith({
+      data: { workflowApprovalRequired: false, workflowStatus: 'PENDING' },
+      where: { id: 'pull-request-id' },
+    });
+  });
+
   it('reconciles branch-scoped runs with the pull request active at each run timestamp', async () => {
     const oldRunAt = new Date('2026-08-05T10:00:00.000Z');
     const oldSuccessAt = new Date('2026-08-06T10:00:00.000Z');
     const newRunAt = new Date('2026-09-05T10:00:00.000Z');
     const prisma = {
       pullRequest: {
+        findUniqueOrThrow: jest.fn(({ where }) =>
+          Promise.resolve({ state: where.id === 'new-pull-request' ? 'OPEN' : 'MERGED' }),
+        ),
         findMany: jest.fn().mockResolvedValue([
           {
             closedAt: null,

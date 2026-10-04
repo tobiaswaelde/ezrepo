@@ -500,7 +500,14 @@ export class WorkItemSyncService {
         data: labelIds.map((labelId) => ({ labelId, pullRequestId: persisted.id })),
       });
     await transaction.workflowRun.updateMany({
-      data: { pullRequestId: persisted.id },
+      data: {
+        changeRequestCheckedAt: new Date(),
+        changeRequestMergedAt: persisted.mergedAt,
+        changeRequestState: persisted.state,
+        changeRequestTargetBranch: persisted.targetBranch,
+        pullRequestId: persisted.id,
+        scopeKey: `change-request:${persisted.number}`,
+      },
       where: { changeRequestNumber: persisted.number, repositoryId: repository.id },
     });
     return persisted;
@@ -537,15 +544,18 @@ export class WorkItemSyncService {
    * @returns A promise that resolves when the operation completes.
    */
   async refreshPullRequestWorkflowStatus(pullRequestId: string): Promise<void> {
-    const runs = await this.prisma.workflowRun.findMany({
-      distinct: ['workflowId', 'scopeKey'],
-      orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
-      select: { awaitingApproval: true, status: true },
-      where: { pullRequestId },
-    });
+    const [pullRequest, runs] = await Promise.all([
+      this.prisma.pullRequest.findUniqueOrThrow({ select: { state: true }, where: { id: pullRequestId } }),
+      this.prisma.workflowRun.findMany({
+        distinct: ['workflowId', 'scopeKey'],
+        orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
+        select: { awaitingApproval: true, status: true },
+        where: { pullRequestId },
+      }),
+    ]);
     await this.prisma.pullRequest.update({
       data: {
-        workflowApprovalRequired: runs.some((run) => run.awaitingApproval),
+        workflowApprovalRequired: pullRequest.state === 'OPEN' && runs.some((run) => run.awaitingApproval),
         workflowStatus: this.aggregateWorkflowStatus(runs.map((run) => run.status)),
       },
       where: { id: pullRequestId },

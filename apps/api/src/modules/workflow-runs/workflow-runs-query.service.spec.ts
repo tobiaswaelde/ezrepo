@@ -213,4 +213,89 @@ describe('WorkflowRunsQueryService', () => {
       }),
     );
   });
+
+  it('centralizes actionable approval selection without hiding open or unknown contexts', async () => {
+    const mocks = {
+      workflowRun: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([{ id: 'open-approval' }, { id: 'unknown-approval' }, { id: 'merged-approval' }])
+          .mockResolvedValueOnce([{ id: 'open-approval' }, { id: 'unknown-approval' }]),
+      },
+    };
+    const service = new WorkflowRunsQueryService(mocks as unknown as PrismaService, new CaslAbilityFactory());
+    const ability = new CaslAbilityFactory().createForUser(
+      { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
+      [],
+    );
+
+    await expect(
+      service.findAwaitingApproval<{ id: string }>(
+        { select: { id: true }, where: { repositoryId: 'repository' } },
+        ability,
+      ),
+    ).resolves.toEqual([{ id: 'open-approval' }, { id: 'unknown-approval' }]);
+    expect(mocks.workflowRun.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          AND: [
+            {},
+            {
+              AND: [
+                { id: { in: ['open-approval', 'unknown-approval', 'merged-approval'] } },
+                {
+                  AND: [
+                    { AND: [{ awaitingApproval: true }, { changeRequestState: { notIn: ['CLOSED', 'MERGED'] } }] },
+                    { repositoryId: 'repository' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('excludes terminal change requests from active workflow selection', async () => {
+    const mocks = {
+      workflowRun: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([{ id: 'branch-run' }, { id: 'merged-run' }])
+          .mockResolvedValueOnce([{ id: 'branch-run' }]),
+      },
+    };
+    const service = new WorkflowRunsQueryService(mocks as unknown as PrismaService, new CaslAbilityFactory());
+    const ability = new CaslAbilityFactory().createForUser(
+      { authProvider: 'LOCAL' as const, id: 'admin', role: 'SYSTEM_ADMIN', username: 'admin' },
+      [],
+    );
+
+    await expect(service.findActive<{ id: string }>({ select: { id: true } }, ability)).resolves.toEqual([
+      { id: 'branch-run' },
+    ]);
+    expect(mocks.workflowRun.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          AND: [
+            {},
+            {
+              AND: [
+                { id: { in: ['branch-run', 'merged-run'] } },
+                {
+                  AND: [
+                    { status: { in: ['QUEUED', 'RUNNING'] } },
+                    { changeRequestState: { notIn: ['CLOSED', 'MERGED'] } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+  });
 });

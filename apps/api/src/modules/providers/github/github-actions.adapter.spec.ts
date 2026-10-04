@@ -177,7 +177,7 @@ describe('GitHubActionsAdapter', () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
-  it('resolves a pull request from its head commit when GitHub omits it from a workflow run', async () => {
+  it('resolves an approval-gated pull request from its head commit when GitHub omits it from a workflow run', async () => {
     const fetchFn = jest
       .fn()
       .mockResolvedValueOnce(
@@ -185,7 +185,7 @@ describe('GitHubActionsAdapter', () => {
           JSON.stringify({
             workflow_runs: [
               {
-                conclusion: 'failure',
+                conclusion: 'action_required',
                 created_at: '2026-09-01T08:19:23Z',
                 display_title: 'Update Jest',
                 event: 'pull_request',
@@ -210,9 +210,11 @@ describe('GitHubActionsAdapter', () => {
       adapter.listWorkflowRuns(context, { providerRepositoryId: '1', owner: 'octo', name: 'ezrepo' }),
     ).resolves.toMatchObject([
       {
+        awaitingApproval: true,
         changeRequestNumber: '14',
         reviewUrl: 'https://github.com/octo/ezrepo/pull/14',
         scopeKey: 'change-request:14',
+        status: 'QUEUED',
       },
     ]);
     expect(fetchFn).toHaveBeenNthCalledWith(

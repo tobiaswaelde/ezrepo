@@ -24,6 +24,18 @@ const needsAttentionCandidateWhere = {
   workflow: { kind: 'STANDARD' },
 } satisfies Prisma.WorkflowRunWhereInput;
 
+const actionableChangeRequestWhere = {
+  changeRequestState: { notIn: ['CLOSED', 'MERGED'] },
+} satisfies Prisma.WorkflowRunWhereInput;
+
+const awaitingApprovalWhere = {
+  AND: [{ awaitingApproval: true }, actionableChangeRequestWhere],
+} satisfies Prisma.WorkflowRunWhereInput;
+
+const activeWorkflowRunWhere = {
+  AND: [{ status: { in: ['QUEUED', 'RUNNING'] } }, actionableChangeRequestWhere],
+} satisfies Prisma.WorkflowRunWhereInput;
+
 type LatestTerminalWorkflowRun = Pick<WorkflowRun, 'changeRequestState' | 'id' | 'status'>;
 
 /** Prisma delegate type map used by Query Kit for workflow-run resources. */
@@ -172,6 +184,48 @@ export class WorkflowRunsQueryService extends QueryService<
         ...options,
         orderBy: options.orderBy ?? [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
         where: this.combineWhere(await this.getCurrentWhere(ability), options.where),
+      },
+      ability,
+    );
+  }
+
+  /**
+   * Read current approval-gated runs whose change request can still be acted upon.
+   *
+   * @param options - Prisma-compatible selection, relations, ordering, and caller filters.
+   * @param ability - Repository-scoped read ability.
+   * @returns Visible current workflow runs with an actionable provider approval.
+   * @typeParam T - Result type preserved by this operation.
+   */
+  async findAwaitingApproval<T = unknown>(
+    options: QueryOptionsMap<WorkflowRunTypeMap>['findMany'],
+    ability: AppAbility,
+  ): Promise<T[]> {
+    return this.findCurrent<T>(
+      {
+        ...options,
+        where: this.combineWhere(awaitingApprovalWhere, options.where),
+      },
+      ability,
+    );
+  }
+
+  /**
+   * Read current queued and running workflows whose change request can still be acted upon.
+   *
+   * @param options - Prisma-compatible selection, relations, ordering, and caller filters.
+   * @param ability - Repository-scoped read ability.
+   * @returns Visible current active runs outside terminal change-request contexts.
+   * @typeParam T - Result type preserved by this operation.
+   */
+  async findActive<T = unknown>(
+    options: QueryOptionsMap<WorkflowRunTypeMap>['findMany'],
+    ability: AppAbility,
+  ): Promise<T[]> {
+    return this.findCurrent<T>(
+      {
+        ...options,
+        where: this.combineWhere(activeWorkflowRunWhere, options.where),
       },
       ability,
     );

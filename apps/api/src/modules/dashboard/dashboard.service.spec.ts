@@ -72,7 +72,7 @@ describe('DashboardService', () => {
   it('returns visible approval-gated runs ordered by provider creation time', async () => {
     const ability = {};
     const workflowRuns = {
-      findCurrent: jest.fn().mockResolvedValue([
+      findAwaitingApproval: jest.fn().mockResolvedValue([
         run({
           completedAt: null,
           providerCreatedAt: '2026-08-26T11:00:00.000Z',
@@ -92,11 +92,10 @@ describe('DashboardService', () => {
         username: 'viewer',
       }),
     ).resolves.toHaveLength(1);
-    expect(workflowRuns.findCurrent).toHaveBeenCalledWith(
+    expect(workflowRuns.findAwaitingApproval).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.anything(),
         orderBy: [{ providerCreatedAt: 'desc' }, { id: 'desc' }],
-        where: { awaitingApproval: true },
       }),
       ability,
     );
@@ -153,10 +152,11 @@ describe('DashboardService', () => {
       [],
     );
     const workflowRuns = {
-      findCurrent: jest.fn().mockResolvedValue([
+      findActive: jest.fn().mockResolvedValue([
         { awaitingApproval: true, durationMs: null, status: 'QUEUED' },
         { awaitingApproval: false, durationMs: null, status: 'RUNNING' },
       ]),
+      findAwaitingApproval: jest.fn().mockResolvedValue([{ id: 'approval' }]),
       findMany: jest.fn().mockResolvedValue([
         { awaitingApproval: false, durationMs: 2_592_164_000n, status: 'SUCCESS' },
         { awaitingApproval: false, durationMs: 2_592_304_000n, status: 'FAILED' },
@@ -182,13 +182,11 @@ describe('DashboardService', () => {
     });
     expect(workflowRuns.getReadAbility).toHaveBeenCalledTimes(1);
     expect(workflowRuns.findMany).toHaveBeenCalledTimes(1);
-    expect(workflowRuns.findCurrent).toHaveBeenCalledWith(
-      {
-        select: { awaitingApproval: true, durationMs: true, status: true },
-        where: { status: { in: ['QUEUED', 'RUNNING'] } },
-      },
+    expect(workflowRuns.findActive).toHaveBeenCalledWith(
+      { select: { awaitingApproval: true, durationMs: true, status: true } },
       ability,
     );
+    expect(workflowRuns.findAwaitingApproval).toHaveBeenCalledWith({ select: { id: true } }, ability);
   });
 
   it('ranks visible repository health by failures and success rate', async () => {
