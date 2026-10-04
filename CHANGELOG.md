@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.2
+
+### Patch Changes
+
+- c25de60: Update compatible npm dependencies, remediate transitive security advisories, and restore the shared CI lint check.
+- 6e2cef6: Hide stale workflow approval requests after their pull request is closed or merged.
+- 80fc8fd: Add optional OpenID Connect sign-in with PKCE, group-based roles, and a secure browser session handoff.
+
 ## 0.8.1
 
 ### Patch Changes
